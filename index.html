@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign Assistant</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  margin: 0;
+  padding: 16px;
+}
+
+h1 {
+  color: #38bdf8;
+  text-align: center;
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  border-radius: 8px;
+  border: none;
+  padding: 12px;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  font-size: 18px;
+  background: #38bdf8;
+  border: none;
+  border-radius: 8px;
+  color: #020617;
+}
+
+#output {
+  margin-top: 20px;
+  background: #1e293b;
+  padding: 12px;
+  border-radius: 8px;
+  min-height: 60px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧠 Sovereign Assistant</h1>
+
+<textarea id="input" placeholder="اكتب أمرك هنا"></textarea>
+
+<button onclick="run()">تنفيذ</button>
+
+<div id="output">في انتظار الأمر…</div>
+
+<script>
+function run() {
+  const text = document.getElementById("input").value.trim();
+  if (!text) return;
+
+  let response = decide(text);
+  document.getElementById("output").innerText = response;
+}
+
+function decide(text) {
+  if (text.includes("حل")) {
+    return "حدّد المشكلة → نفّذ إجراء واحد → أغلِق.";
+  }
+  if (text.includes("خط")) {
+    return "هدف واحد → خطوة واحدة → تنفيذ → إغلاق.";
+  }
+  return "نفّذ الآن ثم أغلِق.";
+}
+</script>
+
+</body>
+</html>
