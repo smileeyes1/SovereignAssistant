@@ -32,8 +32,8 @@ def test_dead_letter_is_detected_and_persisted_as_blocker(tmp_path):
     assert saved["dead_work_count"] == 1
 
 
-def test_idle_ready_roadmap_emits_durable_recovery_event(tmp_path):
-    rt = runtime(tmp_path)
+def test_idle_ready_roadmap_emits_durable_recovery_event_when_coding_is_available(tmp_path):
+    rt = runtime(tmp_path, allow_file_write=True)
     GoalPortfolio(rt).save_all([Goal("next", "Next", "continue roadmap", 10)])
     report = AutonomySelfAuditor(rt).run_once(force=True)
     assert report.status == "recovery_enqueued"
@@ -41,6 +41,18 @@ def test_idle_ready_roadmap_emits_durable_recovery_event(tmp_path):
     queued = rt.queue.get(report.recovery_event)
     assert queued is not None
     assert queued.status == "pending"
+
+
+def test_unfinished_mission_without_coding_capability_is_not_silent_idle(tmp_path):
+    rt = runtime(tmp_path, allow_file_write=False)
+    GoalPortfolio(rt).save_all([Goal("next", "Next", "continue roadmap", 10)])
+    report = AutonomySelfAuditor(rt).run_once(force=True)
+    assert report.status == "blocked"
+    assert report.recovery_event is None
+    assert any("mission incomplete" in blocker and "next" in blocker for blocker in report.blockers)
+    saved = rt.state.get_state("omega.self_audit.last")
+    assert saved["mission_complete"] is False
+    assert saved["next_ready_goal"] == "next"
 
 
 def test_exhausted_repair_budget_blocks_silent_loop(tmp_path):
