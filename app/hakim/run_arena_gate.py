@@ -15,6 +15,15 @@ from .durable_worker import DurableWorkQueue
 from .event_continuation import ContinuationEvent, EventType
 from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
 from .recovery_governor import ActionRegistry, RecoveryGovernor, RegisteredAction, strong_claim
+from .state_reconstruction import (
+    CanonicalStateReconstructor,
+    DiverseVerifier,
+    DurableStateEvidence,
+    EvidenceView,
+    VerificationOpinion,
+    VerificationVerdict,
+    checkpoint_view,
+)
 from .survival_controller import FailureClass, OperatingMode, SurvivalController
 
 
@@ -55,14 +64,7 @@ def unsafe_action_probe() -> bool:
     kernel = MissionKernel(
         OperationalEnvelope(frozenset({"patch", "rollback"}), max_risk=2, require_reversible_above=1, min_evidence=1)
     )
-    unsafe = MissionAction(
-        "irreversible-prod-mutation",
-        "patch",
-        2,
-        False,
-        AuthorityLevel.CONSEQUENTIAL,
-        ("arena",),
-    )
+    unsafe = MissionAction("irreversible-prod-mutation", "patch", 2, False, AuthorityLevel.CONSEQUENTIAL, ("arena",))
     return kernel.evaluate(unsafe, human_approved=False).allowed is False
 
 
@@ -90,7 +92,6 @@ def runtime_kernel_enforcement_probe() -> bool:
 
 
 def crash_restart_replay_probe() -> bool:
-    """A leased event survives worker loss and is replayed once after lease expiry."""
     with TemporaryDirectory() as tmp:
         db = Path(tmp) / "omega.db"
         queue = DurableWorkQueue(db)
@@ -117,8 +118,7 @@ def degraded_mode_probe() -> bool:
         decision = controller.diagnose("primary-tool", FailureClass.CAPABILITY_LOSS, fallback="safe-secondary-tool")
         if decision.mode != OperatingMode.DEGRADED or not decision.isolated:
             return False
-        restarted = SurvivalController(DurableStateStore(db))
-        persisted = restarted.status("primary-tool")
+        persisted = SurvivalController(DurableStateStore(db)).status("primary-tool")
         return persisted.get("mode") == "degraded" and persisted.get("fallback") == "safe-secondary-tool"
 
 
@@ -161,6 +161,80 @@ def diverse_provider_failover_probe() -> bool:
         )
 
 
+def canonical_reconstruction_probe() -> bool:
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        db = root / "omega.db"
+        store = DurableStateStore(db)
+        store.set_state("mission.phase", "verifying")
+        durable = DurableStateEvidence(DurableStateStore(db)).state_view("mission.phase", strength=1.0)
+        checkpoint = root / "checkpoint.json"
+        checkpoint.write_text(json.dumps("verifying"), encoding="utf-8")
+        views = (
+            durable,
+            checkpoint_view(checkpoint, "mission.phase", strength=0.9),
+            EvidenceView("git-main", "mission.phase", "verifying", 0.95),
+            EvidenceView("test-result", "mission.phase", "verifying", 0.95),
+        )
+        canonical = CanonicalStateReconstructor().reconstruct("mission.phase", views)
+        return canonical.value == "verifying" and not canonical.conflict and len(canonical.sources) == 4
+
+
+def reconstruction_conflict_probe() -> bool:
+    canonical = CanonicalStateReconstructor().reconstruct(
+        "mission.outcome",
+        (
+            EvidenceView("durable-db", "mission.outcome", "complete", 1.0),
+            EvidenceView("git-evidence", "mission.outcome", "verifying", 1.0),
+        ),
+    )
+    return canonical.conflict and canonical.value is None
+
+
+def diverse_verifier_fail_closed_probe() -> bool:
+    verifier = DiverseVerifier()
+    accepted = verifier.decide(
+        (
+            VerificationOpinion("deterministic-checker", VerificationVerdict.ACCEPT, "deterministic-digest"),
+            VerificationOpinion("runtime-replay", VerificationVerdict.ACCEPT, "runtime-digest"),
+        )
+    )
+    disagreement = verifier.decide(
+        (
+            VerificationOpinion("deterministic-checker", VerificationVerdict.ACCEPT, "deterministic-digest"),
+            VerificationOpinion("runtime-replay", VerificationVerdict.REJECT, "runtime-digest"),
+        )
+    )
+    common_mode = verifier.decide(
+        (
+            VerificationOpinion("checker-a", VerificationVerdict.ACCEPT, "same-evidence"),
+            VerificationOpinion("checker-b", VerificationVerdict.ACCEPT, "same-evidence"),
+        )
+    )
+    return accepted.allowed and not disagreement.allowed and not common_mode.allowed
+
+
+def component_loss_digital_twin_probe() -> bool:
+    """Inject loss/corruption of one state source and prove diverse evidence prevents false reconstruction."""
+    reconstructor = CanonicalStateReconstructor()
+    recovered = reconstructor.reconstruct(
+        "goal:g1",
+        (
+            EvidenceView("durable-db", "goal:g1", {"status": "verifying"}, 1.0),
+            EvidenceView("git-pr", "goal:g1", {"status": "verifying"}, 1.0),
+            EvidenceView("lost-cache", "goal:g1", {"status": "completed"}, 0.2),
+        ),
+    )
+    twin_conflict = reconstructor.reconstruct(
+        "goal:g2",
+        (
+            EvidenceView("durable-db", "goal:g2", {"status": "completed"}, 1.0),
+            EvidenceView("git-pr", "goal:g2", {"status": "verifying"}, 1.0),
+        ),
+    )
+    return recovered.value == {"status": "verifying"} and not recovered.conflict and twin_conflict.conflict
+
+
 def main() -> None:
     scenarios = baseline_scenarios(
         restart_probe=restart_probe,
@@ -168,21 +242,19 @@ def main() -> None:
         provider_failover_probe=provider_failover_probe,
         unsafe_action_probe=unsafe_action_probe,
     ) + (
-        ArenaScenario(
-            "runtime-mission-kernel-enforcement",
-            "mission-control",
-            5,
-            OmegaLevel.L4,
-            runtime_kernel_enforcement_probe,
-        ),
+        ArenaScenario("runtime-mission-kernel-enforcement", "mission-control", 5, OmegaLevel.L4, runtime_kernel_enforcement_probe),
         ArenaScenario("crash-restart-replay", "runtime-survival", 5, OmegaLevel.L5, crash_restart_replay_probe),
         ArenaScenario("degraded-mode-persistence", "degraded-operation", 4, OmegaLevel.L5, degraded_mode_probe),
         ArenaScenario("fdir-fail-closed", "fault-isolation", 5, OmegaLevel.L5, fdir_fail_closed_probe),
         ArenaScenario("diverse-provider-failover", "provider-diversity", 4, OmegaLevel.L5, diverse_provider_failover_probe),
+        ArenaScenario("canonical-state-reconstruction", "state-reconstruction", 5, OmegaLevel.L6, canonical_reconstruction_probe),
+        ArenaScenario("reconstruction-conflict-fail-closed", "state-conflict", 5, OmegaLevel.L6, reconstruction_conflict_probe),
+        ArenaScenario("diverse-verifier-fail-closed", "independent-assurance", 5, OmegaLevel.L6, diverse_verifier_fail_closed_probe),
+        ArenaScenario("component-loss-digital-twin", "fault-injection", 5, OmegaLevel.L6, component_loss_digital_twin_probe),
     )
     arena = AutonomyArena()
     report = arena.run(scenarios)
-    certification = arena.certify(OmegaLevel.L5, scenarios, report)
+    certification = arena.certify(OmegaLevel.L6, scenarios, report)
     output = {
         "requested_level": certification.level.name,
         "certified": certification.certified,
