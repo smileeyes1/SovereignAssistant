@@ -1,0 +1,144 @@
+name: Ω APEX Reality Gate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: omega-apex-reality-gate
+  cancel-in-progress: false
+
+jobs:
+  live-autonomy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build -t omega-apex:reality .
+
+      - name: Start live autonomy runtime with durable state
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker volume create omega-reality-state >/dev/null
+          docker run -d --name omega-reality -p 18080:8080 \
+            -v omega-reality-state:/data \
+            -e OMEGA_REPOSITORY='${{ github.repository }}' \
+            -e OMEGA_GITHUB_TOKEN='${{ github.token }}' \
+            -e OMEGA_GITHUB_WEBHOOK_SECRET='reality-webhook-secret' \
+            -e OMEGA_RUNTIME_TOKEN='reality-runtime-token' \
+            -e OMEGA_ALLOW_BRANCH_CREATE=false \
+            -e OMEGA_ALLOW_COMMENT=false \
+            -e OMEGA_ALLOW_MERGE=false \
+            -e OMEGA_ALLOW_FILE_WRITE=false \
+            omega-apex:reality
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz | grep -q '"message": "ok"'; then
+              docker inspect -f '{{.State.Running}}' omega-reality | grep -q true
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs omega-reality
+          exit 1
+
+      - name: Send authenticated live runtime event and verify durable processing
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_ID="reality-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          SUBJECT="reality-gate-${GITHUB_SHA}"
+          BODY=$(python - <<PY
+          import json
+          print(json.dumps({
+            "source_id": "${SOURCE_ID}",
+            "event_name": "task.completed",
+            "subject": "${SUBJECT}",
+            "payload": {"source": "github-actions-reality-gate"},
+          }, separators=(",", ":")))
+          PY
+          )
+          curl -fsS -X POST http://127.0.0.1:18080/events/runtime \
+            -H 'Authorization: Bearer reality-runtime-token' \
+            -H 'Content-Type: application/json' \
+            --data "$BODY"
+
+          EVENT_ID=$(python - <<PY
+          import hashlib, json
+          canonical=json.dumps({"source": "github-actions-reality-gate"}, sort_keys=True, ensure_ascii=False)
+          print(hashlib.sha256("${SOURCE_ID}\0task.completed\0${SUBJECT}\0".encode()+canonical.encode()).hexdigest())
+          PY
+          )
+
+          for attempt in $(seq 1 30); do
+            STATUS=$(docker exec -i omega-reality python - "$EVENT_ID" <<'PY'
+          import sqlite3, sys
+          conn=sqlite3.connect('/data/omega.db')
+          row=conn.execute('select status from work_queue where job_id=?',(sys.argv[1],)).fetchone()
+          print('missing' if row is None else row[0])
+          PY
+            )
+            if [ "$STATUS" = "completed" ]; then
+              echo "$EVENT_ID" > /tmp/omega-event-id
+              exit 0
+            fi
+            if [ "$STATUS" = "dead" ]; then
+              docker logs omega-reality
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs omega-reality
+          exit 1
+
+      - name: Prove restart continuity from the same durable state
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVENT_ID=$(cat /tmp/omega-event-id)
+          docker rm -f omega-reality
+          docker run -d --name omega-reality-restarted -p 18080:8080 \
+            -v omega-reality-state:/data \
+            -e OMEGA_REPOSITORY='${{ github.repository }}' \
+            -e OMEGA_GITHUB_TOKEN='${{ github.token }}' \
+            -e OMEGA_GITHUB_WEBHOOK_SECRET='reality-webhook-secret' \
+            -e OMEGA_RUNTIME_TOKEN='reality-runtime-token' \
+            -e OMEGA_ALLOW_BRANCH_CREATE=false \
+            -e OMEGA_ALLOW_COMMENT=false \
+            -e OMEGA_ALLOW_MERGE=false \
+            -e OMEGA_ALLOW_FILE_WRITE=false \
+            omega-apex:reality
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz | grep -q '"message": "ok"'; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec -i omega-reality-restarted python - "$EVENT_ID" <<'PY'
+          import sqlite3, sys
+          conn=sqlite3.connect('/data/omega.db')
+          row=conn.execute('select status from work_queue where job_id=?',(sys.argv[1],)).fetchone()
+          if row is None or row[0] != 'completed':
+              raise SystemExit(f'durable event did not survive restart: {row}')
+          print('durable restart continuity verified')
+          PY
+
+      - name: Final live health check
+        run: |
+          curl -fsS http://127.0.0.1:18080/healthz | grep -q '"message": "ok"'
+          docker inspect -f '{{.State.Running}}' omega-reality-restarted | grep -q true
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          docker logs omega-reality 2>/dev/null || true
+          docker logs omega-reality-restarted 2>/dev/null || true
