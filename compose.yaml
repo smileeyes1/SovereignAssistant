@@ -1,0 +1,19 @@
+services:
+  omega-apex:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${OMEGA_PORT:-8080}:${OMEGA_PORT:-8080}"
+    volumes:
+      - omega_state:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.getenv('OMEGA_PORT','8080')+'/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  omega_state:
