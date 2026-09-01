@@ -37,6 +37,8 @@ class OperationalEnvelope:
     min_evidence: int = 1
 
     def __post_init__(self) -> None:
+        if not self.allowed_capabilities:
+            raise ValueError("allowed_capabilities cannot be empty")
         if not 0 <= self.max_risk <= 3:
             raise ValueError("max_risk must be in [0,3]")
         if self.min_evidence < 0:
@@ -92,7 +94,8 @@ class MissionKernel:
         return self.phase
 
     def evaluate(self, action: MissionAction, *, human_approved: bool = False) -> KernelDecision:
-        if action.capability not in self.envelope.allowed_capabilities:
+        allowed = self.envelope.allowed_capabilities
+        if "*" not in allowed and action.capability not in allowed:
             return KernelDecision(False, "capability outside operational envelope", MissionPhase.DEGRADED, True)
         if action.risk > self.envelope.max_risk:
             return KernelDecision(False, "risk exceeds operational envelope", MissionPhase.BLOCKED)
