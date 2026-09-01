@@ -7,6 +7,8 @@ from pathlib import PurePosixPath
 from typing import Callable, Protocol
 from urllib.request import Request, urlopen
 
+from .capability_registry import CapabilityRegistry
+
 
 @dataclass(frozen=True)
 class PatchRequest:
@@ -48,19 +50,33 @@ def validate_patch(plan: PatchPlan, *, max_files: int = 20, max_total_chars: int
 
 
 class CodingProviderPool:
-    def __init__(self, providers: list[CodingProvider]):
+    def __init__(self, providers: list[CodingProvider], capability_registry: CapabilityRegistry | None = None):
         if not providers:
             raise ValueError("at least one coding provider is required")
         self.providers = providers
+        self.capability_registry = capability_registry
         self.failures: list[tuple[str, str]] = []
 
     def propose_patch(self, request: PatchRequest) -> PatchPlan:
         self.failures.clear()
+        attempted = 0
         for provider in self.providers:
+            if self.capability_registry is not None and not self.capability_registry.is_healthy(provider.name):
+                self.failures.append((provider.name, "unhealthy capability excluded"))
+                continue
+            attempted += 1
             try:
-                return validate_patch(provider.propose_patch(request))
+                plan = validate_patch(provider.propose_patch(request))
+                if self.capability_registry is not None:
+                    self.capability_registry.record_success(provider.name)
+                return plan
             except Exception as exc:
-                self.failures.append((provider.name, f"{type(exc).__name__}: {exc}"))
+                error = f"{type(exc).__name__}: {exc}"
+                self.failures.append((provider.name, error))
+                if self.capability_registry is not None:
+                    self.capability_registry.record_failure(provider.name, error)
+        if attempted == 0:
+            raise RuntimeError("no healthy coding providers available")
         raise RuntimeError("all coding providers failed: " + "; ".join(f"{n}={e}" for n, e in self.failures))
 
 
