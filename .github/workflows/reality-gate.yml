@@ -80,7 +80,7 @@ jobs:
           )
 
           for attempt in $(seq 1 30); do
-            STATUS=$(docker exec omega-reality python - "$EVENT_ID" <<'PY'
+            STATUS=$(docker exec -i omega-reality python - "$EVENT_ID" <<'PY'
           import sqlite3, sys
           conn=sqlite3.connect('/data/omega.db')
           row=conn.execute('select status from work_queue where job_id=?',(sys.argv[1],)).fetchone()
@@ -123,7 +123,7 @@ jobs:
             fi
             sleep 1
           done
-          docker exec omega-reality-restarted python - "$EVENT_ID" <<'PY'
+          docker exec -i omega-reality-restarted python - "$EVENT_ID" <<'PY'
           import sqlite3, sys
           conn=sqlite3.connect('/data/omega.db')
           row=conn.execute('select status from work_queue where job_id=?',(sys.argv[1],)).fetchone()
