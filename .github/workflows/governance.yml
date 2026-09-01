@@ -23,3 +23,25 @@ jobs:
         run: python -m pytest -q
       - name: Build production autonomy container
         run: docker build -t omega-apex:test .
+      - name: Smoke-test live autonomy container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name omega-smoke -p 18080:8080 \
+            -e OMEGA_REPOSITORY=owner/repository \
+            -e OMEGA_GITHUB_TOKEN=smoke-token \
+            -e OMEGA_GITHUB_WEBHOOK_SECRET=smoke-secret \
+            -e OMEGA_RUNTIME_TOKEN=smoke-runtime-token \
+            -e OMEGA_ALLOW_MERGE=false \
+            -e OMEGA_ALLOW_FILE_WRITE=false \
+            omega-apex:test
+          trap 'docker logs omega-smoke || true; docker rm -f omega-smoke || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/healthz | grep -q '"message": "ok"'; then
+              docker inspect -f '{{.State.Running}}' omega-smoke | grep -q true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'autonomy container did not become healthy' >&2
+          exit 1

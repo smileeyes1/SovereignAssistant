@@ -5,10 +5,17 @@ import os
 import signal
 import threading
 
+from .autonomy_roadmap import DEFAULT_AUTONOMY_ROADMAP
 from .ci_repair import CISelfRepair
 from .coding_provider import CodingProviderPool, OpenAIResponsesCodingProvider
 from .development_actions import AutonomousDevelopmentActions
+from .event_continuation import EventType
+from .goal_governor import GoalPortfolio
+from .goal_loop import ClosedLoopGoalGovernor
 from .production import ProductionConfig, ProductionRuntime, build_production_runtime
+
+
+ROADMAP_BOOTSTRAP_EVENT = "omega-roadmap-bootstrap-v1"
 
 
 def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=None, provider_opener=None) -> ProductionRuntime:
@@ -28,7 +35,18 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
             base_url=values.get("OMEGA_OPENAI_BASE_URL", "https://api.openai.com/v1"),
             opener=provider_opener,
         )
-        CISelfRepair(runtime, CodingProviderPool([provider])).install()
+        providers = CodingProviderPool([provider])
+        CISelfRepair(runtime, providers).install()
+        portfolio = GoalPortfolio(runtime)
+        portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
+        ClosedLoopGoalGovernor(runtime, providers, portfolio).install()
+        runtime.queue.enqueue(
+            ROADMAP_BOOTSTRAP_EVENT,
+            EventType.MANUAL_SIGNAL.value,
+            "default-autonomy-roadmap",
+            {"source": "production-bootstrap"},
+            max_attempts=5,
+        )
     return runtime
 
 
