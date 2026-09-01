@@ -26,6 +26,12 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
     runtime = build_production_runtime(config, github_opener=github_opener)
     AutonomousDevelopmentActions(runtime).install()
     capabilities = CapabilityRegistry(runtime.state)
+
+    # Mission intent/state exists independently of whether a coding provider is
+    # currently available. This prevents "no provider" from looking like a
+    # completed or empty mission.
+    portfolio = GoalPortfolio(runtime)
+    portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
     runtime.service.supervisor.heartbeat = AutonomySelfAuditor(runtime, capabilities).run_once
 
     provider_key = values.get("OMEGA_OPENAI_API_KEY", "").strip()
@@ -41,8 +47,6 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
         )
         providers = CodingProviderPool([provider], capabilities)
         CISelfRepair(runtime, providers).install()
-        portfolio = GoalPortfolio(runtime)
-        portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
         ClosedLoopGoalGovernor(runtime, providers, portfolio).install()
         runtime.queue.enqueue(
             ROADMAP_BOOTSTRAP_EVENT,
