@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+from .event_continuation import ContinuationEvent, EventType
 from .ingress_supervisor import GitHubEventAdapter
 from .run_autonomy import build_runtime_from_env
 
@@ -17,13 +18,27 @@ def _event_file() -> dict[str, object]:
     return value
 
 
+def _translate(delivery: str, event_name: str, payload: dict[str, object]) -> ContinuationEvent | None:
+    # A scheduled run is an external deadman signal, not the primary continuation
+    # mechanism. It exists solely to recover an unfinished mission if all normal
+    # event-driven/same-cycle continuation paths have gone quiet.
+    if event_name == "schedule":
+        return ContinuationEvent(
+            event_id=f"watchdog:{delivery}",
+            event_type=EventType.MANUAL_SIGNAL,
+            subject="mission-liveness-watchdog",
+            payload={"source": "github-deadman-watchdog", "scheduled": True},
+        )
+    return GitHubEventAdapter().translate(delivery, event_name, payload)
+
+
 def main() -> None:
     event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
     payload = _event_file()
     runtime = build_runtime_from_env()
 
     delivery = os.environ.get("GITHUB_RUN_ID", "github-action") + ":" + os.environ.get("GITHUB_RUN_ATTEMPT", "1")
-    translated = GitHubEventAdapter().translate(delivery, event_name, payload)
+    translated = _translate(delivery, event_name, payload)
     if translated is None:
         return
 

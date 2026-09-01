@@ -13,6 +13,7 @@ from .core import ActionRisk
 from .durable_state import DurableStateStore
 from .durable_worker import DurableWorkQueue
 from .event_continuation import ContinuationEvent, EventType
+from .mission_autonomy import BoundedMissionRunner, CandidateScore, ImprovementSandbox, MissionStep, OutcomeAudit
 from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
 from .recovery_governor import ActionRegistry, RecoveryGovernor, RegisteredAction, strong_claim
 from .state_reconstruction import (
@@ -215,7 +216,6 @@ def diverse_verifier_fail_closed_probe() -> bool:
 
 
 def component_loss_digital_twin_probe() -> bool:
-    """Inject loss/corruption of one state source and prove diverse evidence prevents false reconstruction."""
     reconstructor = CanonicalStateReconstructor()
     recovered = reconstructor.reconstruct(
         "goal:g1",
@@ -235,6 +235,120 @@ def component_loss_digital_twin_probe() -> bool:
     return recovered.value == {"status": "verifying"} and not recovered.conflict and twin_conflict.conflict
 
 
+def governed_multi_environment_probe() -> bool:
+    with TemporaryDirectory() as tmp:
+        audit = OutcomeAudit(DurableStateStore(Path(tmp) / "omega.db"))
+        executed: list[str] = []
+        steps = tuple(
+            MissionStep(
+                f"goal-{index}",
+                environment,
+                "mission-step",
+                ActionRisk.MODERATE,
+                True,
+                (f"plan-{environment}",),
+                execute=lambda env=environment: (executed.append(env) or True, (f"evidence-{env}",)),
+                rollback=lambda: True,
+            )
+            for index, environment in enumerate(("sandbox", "canary", "production"), start=1)
+        )
+        run = BoundedMissionRunner(audit).run("arena-mission", steps)
+        restarted = OutcomeAudit(DurableStateStore(Path(tmp) / "omega.db"))
+        return (
+            run.completed
+            and executed == ["sandbox", "canary", "production"]
+            and restarted.get("arena-mission", "goal-3", "production").get("status") == "completed"
+        )
+
+
+def mission_kernel_bypass_denied_probe() -> bool:
+    touched: list[str] = []
+    denied = MissionStep(
+        "unsafe-goal",
+        "production",
+        "outside-envelope",
+        ActionRisk.MODERATE,
+        True,
+        ("plan-evidence",),
+        execute=lambda: (touched.append("executed") or True, ("bad",)),
+        rollback=lambda: True,
+    )
+    with TemporaryDirectory() as tmp:
+        runner = BoundedMissionRunner(OutcomeAudit(DurableStateStore(Path(tmp) / "omega.db")))
+        run = runner.run("arena-denial", (denied,))
+        return not run.completed and run.outcomes[0].status == "blocked" and touched == []
+
+
+def rollback_stops_environment_escalation_probe() -> bool:
+    touched: list[str] = []
+    first = MissionStep(
+        "canary-failure",
+        "canary",
+        "mission-step",
+        ActionRisk.MODERATE,
+        True,
+        ("plan-canary",),
+        execute=lambda: (False, ()),
+        rollback=lambda: True,
+    )
+    second = MissionStep(
+        "production-after-failure",
+        "production",
+        "mission-step",
+        ActionRisk.MODERATE,
+        True,
+        ("plan-production",),
+        execute=lambda: (touched.append("production") or True, ("unexpected",)),
+        rollback=lambda: True,
+    )
+    with TemporaryDirectory() as tmp:
+        run = BoundedMissionRunner(OutcomeAudit(DurableStateStore(Path(tmp) / "omega.db"))).run(
+            "arena-rollback", (first, second)
+        )
+        return not run.completed and run.recovered == 1 and run.attempted == 1 and touched == []
+
+
+def champion_challenger_canary_probe() -> bool:
+    sandbox = ImprovementSandbox()
+    chosen = sandbox.choose(
+        CandidateScore("champion", 0.80, 1.0, True),
+        CandidateScore("challenger", 0.90, 1.0, True),
+    )
+    rollback = sandbox.canary(chosen, lambda: False)
+    safe_reject = sandbox.choose(
+        CandidateScore("champion", 0.80, 1.0, True),
+        CandidateScore("unsafe-challenger", 0.99, 0.5, True),
+    )
+    return chosen.promote and not rollback.promote and rollback.selected == "champion" and not safe_reject.promote
+
+
+def bounded_soak_continuity_probe() -> bool:
+    """Deterministic soak: repeat bounded mission cycles with durable outcome continuity."""
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        for cycle in range(100):
+            audit = OutcomeAudit(DurableStateStore(db))
+            run = BoundedMissionRunner(audit).run(
+                f"soak-{cycle}",
+                (
+                    MissionStep(
+                        "goal",
+                        "sandbox" if cycle % 2 == 0 else "canary",
+                        "mission-step",
+                        ActionRisk.MODERATE,
+                        True,
+                        (f"plan-{cycle}",),
+                        execute=lambda c=cycle: (True, (f"outcome-{c}",)),
+                        rollback=lambda: True,
+                    ),
+                ),
+            )
+            if not run.completed:
+                return False
+        final = OutcomeAudit(DurableStateStore(db)).get("soak-99", "goal", "canary")
+        return final.get("status") == "completed" and final.get("evidence") == ["outcome-99"]
+
+
 def main() -> None:
     scenarios = baseline_scenarios(
         restart_probe=restart_probe,
@@ -251,10 +365,15 @@ def main() -> None:
         ArenaScenario("reconstruction-conflict-fail-closed", "state-conflict", 5, OmegaLevel.L6, reconstruction_conflict_probe),
         ArenaScenario("diverse-verifier-fail-closed", "independent-assurance", 5, OmegaLevel.L6, diverse_verifier_fail_closed_probe),
         ArenaScenario("component-loss-digital-twin", "fault-injection", 5, OmegaLevel.L6, component_loss_digital_twin_probe),
+        ArenaScenario("governed-multi-environment-mission", "mission-autonomy", 5, OmegaLevel.L7, governed_multi_environment_probe),
+        ArenaScenario("mission-kernel-bypass-denied", "mission-safety", 5, OmegaLevel.L7, mission_kernel_bypass_denied_probe),
+        ArenaScenario("rollback-stops-environment-escalation", "mission-recovery", 5, OmegaLevel.L7, rollback_stops_environment_escalation_probe),
+        ArenaScenario("champion-challenger-canary", "self-improvement", 4, OmegaLevel.L7, champion_challenger_canary_probe),
+        ArenaScenario("bounded-soak-continuity", "long-duration", 4, OmegaLevel.L7, bounded_soak_continuity_probe),
     )
     arena = AutonomyArena()
     report = arena.run(scenarios)
-    certification = arena.certify(OmegaLevel.L6, scenarios, report)
+    certification = arena.certify(OmegaLevel.L7, scenarios, report)
     output = {
         "requested_level": certification.level.name,
         "certified": certification.certified,

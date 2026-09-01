@@ -7,6 +7,9 @@ on:
     workflows: ["HAKIM Governance Gate"]
     types: [completed]
   workflow_dispatch:
+  schedule:
+    # External deadman/watchdog only. Primary continuation remains same-cycle/event-driven.
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
@@ -21,6 +24,7 @@ jobs:
   continue:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != null)
     runs-on: ubuntu-latest
@@ -68,6 +72,8 @@ jobs:
           path: .omega
           key: omega-apex-state-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Explain capability gate
+      - name: Enforce no-silent-stall capability gate
         if: env.OMEGA_ALLOW_FILE_WRITE != 'true'
-        run: echo 'Immediate event processing is active; autonomous code generation remains fail-closed until OMEGA_OPENAI_API_KEY and OMEGA_OPENAI_MODEL repository secrets are available.'
+        run: |
+          echo 'Mission liveness watchdog remains active, but autonomous code generation is fail-closed.'
+          echo 'Unfinished roadmap work MUST remain BLOCKED with evidence; it must never be reported as idle or complete.'
