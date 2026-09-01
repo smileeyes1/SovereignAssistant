@@ -1,15 +1,18 @@
 """ΩL7 bounded mission autonomy controls.
 
-These primitives are deterministic and intentionally conservative: they provide
-outcome audit, champion/challenger admission, canary rollback, and bounded
-multi-environment mission progression without bypassing the existing kernels.
+These primitives are deterministic and conservative. Every executable mission
+step is evaluated by GovernanceKernel and then MissionKernel before its callback
+may run. Outcome audit, champion/challenger admission, canary rollback and
+bounded multi-environment progression remain inside the declared envelope.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
+from .core import Action, ActionRisk, Claim, Decision, Evidence, GovernanceKernel
 from .durable_state import DurableStateStore
+from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
 
 
 @dataclass(frozen=True)
@@ -31,13 +34,12 @@ class OutcomeAudit:
     def record(self, item: OutcomeRecord) -> None:
         if not item.mission_id.strip() or not item.goal_id.strip() or not item.environment.strip():
             raise ValueError("mission_id, goal_id and environment are required")
-        if item.status not in {"completed", "failed", "rolled_back"}:
+        if item.status not in {"completed", "failed", "rolled_back", "blocked"}:
             raise ValueError("invalid outcome status")
         if item.status == "completed" and not item.evidence:
             raise ValueError("completed outcomes require evidence")
-        key = f"{self.PREFIX}.{item.mission_id}.{item.goal_id}.{item.environment}"
         self.state.set_state(
-            key,
+            f"{self.PREFIX}.{item.mission_id}.{item.goal_id}.{item.environment}",
             {
                 "mission_id": item.mission_id,
                 "goal_id": item.goal_id,
@@ -92,12 +94,25 @@ class ImprovementSandbox:
         return decision
 
 
+_RISK_SCORE = {
+    ActionRisk.LOW: 0,
+    ActionRisk.MODERATE: 1,
+    ActionRisk.HIGH: 2,
+    ActionRisk.CRITICAL: 3,
+}
+
+
 @dataclass(frozen=True)
 class MissionStep:
     goal_id: str
     environment: str
+    capability: str
+    risk: ActionRisk
+    reversible: bool
+    evidence: tuple[str, ...]
     execute: Callable[[], tuple[bool, tuple[str, ...]]]
     rollback: Callable[[], bool]
+    requires_human_approval: bool = False
 
 
 @dataclass(frozen=True)
@@ -109,15 +124,44 @@ class MissionRun:
 
 
 class BoundedMissionRunner:
-    """Runs a declared mission plan across environments with explicit rollback.
+    """Runs bounded multi-environment work only after both Golden Baseline gates."""
 
-    A failed step is rolled back and the mission stops; no later environment is
-    entered after a failed recovery. This is a deterministic operational-envelope
-    harness, not permission to bypass GovernanceKernel or MissionKernel.
-    """
-
-    def __init__(self, audit: OutcomeAudit):
+    def __init__(
+        self,
+        audit: OutcomeAudit,
+        *,
+        governance: GovernanceKernel | None = None,
+        mission_kernel: MissionKernel | None = None,
+    ):
         self.audit = audit
+        self.governance = governance or GovernanceKernel()
+        self.mission_kernel = mission_kernel or MissionKernel(
+            OperationalEnvelope(frozenset({"mission-step"}), max_risk=2, require_reversible_above=1, min_evidence=1)
+        )
+
+    def _authorized(self, step: MissionStep) -> bool:
+        claim = Claim(
+            f"mission step {step.goal_id} in {step.environment} is ready",
+            tuple(Evidence("mission-plan", item, 1.0) for item in step.evidence if item.strip()),
+            confidence=1.0 if step.evidence else 0.0,
+        )
+        action = Action(
+            step.goal_id,
+            step.risk,
+            reversible=step.reversible,
+            requires_human_approval=step.requires_human_approval,
+        )
+        if self.governance.evaluate(claim, action) != Decision.PROCEED:
+            return False
+        mission = MissionAction(
+            name=step.goal_id,
+            capability=step.capability,
+            risk=_RISK_SCORE[step.risk],
+            reversible=step.reversible,
+            authority=AuthorityLevel.CONSEQUENTIAL if step.requires_human_approval else AuthorityLevel.MODERATE,
+            evidence=step.evidence,
+        )
+        return self.mission_kernel.evaluate(mission, human_approved=False).allowed
 
     def run(self, mission_id: str, steps: Iterable[MissionStep]) -> MissionRun:
         outcomes: list[OutcomeRecord] = []
@@ -125,16 +169,20 @@ class BoundedMissionRunner:
         attempted = 0
         for step in steps:
             attempted += 1
+            if not self._authorized(step):
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
+                self.audit.record(record)
+                outcomes.append(record)
+                return MissionRun(False, attempted, recovered, tuple(outcomes))
             try:
-                ok, evidence = step.execute()
+                ok, result_evidence = step.execute()
             except Exception:
-                ok, evidence = False, ()
-            if ok and evidence:
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "completed", tuple(evidence), False)
+                ok, result_evidence = False, ()
+            if ok and result_evidence:
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "completed", tuple(result_evidence), False)
                 self.audit.record(record)
                 outcomes.append(record)
                 continue
-
             rollback_ok = False
             try:
                 rollback_ok = bool(step.rollback())
@@ -142,9 +190,9 @@ class BoundedMissionRunner:
                 rollback_ok = False
             if rollback_ok:
                 recovered += 1
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", tuple(evidence), True)
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", tuple(result_evidence), True)
             else:
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", tuple(evidence), False)
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", tuple(result_evidence), False)
             self.audit.record(record)
             outcomes.append(record)
             return MissionRun(False, attempted, recovered, tuple(outcomes))
