@@ -38,6 +38,10 @@ class FakeGitHub:
     def commit_files(self, branch, expected_head_sha, changes, message):
         self.commits.append((branch, expected_head_sha, changes, message))
         return f"commit-{len(self.commits)}"
+    def get_pull_request(self, number):
+        return {"number": number, "merged": True, "head": {"sha": "old"}}
+    def workflow_runs_for_commit(self, sha):
+        return [{"status": "completed", "conclusion": "success"}]
 
 
 def runtime(tmp_path):
@@ -96,7 +100,7 @@ def test_merge_completion_immediately_starts_next_dependent_goal(tmp_path):
     rt = runtime(tmp_path)
     portfolio = GoalPortfolio(rt)
     portfolio.save_all([
-        Goal("g1", "Goal One", "first", 20, status=GoalStatus.VERIFYING, branch="omega/g1", pr_number=7, head_sha="old"),
+        Goal("g1", "Goal One", "first", 20, acceptance=("verified by CI",), status=GoalStatus.VERIFYING, branch="omega/g1", pr_number=7, head_sha="old"),
         Goal("g2", "Goal Two", "second", 10, dependencies=("g1",)),
     ])
     governor = ClosedLoopGoalGovernor(rt, CodingProviderPool([Provider()]), portfolio)
@@ -108,6 +112,29 @@ def test_merge_completion_immediately_starts_next_dependent_goal(tmp_path):
     assert portfolio.get("g1").status == GoalStatus.COMPLETED
     assert portfolio.get("g2").status == GoalStatus.VERIFYING
     assert portfolio.get("g2").pr_number == 20
+    evidence = rt.state.get_state("omega.completion_audit.v1.g1")
+    assert evidence["accepted"] is True
+    assert evidence["workflow_count"] == 1
+
+
+def test_completion_audit_rejects_missing_workflow_evidence(tmp_path):
+    rt = runtime(tmp_path)
+    rt.github.workflow_runs_for_commit = lambda sha: []
+    portfolio = GoalPortfolio(rt)
+    portfolio.save_all([
+        Goal("g1", "Goal One", "first", 20, acceptance=("verified by CI",), status=GoalStatus.VERIFYING, pr_number=7, head_sha="old"),
+        Goal("g2", "Goal Two", "second", 10, dependencies=("g1",)),
+    ])
+    governor = ClosedLoopGoalGovernor(rt, CodingProviderPool([Provider()]), portfolio)
+    governor.install()
+    event = ContinuationEvent("merge-7", EventType.PR_MERGED, "7", {"pull_request": {"number": 7, "merged": True}})
+    result = rt.governor.engine().handle(event)
+    assert result.status == "executed"
+    assert portfolio.get("g1").status == GoalStatus.VERIFYING
+    assert portfolio.get("g2").status == GoalStatus.PLANNED
+    evidence = rt.state.get_state("omega.completion_audit.v1.g1")
+    assert evidence["accepted"] is False
+    assert "no workflow evidence found for merged goal head" in evidence["reasons"]
 
 
 def test_active_goal_prevents_parallel_uncontrolled_goal_creation(tmp_path):
