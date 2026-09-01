@@ -6,6 +6,7 @@ import signal
 import threading
 
 from .autonomy_roadmap import DEFAULT_AUTONOMY_ROADMAP
+from .capability_registry import CapabilityRegistry
 from .ci_repair import CISelfRepair
 from .coding_provider import CodingProviderPool, OpenAIResponsesCodingProvider
 from .development_actions import AutonomousDevelopmentActions
@@ -35,7 +36,7 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
             base_url=values.get("OMEGA_OPENAI_BASE_URL", "https://api.openai.com/v1"),
             opener=provider_opener,
         )
-        providers = CodingProviderPool([provider])
+        providers = CodingProviderPool([provider], CapabilityRegistry(runtime.state))
         CISelfRepair(runtime, providers).install()
         portfolio = GoalPortfolio(runtime)
         portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
