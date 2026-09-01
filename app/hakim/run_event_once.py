@@ -5,7 +5,6 @@ import json
 import os
 from pathlib import Path
 
-from .event_continuation import EventType
 from .ingress_supervisor import GitHubEventAdapter
 from .run_autonomy import build_runtime_from_env
 
@@ -26,7 +25,6 @@ def main() -> None:
     delivery = os.environ.get("GITHUB_RUN_ID", "github-action") + ":" + os.environ.get("GITHUB_RUN_ATTEMPT", "1")
     translated = GitHubEventAdapter().translate(delivery, event_name, payload)
     if translated is None:
-        # workflow_run events and merged PRs are the only continuation triggers here.
         return
 
     runtime.queue.enqueue(
@@ -36,7 +34,7 @@ def main() -> None:
         translated.payload,
         max_attempts=5,
     )
-    report = runtime.supervisor.drain(max_items=100)
+    report = runtime.service.supervisor.drain(max_items=100)
     runtime.state.set_state(
         "omega.event_bridge.last_run",
         {
