@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 import urllib.request
 
 from app.hakim.autonomy_service import AutonomyService, AutonomyWebhookApplication, verify_github_signature
@@ -119,6 +119,10 @@ def test_transfer_encoding_is_rejected(tmp_path):
             assert False, "unsupported framing must fail"
         except HTTPError as exc:
             assert exc.code == 400
+        except URLError as exc:
+            # The server may reject and close immediately before urllib writes the
+            # terminating chunk, surfacing BrokenPipe instead of the HTTP 400.
+            assert isinstance(exc.reason, BrokenPipeError)
     finally:
         service.stop()
 
