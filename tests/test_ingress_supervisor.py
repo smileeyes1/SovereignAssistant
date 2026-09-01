@@ -65,3 +65,47 @@ def test_supervisor_max_items_bounds_single_drain(tmp_path):
     assert report.processed == 2
     assert not report.idle
     assert len(seen) == 2
+
+
+def test_heartbeat_generated_continuation_runs_in_same_drain(tmp_path):
+    queue = DurableWorkQueue(tmp_path / "omega.db")
+    seen = []
+    generated = {"done": False}
+
+    def heartbeat():
+        if generated["done"]:
+            return
+        generated["done"] = True
+        queue.enqueue("heartbeat-next", EventType.MANUAL_SIGNAL.value, "next-goal", {"source": "liveness"})
+
+    worker = DurableContinuationWorker(queue, engine(seen), "w-live")
+    report = AutonomousSupervisor(worker, heartbeat=heartbeat).drain(max_items=10)
+
+    assert report.idle
+    assert report.processed == 1
+    assert report.heartbeat_resumes == 1
+    assert seen == [(EventType.MANUAL_SIGNAL, "next-goal")]
+    assert queue.get("heartbeat-next").status == "completed"
+
+
+def test_liveness_resume_still_obeys_hard_work_budget(tmp_path):
+    queue = DurableWorkQueue(tmp_path / "omega.db")
+    seen = []
+    counter = {"n": 0}
+
+    def heartbeat():
+        counter["n"] += 1
+        queue.enqueue(
+            f"live-{counter['n']}",
+            EventType.MANUAL_SIGNAL.value,
+            f"goal-{counter['n']}",
+            {"source": "liveness"},
+        )
+
+    worker = DurableContinuationWorker(queue, engine(seen), "w-budget")
+    report = AutonomousSupervisor(worker, heartbeat=heartbeat).drain(max_items=3)
+
+    assert report.processed == 3
+    assert not report.idle
+    assert report.heartbeat_resumes >= 1
+    assert len(seen) == 3
