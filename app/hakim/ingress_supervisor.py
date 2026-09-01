@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 import json
 import time
-from typing import Callable, Iterable
+from typing import Callable
 
 from .durable_worker import DurableContinuationWorker, DurableWorkQueue
 from .event_continuation import EventType
@@ -76,10 +76,17 @@ class SupervisorReport:
     processed: int
     idle: bool
     outcomes: tuple[str, ...]
+    heartbeat_resumes: int = 0
 
 
 class AutonomousSupervisor:
-    """Drains durable work and can run continuously under an external process manager."""
+    """Drains durable work and immediately resumes work synthesized by its heartbeat.
+
+    The liveness invariant is: an idle observation is not terminal until the
+    heartbeat has had one opportunity to synthesize recovery/next-goal work and
+    that work has been checked in the same drain cycle. max_items remains the
+    hard anti-runaway budget.
+    """
 
     def __init__(self, worker: DurableContinuationWorker, heartbeat: Callable[[], None] | None = None):
         self.worker = worker
@@ -89,14 +96,24 @@ class AutonomousSupervisor:
         if max_items < 1:
             raise ValueError("max_items must be positive")
         outcomes: list[str] = []
-        for _ in range(max_items):
+        heartbeat_resumes = 0
+        while len(outcomes) < max_items:
             outcome = self.worker.run_once()
-            if outcome == "idle":
-                self.heartbeat()
-                return SupervisorReport(len(outcomes), True, tuple(outcomes))
-            outcomes.append(outcome)
+            if outcome != "idle":
+                outcomes.append(outcome)
+                continue
+
+            # Idle is provisional: the heartbeat may discover an unfinished
+            # mission and enqueue the next safe continuation event.
+            self.heartbeat()
+            resumed = self.worker.run_once()
+            if resumed == "idle":
+                return SupervisorReport(len(outcomes), True, tuple(outcomes), heartbeat_resumes)
+            heartbeat_resumes += 1
+            outcomes.append(resumed)
+
         self.heartbeat()
-        return SupervisorReport(len(outcomes), False, tuple(outcomes))
+        return SupervisorReport(len(outcomes), False, tuple(outcomes), heartbeat_resumes)
 
     def serve_forever(self, poll_interval: float = 1.0, stop: Callable[[], bool] | None = None) -> None:
         if poll_interval < 0:
