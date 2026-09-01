@@ -26,6 +26,7 @@ class ProductionConfig:
     allow_branch_create: bool = True
     allow_merge: bool = False
     allow_comment: bool = True
+    allow_file_write: bool = False
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "ProductionConfig":
@@ -58,6 +59,7 @@ class ProductionConfig:
             allow_branch_create=flag("OMEGA_ALLOW_BRANCH_CREATE", True),
             allow_merge=flag("OMEGA_ALLOW_MERGE", False),
             allow_comment=flag("OMEGA_ALLOW_COMMENT", True),
+            allow_file_write=flag("OMEGA_ALLOW_FILE_WRITE", False),
         )
 
 
@@ -96,6 +98,7 @@ def build_production_runtime(config: ProductionConfig, registry: ActionRegistry 
             allow_branch_create=config.allow_branch_create,
             allow_merge=config.allow_merge,
             allow_comment=config.allow_comment,
+            allow_file_write=config.allow_file_write,
         ),
         opener=github_opener,
     )
