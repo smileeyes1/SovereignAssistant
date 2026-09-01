@@ -7,6 +7,7 @@ from typing import Callable, Iterable
 from .core import Action, ActionRisk, Claim, Decision, Evidence, GovernanceKernel
 from .durable_state import DurableStateStore
 from .event_continuation import ActionCandidate, ContinuationEvent, EventDrivenContinuation, EventType
+from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
 
 
 ClaimFactory = Callable[[ContinuationEvent], Claim]
@@ -48,18 +49,41 @@ class ActionRegistry:
         return (a for a in self._actions.values() if event.event_type in a.event_types)
 
 
+_RISK_SCORE = {
+    ActionRisk.LOW: 0,
+    ActionRisk.MODERATE: 1,
+    ActionRisk.HIGH: 2,
+    ActionRisk.CRITICAL: 3,
+}
+
+
 class RecoveryGovernor:
-    """Selects the highest-value governed path and abandons repeatedly failing paths."""
+    """Selects the highest-value path allowed by governance and mission safety."""
 
     FAILURE_PREFIX = "omega.recovery.failures"
 
-    def __init__(self, registry: ActionRegistry, state: DurableStateStore, governance: GovernanceKernel | None = None, max_failures_per_path: int = 2):
+    def __init__(
+        self,
+        registry: ActionRegistry,
+        state: DurableStateStore,
+        governance: GovernanceKernel | None = None,
+        max_failures_per_path: int = 2,
+        mission_kernel: MissionKernel | None = None,
+    ):
         if max_failures_per_path < 1:
             raise ValueError("max_failures_per_path must be positive")
         self.registry = registry
         self.state = state
         self.governance = governance or GovernanceKernel()
         self.max_failures_per_path = max_failures_per_path
+        self.mission_kernel = mission_kernel or MissionKernel(
+            OperationalEnvelope(
+                allowed_capabilities=frozenset({"*"}),
+                max_risk=2,
+                require_reversible_above=1,
+                min_evidence=1,
+            )
+        )
 
     def _key(self, event_id: str, action_name: str) -> str:
         return f"{self.FAILURE_PREFIX}.{event_id}.{action_name}"
@@ -73,20 +97,43 @@ class RecoveryGovernor:
     def _clear_failure(self, event_id: str, action_name: str) -> None:
         self.state.set_state(self._key(event_id, action_name), 0)
 
+    def _mission_decision(self, registered: RegisteredAction, claim: Claim):
+        authority = AuthorityLevel.CONSEQUENTIAL if registered.requires_human_approval else AuthorityLevel.MODERATE
+        action = MissionAction(
+            name=registered.name,
+            capability=registered.name,
+            risk=_RISK_SCORE[registered.risk],
+            reversible=registered.reversible,
+            authority=authority,
+            evidence=tuple(e.statement for e in claim.evidence),
+        )
+        return self.mission_kernel.evaluate(action, human_approved=False)
+
     def candidates(self, event: ContinuationEvent) -> list[ActionCandidate]:
         candidates: list[ActionCandidate] = []
         for registered in self.registry.matching(event):
             if self.failure_count(event.event_id, registered.name) >= self.max_failures_per_path:
                 continue
             claim = registered.claim_factory(event)
-            decision = self.governance.evaluate(claim, registered.governance_action())
+            governance_decision = self.governance.evaluate(claim, registered.governance_action())
+            mission_decision = self._mission_decision(registered, claim)
+            allowed = governance_decision == Decision.PROCEED and mission_decision.allowed
+            if not mission_decision.allowed:
+                self.state.set_state(
+                    f"omega.mission_kernel.last_denial.{registered.name}",
+                    {
+                        "event_id": event.event_id,
+                        "reason": mission_decision.reason,
+                        "next_phase": mission_decision.next_phase.value,
+                    },
+                )
             candidates.append(
                 ActionCandidate(
                     registered.name,
                     registered.value,
-                    safe=decision == Decision.PROCEED,
+                    safe=allowed,
                     reversible=registered.reversible,
-                    authorized=decision == Decision.PROCEED,
+                    authorized=allowed,
                     ready=registered.ready(event),
                 )
             )

@@ -5,11 +5,14 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from .autonomy_arena import AutonomyArena, OmegaLevel, baseline_scenarios
+from .autonomy_arena import ArenaScenario, AutonomyArena, OmegaLevel, baseline_scenarios
 from .capability_registry import CapabilityRegistry
+from .core import ActionRisk
 from .durable_state import DurableStateStore
 from .durable_worker import DurableWorkQueue
+from .event_continuation import ContinuationEvent, EventType
 from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
+from .recovery_governor import ActionRegistry, RecoveryGovernor, RegisteredAction, strong_claim
 
 
 def restart_probe() -> bool:
@@ -38,7 +41,6 @@ def provider_failover_probe() -> bool:
         registry.record_failure("primary", "timeout")
         if registry.is_healthy("primary"):
             return False
-        # Reconstruct from durable state, then prove recovery is explicit.
         restarted = CapabilityRegistry(DurableStateStore(db), failure_threshold=2)
         if restarted.is_healthy("primary"):
             return False
@@ -61,16 +63,47 @@ def unsafe_action_probe() -> bool:
     return kernel.evaluate(unsafe, human_approved=False).allowed is False
 
 
+def runtime_kernel_enforcement_probe() -> bool:
+    with TemporaryDirectory() as tmp:
+        state = DurableStateStore(Path(tmp) / "omega.db")
+        registry = ActionRegistry()
+        registry.register(
+            RegisteredAction(
+                name="critical-runtime-action",
+                event_types=(EventType.MANUAL_SIGNAL,),
+                value=100,
+                risk=ActionRisk.CRITICAL,
+                reversible=True,
+                requires_human_approval=False,
+                claim_factory=lambda event: strong_claim("critical action observed", "arena"),
+                executor=lambda event: (_ for _ in ()).throw(AssertionError("blocked action executed")),
+            )
+        )
+        governor = RecoveryGovernor(registry, state)
+        event = ContinuationEvent("arena-runtime-kernel", EventType.MANUAL_SIGNAL, "runtime", {})
+        candidate = governor.candidates(event)[0]
+        denial = state.get_state("omega.mission_kernel.last_denial.critical-runtime-action")
+        return candidate.safe is False and isinstance(denial, dict) and denial.get("reason") == "risk exceeds operational envelope"
+
+
 def main() -> None:
     scenarios = baseline_scenarios(
         restart_probe=restart_probe,
         duplicate_event_probe=duplicate_event_probe,
         provider_failover_probe=provider_failover_probe,
         unsafe_action_probe=unsafe_action_probe,
+    ) + (
+        ArenaScenario(
+            "runtime-mission-kernel-enforcement",
+            "mission-control",
+            5,
+            OmegaLevel.L4,
+            runtime_kernel_enforcement_probe,
+        ),
     )
     arena = AutonomyArena()
     report = arena.run(scenarios)
-    certification = arena.certify(OmegaLevel.L3, scenarios, report)
+    certification = arena.certify(OmegaLevel.L4, scenarios, report)
     output = {
         "requested_level": certification.level.name,
         "certified": certification.certified,
