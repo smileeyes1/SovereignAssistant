@@ -7,9 +7,11 @@ import hmac
 from hashlib import sha256
 import json
 import threading
-from typing import Callable
 
 from .ingress_supervisor import AutonomousSupervisor, EventIngress, GitHubEventAdapter, RuntimeEventAdapter
+
+
+DEFAULT_MAX_BODY_BYTES = 1_048_576
 
 
 def verify_github_signature(secret: str, body: bytes, signature: str | None) -> bool:
@@ -51,7 +53,7 @@ class AutonomyWebhookApplication:
             return ServiceResult(400, "missing GitHub event headers")
         try:
             event = self.github.translate(delivery, event_name, self._json(body))
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
             return ServiceResult(400, "invalid payload")
         if event is None:
             return ServiceResult(202, "ignored")
@@ -68,7 +70,7 @@ class AutonomyWebhookApplication:
             event_name = str(payload.pop("event_name"))
             subject = str(payload.pop("subject"))
             event = self.runtime.translate(source_id, event_name, subject, payload)
-        except (KeyError, ValueError, json.JSONDecodeError):
+        except (KeyError, ValueError, json.JSONDecodeError, UnicodeDecodeError):
             return ServiceResult(400, "invalid payload")
         if event is None:
             return ServiceResult(202, "ignored")
@@ -78,17 +80,28 @@ class AutonomyWebhookApplication:
 class AutonomyService:
     """Runs webhook ingress and the durable supervisor in one restart-safe process."""
 
-    def __init__(self, app: AutonomyWebhookApplication, supervisor: AutonomousSupervisor, host: str = "127.0.0.1", port: int = 0):
+    def __init__(
+        self,
+        app: AutonomyWebhookApplication,
+        supervisor: AutonomousSupervisor,
+        host: str = "127.0.0.1",
+        port: int = 0,
+        max_body_bytes: int = DEFAULT_MAX_BODY_BYTES,
+    ):
+        if max_body_bytes < 1:
+            raise ValueError("max_body_bytes must be positive")
         self.app = app
         self.supervisor = supervisor
         self.host = host
         self.port = port
+        self.max_body_bytes = max_body_bytes
         self._stop = threading.Event()
         self._worker_thread: threading.Thread | None = None
         self._server: ThreadingHTTPServer | None = None
 
     def _handler(self):
         app = self.app
+        max_body_bytes = self.max_body_bytes
 
         class Handler(BaseHTTPRequestHandler):
             def _reply(self, result: ServiceResult) -> None:
@@ -96,6 +109,7 @@ class AutonomyService:
                 self.send_response(result.status)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
+                self.send_header("X-Content-Type-Options", "nosniff")
                 self.end_headers()
                 self.wfile.write(payload)
 
@@ -105,9 +119,31 @@ class AutonomyService:
                 else:
                     self._reply(ServiceResult(404, "not found"))
 
+            def _read_bounded_body(self) -> bytes | None:
+                if self.headers.get("Transfer-Encoding"):
+                    self._reply(ServiceResult(400, "unsupported transfer encoding"))
+                    return None
+                raw_length = self.headers.get("Content-Length")
+                if raw_length is None:
+                    self._reply(ServiceResult(411, "content length required"))
+                    return None
+                try:
+                    length = int(raw_length)
+                except ValueError:
+                    self._reply(ServiceResult(400, "invalid content length"))
+                    return None
+                if length < 0:
+                    self._reply(ServiceResult(400, "invalid content length"))
+                    return None
+                if length > max_body_bytes:
+                    self._reply(ServiceResult(413, "payload too large"))
+                    return None
+                return self.rfile.read(length)
+
             def do_POST(self):
-                length = int(self.headers.get("Content-Length", "0"))
-                body = self.rfile.read(length)
+                body = self._read_bounded_body()
+                if body is None:
+                    return
                 headers = {k.lower(): v for k, v in self.headers.items()}
                 if self.path == "/webhooks/github":
                     self._reply(app.github_webhook(headers, body))
