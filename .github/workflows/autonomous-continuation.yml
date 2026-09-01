@@ -1,0 +1,73 @@
+name: Ω APEX Immediate Autonomous Continuation
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_run:
+    workflows: ["HAKIM Governance Gate"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: omega-apex-immediate-continuation
+  cancel-in-progress: false
+
+jobs:
+  continue:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != null)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      OMEGA_REPOSITORY: ${{ github.repository }}
+      OMEGA_GITHUB_TOKEN: ${{ github.token }}
+      OMEGA_GITHUB_WEBHOOK_SECRET: event-bridge-local-only
+      OMEGA_RUNTIME_TOKEN: event-bridge-local-only
+      OMEGA_DB_PATH: ${{ github.workspace }}/.omega/omega.db
+      OMEGA_ALLOW_BRANCH_CREATE: 'true'
+      OMEGA_ALLOW_COMMENT: 'true'
+      OMEGA_ALLOW_MERGE: 'false'
+      OMEGA_ALLOW_FILE_WRITE: ${{ secrets.OMEGA_OPENAI_API_KEY != '' && secrets.OMEGA_OPENAI_MODEL != '' }}
+      OMEGA_OPENAI_API_KEY: ${{ secrets.OMEGA_OPENAI_API_KEY }}
+      OMEGA_OPENAI_MODEL: ${{ secrets.OMEGA_OPENAI_MODEL }}
+      OMEGA_OPENAI_BASE_URL: ${{ secrets.OMEGA_OPENAI_BASE_URL || 'https://api.openai.com/v1' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore durable autonomy state
+        uses: actions/cache/restore@v4
+        with:
+          path: .omega
+          key: omega-apex-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            omega-apex-state-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ω APEX
+        run: python -m pip install .
+
+      - name: Process event immediately
+        run: python -m app.hakim.run_event_once
+
+      - name: Save durable autonomy state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .omega
+          key: omega-apex-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Explain capability gate
+        if: env.OMEGA_ALLOW_FILE_WRITE != 'true'
+        run: echo 'Immediate event processing is active; autonomous code generation remains fail-closed until OMEGA_OPENAI_API_KEY and OMEGA_OPENAI_MODEL repository secrets are available.'
