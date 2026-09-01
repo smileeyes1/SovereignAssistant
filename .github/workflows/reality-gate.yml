@@ -63,7 +63,7 @@ jobs:
             "source_id": "${SOURCE_ID}",
             "event_name": "task.completed",
             "subject": "${SUBJECT}",
-            "payload": {"source": "github-actions-reality-gate"},
+            "source": "github-actions-reality-gate",
           }, separators=(",", ":")))
           PY
           )
