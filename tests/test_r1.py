@@ -11,6 +11,10 @@ def test_project_store_blocks_escape(tmp_path):
     assert store.snapshot("p1")["index.html"] == "ok"
     with pytest.raises(ValueError):
         store.write_text("p1", "../escape.txt", "bad")
+    with pytest.raises(ValueError, match="project_id escapes"):
+        store.project_path("../outside")
+    with pytest.raises(ValueError, match="project_id is required"):
+        store.project_path("   ")
 
 
 def test_local_runtime_executes_and_logs(tmp_path):
