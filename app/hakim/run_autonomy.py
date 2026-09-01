@@ -14,6 +14,7 @@ from .event_continuation import EventType
 from .goal_governor import GoalPortfolio
 from .goal_loop import ClosedLoopGoalGovernor
 from .production import ProductionConfig, ProductionRuntime, build_production_runtime
+from .self_audit import AutonomySelfAuditor
 
 
 ROADMAP_BOOTSTRAP_EVENT = "omega-roadmap-bootstrap-v1"
@@ -24,6 +25,8 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
     config = ProductionConfig.from_env(values)
     runtime = build_production_runtime(config, github_opener=github_opener)
     AutonomousDevelopmentActions(runtime).install()
+    capabilities = CapabilityRegistry(runtime.state)
+    runtime.service.supervisor.heartbeat = AutonomySelfAuditor(runtime, capabilities).run_once
 
     provider_key = values.get("OMEGA_OPENAI_API_KEY", "").strip()
     provider_model = values.get("OMEGA_OPENAI_MODEL", "").strip()
@@ -36,7 +39,7 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
             base_url=values.get("OMEGA_OPENAI_BASE_URL", "https://api.openai.com/v1"),
             opener=provider_opener,
         )
-        providers = CodingProviderPool([provider], CapabilityRegistry(runtime.state))
+        providers = CodingProviderPool([provider], capabilities)
         CISelfRepair(runtime, providers).install()
         portfolio = GoalPortfolio(runtime)
         portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
