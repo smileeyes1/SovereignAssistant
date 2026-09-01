@@ -86,7 +86,12 @@ class AutonomySelfAuditor:
             if attempts >= self.repair_budget:
                 blockers.append(f"repair budget exhausted for goal {goal.goal_id} PR #{goal.pr_number}: {attempts}/{self.repair_budget}")
 
-        if self.runtime.config.allow_file_write and not self.capabilities.is_healthy(self.required_provider):
+        next_goal = portfolio.next_ready() if not active else None
+        if next_goal is not None and not self.runtime.config.allow_file_write:
+            blockers.append(
+                f"mission incomplete: ready goal {next_goal.goal_id} exists but autonomous coding/file-write capability is unavailable"
+            )
+        elif self.runtime.config.allow_file_write and not self.capabilities.is_healthy(self.required_provider):
             health = self.capabilities.get(self.required_provider)
             blockers.append(
                 f"required provider {self.required_provider} unhealthy after {health.failures} failures: {health.last_error or 'unknown error'}"
@@ -96,18 +101,16 @@ class AutonomySelfAuditor:
         status = "healthy"
         if blockers:
             status = "blocked"
-        elif not active and self._pending_work_count() == 0:
-            next_goal = portfolio.next_ready()
-            if next_goal is not None:
-                recovery_event = f"omega-self-audit-continue-{next_goal.goal_id}"
-                self.runtime.queue.enqueue(
-                    recovery_event,
-                    EventType.MANUAL_SIGNAL.value,
-                    "self-audit-continuation",
-                    {"source": "autonomy-self-audit", "goal_id": next_goal.goal_id},
-                    max_attempts=5,
-                )
-                status = "recovery_enqueued"
+        elif not active and self._pending_work_count() == 0 and next_goal is not None:
+            recovery_event = f"omega-self-audit-continue-{next_goal.goal_id}"
+            self.runtime.queue.enqueue(
+                recovery_event,
+                EventType.MANUAL_SIGNAL.value,
+                "self-audit-continuation",
+                {"source": "autonomy-self-audit", "goal_id": next_goal.goal_id},
+                max_attempts=5,
+            )
+            status = "recovery_enqueued"
 
         report = SelfAuditReport(status, tuple(blockers), recovery_event, self._now())
         self.runtime.state.set_state(
@@ -119,6 +122,8 @@ class AutonomySelfAuditor:
                 "checked_at": report.checked_at,
                 "dead_work_count": len(dead),
                 "active_goal_count": len(active),
+                "next_ready_goal": None if next_goal is None else next_goal.goal_id,
+                "mission_complete": next_goal is None and not active and not dead,
             },
         )
         self.runtime.state.set_state(self.LAST_RUN_KEY, now_epoch)
