@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
-import json, subprocess, threading
+import subprocess, threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 
@@ -12,16 +12,20 @@ class ProjectStore:
     root: Path
 
     def __post_init__(self):
-        self.root = Path(self.root)
+        self.root = Path(self.root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
     def project_path(self, project_id: str) -> Path:
-        p = self.root / project_id
-        p.mkdir(parents=True, exist_ok=True)
-        return p
+        if not project_id.strip():
+            raise ValueError("project_id is required")
+        candidate = (self.root / project_id).resolve()
+        if self.root not in candidate.parents:
+            raise ValueError("project_id escapes storage root")
+        candidate.mkdir(parents=True, exist_ok=True)
+        return candidate
 
     def write_text(self, project_id: str, rel: str, content: str) -> Path:
-        base = self.project_path(project_id).resolve()
+        base = self.project_path(project_id)
         target = (base / rel).resolve()
         if base not in target.parents and target != base:
             raise ValueError("path escapes project root")
