@@ -55,7 +55,7 @@ def test_collector_discovers_retry_debt_from_durable_runtime_evidence(tmp_path: 
     queue.enqueue("retry-evidence", "manual_signal", "probe", {}, max_attempts=5)
     claimed = queue.claim("worker")
     assert claimed is not None
-    queue.fail(claimed.job_id, "worker", "injected transient failure", retry_delay_seconds=0)
+    queue.fail(claimed.job_id, "worker", "injected transient failure", backoff_seconds=0)
     claimed = queue.claim("worker")
     assert claimed is not None
     queue.complete(claimed.job_id, "worker")
