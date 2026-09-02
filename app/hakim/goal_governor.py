@@ -98,6 +98,14 @@ class GoalPortfolio:
         self.save_all(goals)
         return True
 
+    def add_if_absent(self, goal: Goal) -> bool:
+        goals = self.all()
+        if any(existing.goal_id == goal.goal_id for existing in goals):
+            return False
+        goals.append(goal)
+        self.save_all(goals)
+        return True
+
     def get(self, goal_id: str) -> Goal:
         for goal in self.all():
             if goal.goal_id == goal_id:
@@ -165,6 +173,26 @@ class AutonomousGoalGovernor:
     base_branch: str = "main"
     max_context_files: int = 16
 
+    EXCELLENCE_CONTEXT = (
+        "app/hakim/continuous_excellence.py",
+        "app/hakim/run_autonomy.py",
+        "app/hakim/goal_governor.py",
+        "app/hakim/durable_worker.py",
+        "app/hakim/self_audit.py",
+        "app/hakim/mission_autonomy.py",
+        "app/hakim/autonomy_arena.py",
+        "tests/test_continuous_excellence.py",
+        "tests/test_goal_governor.py",
+    )
+    EXCELLENCE_GUARDS = (
+        ("requires_sandbox", "candidate is evaluated in sandbox before promotion"),
+        ("requires_benchmark", "candidate must demonstrate a measured benchmark gain"),
+        ("requires_adversarial_regression", "adversarial and regression suites remain green"),
+        ("requires_canary", "candidate passes canary before wider promotion"),
+        ("requires_post_promotion_measurement", "post-promotion outcome is measured and audited"),
+        ("rollback_on_regression", "any unacceptable regression triggers rollback"),
+    )
+
     def install(self) -> None:
         for event_type in (EventType.PR_MERGED, EventType.TASK_COMPLETED, EventType.MANUAL_SIGNAL):
             self.runtime.registry.register(
@@ -209,10 +237,40 @@ class AutonomousGoalGovernor:
             files[path] = content
         return files
 
+    def _materialize_excellence_goal(self, event: ContinuationEvent) -> Goal | None:
+        if event.subject != "continuous-excellence" or event.payload.get("source") != "continuous-excellence":
+            return None
+        domain = str(event.payload.get("domain", "")).strip()
+        description = str(event.payload.get("description", "")).strip()
+        evidence = event.payload.get("evidence", [])
+        if not domain or not description or not isinstance(evidence, list) or not evidence:
+            raise RuntimeError("continuous-excellence event lacks verified gap evidence")
+        missing_guards = [key for key, _ in self.EXCELLENCE_GUARDS if event.payload.get(key) is not True]
+        if missing_guards:
+            raise RuntimeError("continuous-excellence release guards missing: " + ", ".join(missing_guards))
+        suffix = re.sub(r"[^a-z0-9]+", "-", event.event_id.lower()).strip("-")[-32:]
+        goal_id = f"excellence-{suffix or sha256(event.event_id.encode()).hexdigest()[:16]}"
+        acceptance = tuple(text for _, text in self.EXCELLENCE_GUARDS) + (
+            "all cited operational evidence is addressed or explicitly disproven by stronger evidence",
+            "Ω AUTONOMY ARENA certification remains at or above the Golden Baseline",
+        )
+        goal = Goal(
+            goal_id,
+            f"Continuous excellence: {domain}",
+            f"Improve verified {domain} gap: {description}. Evidence: " + "; ".join(str(x) for x in evidence),
+            100 + float(event.payload.get("severity", 0) or 0),
+            acceptance=acceptance,
+            context_paths=self.EXCELLENCE_CONTEXT,
+        )
+        self.portfolio.add_if_absent(goal)
+        return self.portfolio.get(goal_id)
+
     def advance(self, event: ContinuationEvent) -> None:
         if self.portfolio.active():
             return
         goal = self.portfolio.next_ready()
+        if goal is None:
+            goal = self._materialize_excellence_goal(event)
         if goal is None:
             self.runtime.state.set_state("omega.goals.last_advance", {"status": "idle", "event": event.event_id})
             return
@@ -272,4 +330,8 @@ class AutonomousGoalGovernor:
             completion_evidence=f"PR #{number} merged",
         )
         self.portfolio.update(updated)
+        if goal.goal_id.startswith("excellence-"):
+            key = "omega.continuous_excellence.generation"
+            generation = int(self.runtime.state.get_state(key, 0) or 0)
+            self.runtime.state.set_state(key, generation + 1)
         self.runtime.state.set_state("omega.goals.last_completed", {"goal_id": goal.goal_id, "pr": number})
