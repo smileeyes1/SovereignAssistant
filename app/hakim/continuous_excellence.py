@@ -1,10 +1,10 @@
 """Post-ΩL7 autonomous continuous-excellence control for Ω APEX.
 
 A completed finite roadmap is a certified baseline, not the end of system life.
-This controller deterministically evaluates observable improvement signals and
-emits at most one governed improvement opportunity per cycle. It never promotes
-changes directly: normal Mission Kernel, sandbox, Arena, CI and authority gates
-remain mandatory.
+The controller observes durable runtime evidence, selects at most one verified
+reversible gap per cycle, and emits governed work. It never promotes changes
+directly: Mission Kernel, sandbox, benchmark, Arena/CI, canary and authority
+gates remain mandatory.
 """
 from __future__ import annotations
 
@@ -36,6 +36,57 @@ class ExcellenceDecision:
     event_id: str | None
     selected_domain: str | None
     reason: str
+
+
+class OperationalSignalCollector:
+    """Build improvement signals only from durable, inspectable evidence."""
+
+    OBSERVATIONS_KEY = "omega.continuous_excellence.observations"
+
+    def __init__(self, state: DurableStateStore, queue: DurableWorkQueue):
+        self.state = state
+        self.queue = queue
+
+    def collect(self) -> tuple[ImprovementSignal, ...]:
+        signals: list[ImprovementSignal] = []
+        with self.queue._connect() as conn:
+            dead = conn.execute("SELECT COUNT(*) AS n FROM work_queue WHERE status='dead'").fetchone()
+            recovered = conn.execute(
+                "SELECT COUNT(*) AS n FROM work_queue WHERE status='completed' AND attempts>1"
+            ).fetchone()
+        dead_count = int(dead["n"])
+        recovered_count = int(recovered["n"])
+        if dead_count:
+            signals.append(ImprovementSignal(
+                "reliability",
+                "eliminate durable dead-letter work",
+                5,
+                (f"work_queue:dead={dead_count}",),
+            ))
+        elif recovered_count:
+            signals.append(ImprovementSignal(
+                "reliability",
+                "reduce repeated execution needed for successful work",
+                3,
+                (f"work_queue:recovered_after_retry={recovered_count}",),
+            ))
+
+        observations = self.state.get_state(self.OBSERVATIONS_KEY, [])
+        if isinstance(observations, list):
+            for item in observations:
+                if not isinstance(item, dict):
+                    continue
+                evidence = item.get("evidence", [])
+                if not isinstance(evidence, list):
+                    continue
+                signals.append(ImprovementSignal(
+                    str(item.get("domain", "")),
+                    str(item.get("description", "")),
+                    int(item.get("severity", 0)),
+                    tuple(str(x) for x in evidence),
+                    bool(item.get("reversible", True)),
+                ))
+        return tuple(signals)
 
 
 class ContinuousExcellenceController:
@@ -73,7 +124,10 @@ class ContinuousExcellenceController:
                     "evidence": list(selected.evidence),
                     "requires_sandbox": True,
                     "requires_benchmark": True,
+                    "requires_adversarial_regression": True,
                     "requires_canary": True,
+                    "requires_post_promotion_measurement": True,
+                    "rollback_on_regression": True,
                 },
                 max_attempts=5,
             )
