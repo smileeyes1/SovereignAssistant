@@ -93,14 +93,15 @@ class ContinuousExcellenceController:
     """Convert verified post-baseline gaps into durable governed work."""
 
     STATE_KEY = "omega.continuous_excellence.last"
+    GENERATION_KEY = "omega.continuous_excellence.generation"
 
     def __init__(self, state: DurableStateStore, queue: DurableWorkQueue):
         self.state = state
         self.queue = queue
 
-    @staticmethod
-    def _event_id(signal: ImprovementSignal) -> str:
-        material = "|".join((signal.domain, signal.description, *signal.evidence))
+    def _event_id(self, signal: ImprovementSignal) -> str:
+        generation = int(self.state.get_state(self.GENERATION_KEY, 0) or 0)
+        material = "|".join((str(generation), signal.domain, signal.description, *signal.evidence))
         return "omega-excellence-" + sha256(material.encode("utf-8")).hexdigest()[:20]
 
     def evaluate(self, signals: Iterable[ImprovementSignal]) -> ExcellenceDecision:
