@@ -150,6 +150,94 @@ def test_active_goal_prevents_parallel_uncontrolled_goal_creation(tmp_path):
     assert portfolio.get("g2").status == GoalStatus.PLANNED
 
 
+def test_excellence_event_materializes_guarded_goal_after_finite_roadmap(tmp_path):
+    rt = runtime(tmp_path)
+    portfolio = GoalPortfolio(rt)
+    portfolio.save_all([Goal("baseline", "Baseline", "certified", 1, status=GoalStatus.COMPLETED)])
+    provider = Provider()
+    governor = ClosedLoopGoalGovernor(rt, CodingProviderPool([provider]), portfolio)
+    event = ContinuationEvent(
+        "omega-excellence-generation-0",
+        EventType.MANUAL_SIGNAL,
+        "continuous-excellence",
+        {
+            "source": "continuous-excellence",
+            "domain": "reliability",
+            "description": "reduce retry debt",
+            "severity": 4,
+            "evidence": ["work_queue:recovered_after_retry=2"],
+            "requires_sandbox": True,
+            "requires_benchmark": True,
+            "requires_adversarial_regression": True,
+            "requires_canary": True,
+            "requires_post_promotion_measurement": True,
+            "rollback_on_regression": True,
+        },
+    )
+    governor.advance(event)
+    dynamic = [g for g in portfolio.all() if g.goal_id.startswith("excellence-")]
+    assert len(dynamic) == 1
+    goal = dynamic[0]
+    assert goal.status == GoalStatus.VERIFYING
+    assert goal.pr_number == 20
+    assert "reduce retry debt" in provider.requests[0].objective
+    assert "candidate passes canary before wider promotion" in provider.requests[0].objective
+    assert "app/hakim/autonomy_arena.py" in provider.requests[0].files
+
+
+def test_excellence_event_fails_closed_when_release_guard_is_missing(tmp_path):
+    rt = runtime(tmp_path)
+    portfolio = GoalPortfolio(rt)
+    portfolio.save_all([Goal("baseline", "Baseline", "certified", 1, status=GoalStatus.COMPLETED)])
+    governor = ClosedLoopGoalGovernor(rt, CodingProviderPool([Provider()]), portfolio)
+    event = ContinuationEvent(
+        "omega-excellence-unsafe",
+        EventType.MANUAL_SIGNAL,
+        "continuous-excellence",
+        {
+            "source": "continuous-excellence",
+            "domain": "quality",
+            "description": "candidate change",
+            "severity": 5,
+            "evidence": ["benchmark:1"],
+            "requires_sandbox": True,
+            "requires_benchmark": True,
+            "requires_adversarial_regression": True,
+            "requires_canary": False,
+            "requires_post_promotion_measurement": True,
+            "rollback_on_regression": True,
+        },
+    )
+    try:
+        governor.advance(event)
+        assert False, "missing guard must fail closed"
+    except RuntimeError as exc:
+        assert "release guards missing" in str(exc)
+    assert rt.github.branches == []
+
+
+def test_completed_excellence_goal_advances_baseline_generation(tmp_path):
+    rt = runtime(tmp_path)
+    portfolio = GoalPortfolio(rt)
+    portfolio.save_all([
+        Goal(
+            "excellence-cycle-1",
+            "Continuous excellence",
+            "verified improvement",
+            100,
+            acceptance=("verified by CI",),
+            status=GoalStatus.VERIFYING,
+            branch="omega/excellence",
+            pr_number=7,
+            head_sha="old",
+        )
+    ])
+    governor = ClosedLoopGoalGovernor(rt, CodingProviderPool([Provider()]), portfolio)
+    governor.complete_merged_goal(ContinuationEvent("merge-7", EventType.PR_MERGED, "7", {"pull_request": {"number": 7, "merged": True}}))
+    assert portfolio.get("excellence-cycle-1").status == GoalStatus.COMPLETED
+    assert rt.state.get_state("omega.continuous_excellence.generation") == 1
+
+
 def test_goal_store_survives_runtime_restart(tmp_path):
     db = tmp_path / "omega.db"
     rt1 = runtime(tmp_path)
