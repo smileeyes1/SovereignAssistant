@@ -9,6 +9,7 @@ from .autonomy_roadmap import DEFAULT_AUTONOMY_ROADMAP
 from .capability_registry import CapabilityRegistry
 from .ci_repair import CISelfRepair
 from .coding_provider import CodingProviderPool, OpenAIResponsesCodingProvider
+from .continuous_excellence import ContinuousExcellenceController, OperationalSignalCollector
 from .development_actions import AutonomousDevelopmentActions
 from .event_continuation import EventType
 from .goal_governor import GoalPortfolio
@@ -32,7 +33,19 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
     # completed or empty mission.
     portfolio = GoalPortfolio(runtime)
     portfolio.seed_if_empty(DEFAULT_AUTONOMY_ROADMAP)
-    runtime.service.supervisor.heartbeat = AutonomySelfAuditor(runtime, capabilities).run_once
+    self_auditor = AutonomySelfAuditor(runtime, capabilities)
+    excellence = ContinuousExcellenceController(runtime.state, runtime.queue)
+    signals = OperationalSignalCollector(runtime.state, runtime.queue)
+
+    def autonomy_heartbeat() -> None:
+        report = self_auditor.run_once()
+        # Finite roadmap completion becomes the Golden Baseline. Only a healthy,
+        # fully completed roadmap may enter continuous-excellence discovery.
+        if report.status != "healthy" or portfolio.active() or portfolio.next_ready() is not None:
+            return
+        excellence.evaluate(signals.collect())
+
+    runtime.service.supervisor.heartbeat = autonomy_heartbeat
 
     provider_key = values.get("OMEGA_OPENAI_API_KEY", "").strip()
     provider_model = values.get("OMEGA_OPENAI_MODEL", "").strip()
