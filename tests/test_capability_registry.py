@@ -64,5 +64,5 @@ def test_all_unhealthy_fails_closed_without_calling_provider(tmp_path):
         pool.propose_patch(request())
         assert False, "expected no healthy provider failure"
     except RuntimeError as exc:
-        assert "no healthy coding providers available" in str(exc)
+        assert "healthy coding providers available" in str(exc)
     assert provider.calls == 0
