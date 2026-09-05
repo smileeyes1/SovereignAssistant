@@ -3,15 +3,18 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     OMEGA_DB_PATH=/data/omega.db \
+    OMEGA_ARTIFACT_DIR=/data/artifacts \
+    OMEGA_UI_PATH=/app/index.html \
     OMEGA_HOST=0.0.0.0 \
     OMEGA_PORT=8080
 
 WORKDIR /app
 COPY pyproject.toml ./
+COPY index.html ./index.html
 COPY app ./app
 RUN python -m pip install --no-cache-dir . \
     && useradd --create-home --uid 10001 omega \
-    && mkdir -p /data \
+    && mkdir -p /data /data/artifacts \
     && chown -R omega:omega /data /app
 
 USER omega
