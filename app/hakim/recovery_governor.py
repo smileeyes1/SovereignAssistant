@@ -58,7 +58,13 @@ _RISK_SCORE = {
 
 
 class RecoveryGovernor:
-    """Selects the highest-value path allowed by governance and mission safety."""
+    """Selects the highest-value path allowed by governance and mission safety.
+
+    Authorization is deliberately evaluated twice: once while selecting a
+    candidate and again immediately before the real executor is invoked.  The
+    execution-time check is the final fail-closed boundary against stale,
+    forged, or time-of-check/time-of-use candidates.
+    """
 
     FAILURE_PREFIX = "omega.recovery.failures"
 
@@ -109,24 +115,35 @@ class RecoveryGovernor:
         )
         return self.mission_kernel.evaluate(action, human_approved=False)
 
+    def _record_mission_denial(self, registered: RegisteredAction, event: ContinuationEvent, decision) -> None:
+        self.state.set_state(
+            f"omega.mission_kernel.last_denial.{registered.name}",
+            {
+                "event_id": event.event_id,
+                "reason": decision.reason,
+                "next_phase": decision.next_phase.value,
+            },
+        )
+
+    def _authorize(self, registered: RegisteredAction, event: ContinuationEvent) -> tuple[bool, str]:
+        """Fail closed in the mandated order: GovernanceKernel then MissionKernel."""
+        claim = registered.claim_factory(event)
+        governance_decision = self.governance.evaluate(claim, registered.governance_action())
+        if governance_decision != Decision.PROCEED:
+            return False, f"governance denied: {governance_decision.value}"
+
+        mission_decision = self._mission_decision(registered, claim)
+        if not mission_decision.allowed:
+            self._record_mission_denial(registered, event, mission_decision)
+            return False, f"mission denied: {mission_decision.reason}"
+        return True, "governance and mission gates passed"
+
     def candidates(self, event: ContinuationEvent) -> list[ActionCandidate]:
         candidates: list[ActionCandidate] = []
         for registered in self.registry.matching(event):
             if self.failure_count(event.event_id, registered.name) >= self.max_failures_per_path:
                 continue
-            claim = registered.claim_factory(event)
-            governance_decision = self.governance.evaluate(claim, registered.governance_action())
-            mission_decision = self._mission_decision(registered, claim)
-            allowed = governance_decision == Decision.PROCEED and mission_decision.allowed
-            if not mission_decision.allowed:
-                self.state.set_state(
-                    f"omega.mission_kernel.last_denial.{registered.name}",
-                    {
-                        "event_id": event.event_id,
-                        "reason": mission_decision.reason,
-                        "next_phase": mission_decision.next_phase.value,
-                    },
-                )
+            allowed, _ = self._authorize(registered, event)
             candidates.append(
                 ActionCandidate(
                     registered.name,
@@ -141,6 +158,13 @@ class RecoveryGovernor:
 
     def execute(self, candidate: ActionCandidate, event: ContinuationEvent) -> None:
         action = self.registry.get(candidate.name)
+
+        # Selection-time authorization is not a capability token.  Re-evaluate
+        # both kernels at the last possible point before any real side effect.
+        allowed, reason = self._authorize(action, event)
+        if not allowed:
+            raise PermissionError(f"execution-time authorization failed for {action.name}: {reason}")
+
         try:
             action.executor(event)
         except Exception:
