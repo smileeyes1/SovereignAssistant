@@ -61,7 +61,7 @@ class RecoveryGovernor:
     """Selects the highest-value path allowed by governance and mission safety.
 
     Authorization is deliberately evaluated twice: once while selecting a
-    candidate and again immediately before the real executor is invoked.  The
+    candidate and again immediately before the real executor is invoked. The
     execution-time check is the final fail-closed boundary against stale,
     forged, or time-of-check/time-of-use candidates.
     """
@@ -126,15 +126,19 @@ class RecoveryGovernor:
         )
 
     def _authorize(self, registered: RegisteredAction, event: ContinuationEvent) -> tuple[bool, str]:
-        """Fail closed in the mandated order: GovernanceKernel then MissionKernel."""
+        """Evaluate both Golden gates in strict GovernanceKernel → MissionKernel order."""
         claim = registered.claim_factory(event)
         governance_decision = self.governance.evaluate(claim, registered.governance_action())
-        if governance_decision != Decision.PROCEED:
-            return False, f"governance denied: {governance_decision.value}"
 
+        # Preserve independent MissionKernel enforcement and denial evidence even
+        # when governance already fails; execution still requires both to pass.
         mission_decision = self._mission_decision(registered, claim)
         if not mission_decision.allowed:
             self._record_mission_denial(registered, event, mission_decision)
+
+        if governance_decision != Decision.PROCEED:
+            return False, f"governance denied: {governance_decision.value}"
+        if not mission_decision.allowed:
             return False, f"mission denied: {mission_decision.reason}"
         return True, "governance and mission gates passed"
 
@@ -159,7 +163,7 @@ class RecoveryGovernor:
     def execute(self, candidate: ActionCandidate, event: ContinuationEvent) -> None:
         action = self.registry.get(candidate.name)
 
-        # Selection-time authorization is not a capability token.  Re-evaluate
+        # Selection-time authorization is not a capability token. Re-evaluate
         # both kernels at the last possible point before any real side effect.
         allowed, reason = self._authorize(action, event)
         if not allowed:
