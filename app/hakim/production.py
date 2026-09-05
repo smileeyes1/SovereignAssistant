@@ -8,6 +8,7 @@ from pathlib import Path
 from .autonomy_service import AutonomyService, AutonomyWebhookApplication
 from .durable_state import DurableStateStore
 from .durable_worker import DurableContinuationWorker, DurableWorkQueue
+from .end_user_tasks import EndUserTaskStore
 from .github_control import GitHubControl, GitHubWritePolicy
 from .ingress_supervisor import AutonomousSupervisor, EventIngress
 from .recovery_governor import ActionRegistry, RecoveryGovernor
@@ -23,6 +24,8 @@ class ProductionConfig:
     runtime_token: str
     host: str = "0.0.0.0"
     port: int = 8080
+    artifact_dir: Path = Path(".omega/artifacts")
+    ui_path: Path = Path("index.html")
     allow_branch_create: bool = True
     allow_merge: bool = False
     allow_comment: bool = True
@@ -47,8 +50,9 @@ class ProductionConfig:
         port = int(values.get("OMEGA_PORT", "8080"))
         if not 1 <= port <= 65535:
             raise ValueError("OMEGA_PORT must be between 1 and 65535")
+        db_path = Path(values.get("OMEGA_DB_PATH", ".omega/omega.db"))
         return cls(
-            database_path=Path(values.get("OMEGA_DB_PATH", ".omega/omega.db")),
+            database_path=db_path,
             worker_id=values.get("OMEGA_WORKER_ID", "omega-worker-1").strip() or "omega-worker-1",
             repository=required("OMEGA_REPOSITORY"),
             github_token=required("OMEGA_GITHUB_TOKEN"),
@@ -56,6 +60,8 @@ class ProductionConfig:
             runtime_token=required("OMEGA_RUNTIME_TOKEN"),
             host=values.get("OMEGA_HOST", "0.0.0.0"),
             port=port,
+            artifact_dir=Path(values.get("OMEGA_ARTIFACT_DIR", str(db_path.parent / "artifacts"))),
+            ui_path=Path(values.get("OMEGA_UI_PATH", "index.html")),
             allow_branch_create=flag("OMEGA_ALLOW_BRANCH_CREATE", True),
             allow_merge=flag("OMEGA_ALLOW_MERGE", False),
             allow_comment=flag("OMEGA_ALLOW_COMMENT", True),
@@ -68,6 +74,7 @@ class ProductionRuntime:
     config: ProductionConfig
     state: DurableStateStore
     queue: DurableWorkQueue
+    tasks: EndUserTaskStore
     github: GitHubControl
     registry: ActionRegistry
     governor: RecoveryGovernor
@@ -83,14 +90,21 @@ class ProductionRuntime:
 def build_production_runtime(config: ProductionConfig, registry: ActionRegistry | None = None, github_opener=None) -> ProductionRuntime:
     state = DurableStateStore(config.database_path)
     queue = DurableWorkQueue(config.database_path)
+    tasks = EndUserTaskStore(config.database_path)
     registry = registry or ActionRegistry()
     governor = RecoveryGovernor(registry, state)
     engine = governor.engine()
     worker = DurableContinuationWorker(queue, engine, config.worker_id)
     supervisor = AutonomousSupervisor(worker)
     ingress = EventIngress(queue)
-    app = AutonomyWebhookApplication(ingress, config.github_webhook_secret, config.runtime_token)
-    service = AutonomyService(app, supervisor, config.host, config.port)
+    app = AutonomyWebhookApplication(
+        ingress,
+        config.github_webhook_secret,
+        config.runtime_token,
+        tasks=tasks,
+        artifact_root=config.artifact_dir,
+    )
+    service = AutonomyService(app, supervisor, config.host, config.port, ui_path=config.ui_path)
     github = GitHubControl(
         config.github_token,
         config.repository,
@@ -102,4 +116,4 @@ def build_production_runtime(config: ProductionConfig, registry: ActionRegistry 
         ),
         opener=github_opener,
     )
-    return ProductionRuntime(config, state, queue, github, registry, governor, service)
+    return ProductionRuntime(config, state, queue, tasks, github, registry, governor, service)
