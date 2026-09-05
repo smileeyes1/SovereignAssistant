@@ -1,6 +1,9 @@
+import pytest
+
 from app.hakim.core import ActionRisk, Claim
 from app.hakim.durable_state import DurableStateStore
-from app.hakim.event_continuation import ContinuationEvent, EventType
+from app.hakim.event_continuation import ActionCandidate, ContinuationEvent, EventType
+from app.hakim.mission_kernel import MissionKernel, OperationalEnvelope
 from app.hakim.recovery_governor import ActionRegistry, RecoveryGovernor, RegisteredAction, strong_claim
 
 
@@ -82,3 +85,52 @@ def test_failure_memory_survives_governor_restart(tmp_path):
     result = restarted.engine().handle(event)
     assert result.status == "executed"
     assert result.selected_action == "fallback"
+
+
+def test_execution_boundary_rechecks_governance_against_toctou(tmp_path):
+    """A candidate that was safe at selection must not retain stale authority."""
+    seen = []
+    calls = 0
+
+    def changing_claim(event):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return strong_claim("fresh evidence")
+        return Claim("evidence disappeared", (), 1.0)
+
+    registry = ActionRegistry()
+    registry.register(action("mutable-evidence", 10, lambda event: seen.append("executed"), claim_factory=changing_claim))
+    governor = RecoveryGovernor(registry, DurableStateStore(tmp_path / "omega.db"))
+
+    result = governor.engine().handle(ContinuationEvent("e6", EventType.TASK_FAILED, "task"))
+
+    assert result.status == "failed"
+    assert "execution-time authorization failed" in result.reason
+    assert seen == []
+    assert calls == 2
+
+
+def test_forged_candidate_cannot_bypass_runtime_mission_kernel(tmp_path):
+    """Direct executor entry is fail-closed even with a forged executable candidate."""
+    seen = []
+    registry = ActionRegistry()
+    registry.register(action("forbidden-capability", 10, lambda event: seen.append("executed")))
+    mission = MissionKernel(
+        OperationalEnvelope(
+            allowed_capabilities=frozenset({"different-capability"}),
+            max_risk=2,
+            require_reversible_above=1,
+            min_evidence=1,
+        )
+    )
+    governor = RecoveryGovernor(registry, DurableStateStore(tmp_path / "omega.db"), mission_kernel=mission)
+    forged = ActionCandidate("forbidden-capability", 999, safe=True, reversible=True, authorized=True, ready=True)
+    event = ContinuationEvent("e7", EventType.TASK_FAILED, "task")
+
+    with pytest.raises(PermissionError, match="execution-time authorization failed"):
+        governor.execute(forged, event)
+
+    assert seen == []
+    denial = governor.state.get_state("omega.mission_kernel.last_denial.forbidden-capability")
+    assert denial["event_id"] == "e7"
