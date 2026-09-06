@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,3 +74,37 @@ def test_hakim_continuation_is_profile_not_universal_constitution():
     assert "OMEGA_SOVEREIGN_OPERATING_CONSTITUTION.md" in h
     assert "Profile" in h or "profile" in h
     assert "RECOVERY HINT" in h
+
+
+def test_amendment_protocol_is_fail_closed_and_post_merge_verified():
+    p = text("CONSTITUTION_AMENDMENT_PROTOCOL.md")
+    required = [
+        "سبب التغيير",
+        "حفظ العقد",
+        "فصل الطبقات",
+        "Impact Diff",
+        "Regression Gate",
+        "Head identity",
+        "Post-merge verification",
+        "NOT_PROVEN",
+    ]
+    for marker in required:
+        assert marker in p
+
+
+def test_machine_readable_manifest_matches_constitution_contract():
+    m = json.loads(text("OMEGA_CONSTITUTION_MANIFEST.json"))
+    assert m["schema_version"] == 1
+    assert m["canonical_file"] == "docs/OMEGA_SOVEREIGN_OPERATING_CONSTITUTION.md"
+    assert m["amendment_protocol"] == "docs/CONSTITUTION_AMENDMENT_PROTOCOL.md"
+    assert m["layers"] == [
+        "UNIVERSAL_CONSTITUTION",
+        "DOMAIN_OR_PROJECT_PROFILE",
+        "CURRENT_STATE_CAPSULE",
+        "EXECUTION",
+    ]
+    assert set(m["official_evidence_states"]) == {"PROVEN", "NOT_PROVEN", "FAIL", "BLOCKED"}
+    assert "new_permission" in m["human_gate_required_for"]
+    assert "device_specific_baseline" in m["forbidden_in_universal_layer"]
+    assert m["automation_preference"][0] == "event_driven"
+    assert m["automation_preference"][-1] == "local_durable_runtime_or_queue"
