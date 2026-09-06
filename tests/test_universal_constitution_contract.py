@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,6 +75,37 @@ def test_hakim_continuation_is_profile_not_universal_constitution():
     assert "OMEGA_SOVEREIGN_OPERATING_CONSTITUTION.md" in h
     assert "Profile" in h or "profile" in h
     assert "RECOVERY HINT" in h
+    assert "HAKIM_STATE_CAPSULE.md" in h
+
+    # Profiles are durable policy, not mutable state. Keep SHA/CI/blockers in the capsule.
+    assert re.search(r"\b[0-9a-f]{40}\b", h) is None
+    assert "current field blocker =" not in h.lower()
+    assert "Governance = PASS" not in h
+    assert "Reality = PASS" not in h
+
+
+def test_hakim_state_capsule_is_explicitly_mutable_and_evidence_scoped():
+    s = text("HAKIM_STATE_CAPSULE.md")
+    required = [
+        "Mutable recovery hint, not constitution",
+        "Last Verified Baseline",
+        "PROVEN",
+        "NOT_PROVEN",
+        "FAIL",
+        "BLOCKED",
+        "Protected Invariants",
+        "Open Work in Causal Order",
+        "External / Human Gates",
+        "Recovery Path",
+        "Staleness Rule",
+        "RECOVERY HINT ONLY",
+    ]
+    for marker in required:
+        assert marker in s
+    assert "CI/runtime only" in s
+    assert "does not imply Android Companion field qualification" in s
+    assert "Remote Desktop Commander remains optional maintenance only" in s
+    assert "no resident local model" in s
 
 
 def test_amendment_protocol_is_fail_closed_and_post_merge_verified():

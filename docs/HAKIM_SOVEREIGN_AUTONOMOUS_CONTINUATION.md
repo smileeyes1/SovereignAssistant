@@ -6,6 +6,8 @@
 
 `Ω SOVEREIGN OPERATING CONSTITUTION → HAKIM PROFILE → CURRENT STATE CAPSULE → EXECUTION`
 
+The mutable HAKIM recovery state lives in `docs/HAKIM_STATE_CAPSULE.md`; this Profile must not embed mutable SHA values, current CI results, release IDs, or temporary blockers.
+
 ## 1. HAKIM mission
 
 استأنف `smileeyes1/SovereignAssistant` من آخر حالة صحيحة مثبتة بالأدلة الفعلية الآن. الغاية الخاصة بهذا الملف: HAKIM محلي سيادي، مستقل قدر الإمكان، منخفض العبء، قادر على القيادة والتنفيذ والتحقق والتعافي على الهاتف، مع إبقاء المستخدم مستخدمًا نهائيًا لا مطورًا.
@@ -88,17 +90,6 @@ Android Companion يجب أن يحافظ على:
 
 تعطل أي طبقة صيانة أو إشراف لا يجب أن يوقف النواة المحلية ما لم تكن هناك تبعية حقيقية مثبتة.
 
-## 7. STATE CAPSULE — RECOVERY HINT ONLY
+## 7. Mutable state separation
 
-هذه نقطة استعادة أولية فقط ويجب إعادة التحقق منها عند كل تشغيل:
-
-- `main baseline = 1c5525fd90b02c9f3e251353c1ab436737620ec3`
-- `Governance = PASS`
-- `Reality = PASS`
-- `Immediate Autonomous Continuation = PASS`
-- `Android Companion source/build = 45bc7cb6f926d61dae2f6ca8e9dd55ec0a629891`
-- `release = hakim-companion-45bc7cb6f926`
-- `APK SHA256 = 73f0295286480bfcec9746fd8deb45c316aa838b8d96ef63294721dcae5a9094`
-- `current field blocker = Android Companion not yet fully field-qualified; Remote Desktop Commander may be offline.`
-
-في كل تشغيل: تحقق من هذه الكبسولة ولا تفترض استمرار صحتها. إذا ثبت Baseline أحدث فاجعله الحاكم واستمر منه.
+كل SHA أو PASS/FAIL آني أو release/tag أو device-online state أو blocker مؤقت ينتمي إلى `docs/HAKIM_STATE_CAPSULE.md`، لا إلى هذا الـProfile. عند كل تشغيل تُقرأ الكبسولة كـ`RECOVERY HINT` فقط ثم يعاد التحقق من GitHub/CI/الجهاز قبل اعتماد أي قيمة منها.
