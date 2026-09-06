@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
 import subprocess
+import urllib.request
 
 import pytest
 
@@ -20,6 +21,18 @@ class Runner:
         self.calls = []
     def __call__(self, argv, **kwargs):
         self.calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, '', '')
+
+
+class PmRunner(Runner):
+    def __init__(self, installed: bool):
+        super().__init__()
+        self.installed = installed
+    def __call__(self, argv, **kwargs):
+        self.calls.append((argv, kwargs))
+        if argv[:2] == ['pm', 'path']:
+            out = 'package:/data/app/com.termux.api/base.apk\n' if self.installed else ''
+            return subprocess.CompletedProcess(argv, 0 if self.installed else 1, out, '')
         return subprocess.CompletedProcess(argv, 0, '', '')
 
 
@@ -56,6 +69,40 @@ def test_notification_has_only_fixed_approve_reject_actions(tmp_path, monkeypatc
     assert '--button1-action' in argv and '--button2-action' in argv
     assert kwargs['shell'] is False
     assert rid not in ''.join(argv[:1])
+
+
+def test_notification_backend_requires_android_companion(tmp_path, monkeypatch):
+    monkeypatch.setattr('app.hakim.android_permission_broker.shutil.which', lambda name: f'/bin/{name}')
+    missing = AndroidPermissionBroker(tmp_path, runner=PmRunner(installed=False))
+    assert missing.notifications_available() is False
+    installed = AndroidPermissionBroker(tmp_path, runner=PmRunner(installed=True))
+    assert installed.notifications_available() is True
+
+
+def test_browser_fallback_binds_loopback_and_records_decision(tmp_path, monkeypatch):
+    runner = Runner()
+    broker = AndroidPermissionBroker(tmp_path, runner=runner)
+    monkeypatch.setattr(broker, 'browser_fallback_available', lambda: True)
+    rid, token = broker.request('test', 'Local fallback', ttl_seconds=60, notify=False)
+    server = broker._start_browser_gate(broker._load(rid), token)
+    try:
+        argv, kwargs = runner.calls[-1]
+        assert argv[:5] == ['am', 'start', '-a', 'android.intent.action.VIEW', '-d']
+        assert kwargs['shell'] is False
+        url = argv[-1]
+        assert url.startswith('http://127.0.0.1:')
+        with urllib.request.urlopen(url, timeout=3) as response:
+            page = response.read().decode('utf-8')
+        assert 'سماح' in page and 'رفض' in page
+        assert 'http://' not in page and 'https://' not in page
+        approve_url = url + '/approved'
+        request = urllib.request.Request(approve_url, data=b'', method='POST')
+        with urllib.request.urlopen(request, timeout=3) as response:
+            assert response.status == 200
+        assert broker.decision(rid).status == 'approved'
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_records_are_private_and_audited(tmp_path):
