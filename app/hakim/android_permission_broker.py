@@ -1,7 +1,9 @@
 """Local Android approval broker for HAKIM Ω.
 
-Uses Termux:API notifications as a human-sovereign gate. Approval state is
-stored locally; no cloud account, ChatGPT memory, or remote service is required.
+Prefers Termux:API notifications as the human-sovereign gate. When the Android
+companion app is unavailable, a loopback-only browser gate can be used as a
+bootstrap fallback. Approval state remains local; no cloud account, ChatGPT
+memory, or remote service is required.
 """
 from __future__ import annotations
 
@@ -9,6 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+import html
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
@@ -17,6 +21,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from typing import Any, Callable
 import uuid
@@ -47,7 +52,12 @@ class ApprovalDecision:
 
 
 class AndroidPermissionBroker:
-    """One-time, expiring approval requests surfaced as Android notifications."""
+    """One-time, expiring local approval requests.
+
+    Termux:API notifications are the preferred Android UX. A loopback browser
+    gate is allowed only as a local bootstrap fallback when the companion app is
+    missing or unavailable; it does not qualify the notification gate itself.
+    """
 
     FINAL = {'approved', 'rejected', 'expired'}
 
@@ -65,9 +75,25 @@ class AndroidPermissionBroker:
         self.clock = clock
         self.runner = runner
 
+    def notifications_available(self) -> bool:
+        """Require both the Termux CLI shim and the Android companion package."""
+        if shutil.which('termux-notification') is None or shutil.which('pm') is None:
+            return False
+        try:
+            proc = self.runner(
+                ['pm', 'path', 'com.termux.api'],
+                text=True,
+                capture_output=True,
+                timeout=8,
+                shell=False,
+            )
+        except Exception:
+            return False
+        return getattr(proc, 'returncode', 1) == 0 and 'package:' in str(getattr(proc, 'stdout', ''))
+
     @staticmethod
-    def notifications_available() -> bool:
-        return shutil.which('termux-notification') is not None
+    def browser_fallback_available() -> bool:
+        return shutil.which('am') is not None
 
     def _path(self, request_id: str) -> Path:
         if not request_id or any(c not in '0123456789abcdef-' for c in request_id.lower()):
@@ -118,7 +144,7 @@ class AndroidPermissionBroker:
 
     def _notify(self, doc: dict[str, Any], token: str) -> None:
         if not self.notifications_available():
-            raise RuntimeError('termux-notification is unavailable; install Termux:API app and pkg termux-api')
+            raise RuntimeError('Termux:API notification backend is unavailable')
         script = str(Path(__file__).resolve())
         py = sys.executable or 'python3'
         root = str(self.root)
@@ -139,6 +165,106 @@ class AndroidPermissionBroker:
         if getattr(proc, 'returncode', 0) != 0:
             raise RuntimeError(f"notification failed: {getattr(proc, 'stderr', '')}")
         self._audit('approval.notified', {'request_id': rid, 'notification_id': nid})
+
+    def _start_browser_gate(self, doc: dict[str, Any], token: str) -> ThreadingHTTPServer:
+        """Serve one capability URL on 127.0.0.1 and open it with Android."""
+        if not self.browser_fallback_available():
+            raise RuntimeError('local browser approval fallback is unavailable')
+        broker = self
+        rid = str(doc['request_id'])
+        nonce = secrets.token_urlsafe(32)
+        page_path = f'/approval/{nonce}'
+        approve_path = f'{page_path}/approved'
+        reject_path = f'{page_path}/rejected'
+        title = html.escape('HAKIM Ω — طلب إذن')
+        summary = html.escape(str(doc['summary']))
+        risk = html.escape(str(doc['risk']))
+
+        class Handler(BaseHTTPRequestHandler):
+            server_version = 'HAKIMLocalGate/1'
+
+            def _headers(self, status: int = 200, content_type: str = 'text/html; charset=utf-8') -> None:
+                self.send_response(status)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Cache-Control', 'no-store, max-age=0')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header(
+                    'Content-Security-Policy',
+                    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+                )
+                self.send_header('Referrer-Policy', 'no-referrer')
+                self.send_header('X-Content-Type-Options', 'nosniff')
+                self.end_headers()
+
+            def do_GET(self) -> None:
+                if self.path != page_path:
+                    self._headers(404)
+                    self.wfile.write(b'Not found')
+                    return
+                body = f"""<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title><style>
+body{{font-family:sans-serif;max-width:42rem;margin:2rem auto;padding:1rem;line-height:1.7}}
+.card{{border:1px solid #777;border-radius:16px;padding:1.25rem}}
+button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
+</style></head><body><div class="card"><h1>{title}</h1>
+<p>{summary}</p><p><strong>المخاطر:</strong> {risk}</p>
+<form method="post" action="{approve_path}"><button type="submit">سماح</button></form>
+<form method="post" action="{reject_path}"><button type="submit">رفض</button></form>
+<p>هذه الصفحة محلية على الهاتف فقط، وتنتهي صلاحيتها تلقائيًا.</p>
+</div></body></html>"""
+                self._headers(200)
+                self.wfile.write(body.encode('utf-8'))
+
+            def do_POST(self) -> None:
+                if self.path == approve_path:
+                    decision = 'approved'
+                elif self.path == reject_path:
+                    decision = 'rejected'
+                else:
+                    self._headers(404)
+                    self.wfile.write(b'Not found')
+                    return
+                try:
+                    result = broker.decide(rid, token, decision)
+                except Exception:
+                    self._headers(409)
+                    self.wfile.write('تعذر تسجيل القرار.'.encode('utf-8'))
+                    return
+                self._headers(200)
+                label = 'تم السماح.' if result.status == 'approved' else 'تم الرفض.'
+                self.wfile.write(
+                    f'<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'
+                    f'<h2>{html.escape(label)}</h2><p>يمكنك إغلاق هذه الصفحة.</p></html>'.encode('utf-8')
+                )
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+
+            def log_message(self, format: str, *args: object) -> None:
+                return
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        server.daemon_threads = True
+        thread = threading.Thread(target=server.serve_forever, name=f'hakim-gate-{rid[:8]}', daemon=True)
+        thread.start()
+        host, port = server.server_address[:2]
+        if host != '127.0.0.1':
+            server.shutdown()
+            server.server_close()
+            raise RuntimeError('browser gate refused non-loopback bind')
+        url = f'http://127.0.0.1:{port}{page_path}'
+        proc = self.runner(
+            ['am', 'start', '-a', 'android.intent.action.VIEW', '-d', url],
+            text=True,
+            capture_output=True,
+            timeout=10,
+            shell=False,
+        )
+        if getattr(proc, 'returncode', 0) != 0:
+            server.shutdown()
+            server.server_close()
+            raise RuntimeError(f"failed to open local approval page: {getattr(proc, 'stderr', '')}")
+        self._audit('approval.browser_fallback_opened', {'request_id': rid, 'bind': '127.0.0.1'})
+        return server
 
     def _load(self, request_id: str) -> dict[str, Any]:
         path = self._path(request_id)
@@ -195,12 +321,28 @@ class AndroidPermissionBroker:
         ttl_seconds: int = 300,
         poll_seconds: float = 0.5,
     ) -> ApprovalDecision:
-        request_id, _token = self.request(action, summary, risk=risk, ttl_seconds=ttl_seconds, notify=True)
-        while True:
-            d = self.decision(request_id)
-            if d.status in self.FINAL:
-                return d
-            time.sleep(max(0.1, poll_seconds))
+        request_id, token = self.request(action, summary, risk=risk, ttl_seconds=ttl_seconds, notify=False)
+        server: ThreadingHTTPServer | None = None
+        try:
+            if self.notifications_available():
+                self._notify(self._load(request_id), token)
+            elif self.browser_fallback_available():
+                server = self._start_browser_gate(self._load(request_id), token)
+            else:
+                self._audit('approval.no_local_ui', {'request_id': request_id})
+                raise RuntimeError('no local human-approval UI is available')
+            while True:
+                d = self.decision(request_id)
+                if d.status in self.FINAL:
+                    return d
+                time.sleep(max(0.1, poll_seconds))
+        finally:
+            if server is not None:
+                try:
+                    server.shutdown()
+                except Exception:
+                    pass
+                server.server_close()
 
 
 def main() -> None:

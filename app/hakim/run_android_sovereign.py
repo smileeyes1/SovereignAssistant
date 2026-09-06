@@ -1,4 +1,4 @@
-"""Android/Termux runner for HAKIM Ω with notification-based human gate."""
+"""Android/Termux runner for HAKIM Ω with local human approval gates."""
 from __future__ import annotations
 
 import argparse
@@ -58,10 +58,20 @@ class AndroidSovereignRuntime:
         db_ok = self.config.db_path.exists() and self.config.db_path.parent.is_dir()
         model_configured = self.model is not None
         model_healthy = self.model.health() if self.model is not None else False
+        notifications_ok = self.broker.notifications_available()
+        browser_ok = self.broker.browser_fallback_available()
+        if notifications_ok:
+            human_gate = 'PASS'
+        elif browser_ok:
+            human_gate = 'DEGRADED_LOCAL_FALLBACK'
+        else:
+            human_gate = 'FAIL'
         return {
             'runtime': 'PASS' if db_ok else 'FAIL',
             'state_db': 'PASS' if db_ok else 'FAIL',
-            'notifications': 'PASS' if self.broker.notifications_available() else 'NOT_CONFIGURED',
+            'notifications': 'PASS' if notifications_ok else 'NOT_CONFIGURED',
+            'local_browser_gate': 'PASS' if browser_ok else 'NOT_CONFIGURED',
+            'human_gate': human_gate,
             'model': 'PASS' if model_healthy else ('NOT_PROVEN' if model_configured else 'NOT_CONFIGURED'),
             'last_verified_checkpoint': self.store.last_verified_checkpoint_id(),
             'queue': self.store.queue_counts(),
@@ -87,7 +97,14 @@ def main():
     daemon = sub.add_parser('daemon'); daemon.add_argument('--interval', type=float, default=2.0); daemon.add_argument('--max-steps', type=int, default=12)
     args = p.parse_args(); rt = _runtime(args)
     if args.cmd == 'init':
-        cid = rt.store.create_checkpoint({'goal': None, 'status': 'android-initialized', 'protected_invariants': ['human-sovereign-notification-gate']})
+        cid = rt.store.create_checkpoint({
+            'goal': None,
+            'status': 'android-initialized',
+            'protected_invariants': [
+                'human-sovereign-notification-gate',
+                'local-browser-bootstrap-fallback-is-loopback-only-and-does-not-qualify-notifications',
+            ],
+        })
         rt.store.verify_checkpoint(cid); rt.store.promote_checkpoint(cid)
         print(json.dumps({'status':'PASS','root':str(rt.config.root),'checkpoint':cid}, ensure_ascii=False, indent=2)); return
     if args.cmd == 'doctor': print(json.dumps(rt.doctor(), ensure_ascii=False, indent=2)); return
