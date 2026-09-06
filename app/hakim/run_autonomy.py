@@ -16,6 +16,7 @@ from .event_continuation import EventType
 from .goal_governor import GoalPortfolio
 from .goal_loop import ClosedLoopGoalGovernor
 from .production import ProductionConfig, ProductionRuntime, build_production_runtime
+from .providerless_ci_recovery import ProviderlessCIRecovery
 from .self_audit import AutonomySelfAuditor
 
 
@@ -83,6 +84,14 @@ def build_runtime_from_env(env: dict[str, str] | None = None, *, github_opener=N
     runtime = build_production_runtime(config, github_opener=github_opener)
     AutonomousDevelopmentActions(runtime).install()
     capabilities = CapabilityRegistry(runtime.state)
+
+    # Providerless deterministic recovery remains available even when model-backed
+    # file generation is fail-closed. It may only rerun directly evidenced
+    # transient CI failures, never modify source or lower a gate.
+    providerless_ci_enabled = values.get("OMEGA_ALLOW_PROVIDERLESS_CI_RERUN", "").strip().lower() in {"1", "true", "yes", "on"}
+    runtime.state.set_state("omega.providerless_ci_recovery.enabled", providerless_ci_enabled)
+    if providerless_ci_enabled:
+        ProviderlessCIRecovery(runtime).install()
 
     # Mission intent/state exists independently of whether a coding provider is
     # currently available. This prevents "no provider" from looking like a
