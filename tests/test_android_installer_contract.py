@@ -35,3 +35,16 @@ def test_android_background_hardening_helper_exists() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "open-hakim-background-settings" in text
     assert "android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS" in text
+
+
+def test_helper_commands_are_exposed_on_termux_path() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert 'ln -sfn "$HOME/bin/$tool" "$PREFIX/bin/$tool"' in text
+    for tool in (
+        "hakim-android",
+        "hakim-approval-test",
+        "pair-chatgpt-device",
+        "open-hakim-permissions",
+        "open-hakim-background-settings",
+    ):
+        assert f'command -v "$tool"' in text or tool in text
