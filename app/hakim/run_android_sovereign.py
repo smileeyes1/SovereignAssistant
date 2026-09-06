@@ -58,9 +58,9 @@ class AndroidSovereignRuntime:
         db_ok = self.config.db_path.exists() and self.config.db_path.parent.is_dir()
         model_configured = self.model is not None
         model_healthy = self.model.health() if self.model is not None else False
-        notifications_ok = self.broker.notifications_available()
+        notification_gate = self.broker.notification_gate_proven()
         browser_ok = self.broker.browser_fallback_available()
-        if notifications_ok:
+        if notification_gate:
             human_gate = 'PASS'
         elif browser_ok:
             human_gate = 'DEGRADED_LOCAL_FALLBACK'
@@ -69,7 +69,8 @@ class AndroidSovereignRuntime:
         return {
             'runtime': 'PASS' if db_ok else 'FAIL',
             'state_db': 'PASS' if db_ok else 'FAIL',
-            'notifications': 'PASS' if notifications_ok else 'NOT_CONFIGURED',
+            'notifications': 'PASS' if notification_gate else 'NOT_PROVEN',
+            'notification_gate': 'PASS' if notification_gate else 'NOT_PROVEN',
             'local_browser_gate': 'PASS' if browser_ok else 'NOT_CONFIGURED',
             'human_gate': human_gate,
             'model': 'PASS' if model_healthy else ('NOT_PROVEN' if model_configured else 'NOT_CONFIGURED'),
