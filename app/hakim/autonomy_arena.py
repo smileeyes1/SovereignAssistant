@@ -89,22 +89,46 @@ class AutonomyArena:
     def certify(self, level: OmegaLevel, scenarios: Iterable[ArenaScenario], report: ArenaReport) -> Certification:
         scenario_list = list(scenarios)
         applicable = [s for s in scenario_list if s.required_level <= level]
+        level_specific = [s for s in scenario_list if s.required_level == level]
+        prior = [s for s in scenario_list if s.required_level < level]
         by_id = {result.scenario_id: result for result in report.results}
         reasons: list[str] = []
         if not applicable:
             reasons.append("no applicable evidence scenarios")
+
+        # A higher ΩL must add its own evidence. It may not inherit a certificate
+        # solely from lower-level scenarios that were already sufficient before.
+        if level > OmegaLevel.L0 and not level_specific:
+            reasons.append(f"no level-specific evidence scenarios for {level.name}")
+
         categories = {s.category for s in applicable}
         if level >= OmegaLevel.L3 and len(categories) < 2:
             reasons.append("insufficient fault-domain diversity")
+
+        # Each newly claimed level from L2 onward must introduce at least one
+        # genuinely new evidence domain rather than merely relabeling a prior probe.
+        if level >= OmegaLevel.L2 and level_specific:
+            prior_categories = {s.category for s in prior}
+            level_categories = {s.category for s in level_specific}
+            if not (level_categories - prior_categories):
+                reasons.append(f"no new level-specific fault domain for {level.name}")
+
         for scenario in applicable:
             result = by_id.get(scenario.scenario_id)
             if result is None:
                 reasons.append(f"missing evidence: {scenario.scenario_id}")
             elif not result.passed:
                 reasons.append(f"failed scenario: {scenario.scenario_id}")
+
         high_severity = [s for s in applicable if s.severity >= 4]
         if level >= OmegaLevel.L4 and not high_severity:
             reasons.append("no high-severity recovery evidence")
+
+        # High-autonomy levels must add high-severity evidence at that level,
+        # preventing L4+ from being certified only by inherited lower-level faults.
+        if level >= OmegaLevel.L4 and level_specific and not any(s.severity >= 4 for s in level_specific):
+            reasons.append(f"no level-specific high-severity evidence for {level.name}")
+
         return Certification(level, not reasons, tuple(reasons), len(applicable))
 
 
