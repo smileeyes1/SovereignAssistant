@@ -46,7 +46,7 @@ mem_kb = int(float(os.environ.get('MEM_KB') or 0))
 avail_kb = int(float(os.environ.get('AVAIL_KB') or 0))
 background_status = str(background.get('status', 'NOT_PROVEN'))
 if background_status == 'PASS':
-    next_gate = 'LOCAL_MODEL_SELECTION'
+    next_gate = 'ANDROID_COMPANION_LOCAL_INSTALL'
 elif background_status in {'FAIL', 'ERROR'}:
     next_gate = 'BACKGROUND_SURVIVAL_REPAIR'
 else:
@@ -70,7 +70,11 @@ payload = {
     },
     'background_survival': background,
     'next_gate': next_gate,
-    'model_selection_policy': 'Do not choose/download a local model until this exact profile is reviewed; use loopback-only inference and preserve offline-first constraints.',
+    'model_selection_policy': (
+        'Local inference is optional and on-demand only after core Companion field qualification; '
+        'never keep a resident local model and never use a local LLM for autonomous planning. '
+        'Stop any on-demand model immediately after the bounded request.'
+    ),
 }
 out = Path(os.environ['OUT'])
 tmp = out.with_name('.' + out.name + '.tmp')
