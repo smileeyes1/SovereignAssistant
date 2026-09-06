@@ -1,0 +1,38 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+APP = ROOT / "android" / "hakim-companion"
+
+
+def text(p):
+    return (ROOT / p).read_text(encoding="utf-8")
+
+
+def test_companion_is_loopback_and_token_gated():
+    s = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    assert "InetAddress.getLoopbackAddress()" in s
+    assert "Authorization" not in s or 'headers["authorization"]' in s
+    assert "Bearer $token" in s
+    assert "0.0.0.0" not in s
+
+
+def test_control_service_is_not_exported_and_accessibility_requires_system_binding():
+    m = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
+    assert 'android:name=".HakimForegroundService"' in m
+    service_block = m.split('android:name=".HakimForegroundService"', 1)[1].split("</service>", 1)[0]
+    assert 'android:exported="false"' in service_block
+    assert "android.permission.BIND_ACCESSIBILITY_SERVICE" in m
+    assert "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" in m
+
+
+def test_low_resource_model_policy_is_preserved():
+    low = text("scripts/install-android-low-resource-profile.sh")
+    assert '"persistent_model": False' in low
+    assert '"agent_planning_with_local_model": False' in low
+
+
+def test_pairing_token_is_local_and_private():
+    p = text("scripts/pair-android-companion.sh")
+    assert "secrets.token_urlsafe" in p
+    assert "chmod 600" in p
+    assert "hakim://pair?token=" in p
