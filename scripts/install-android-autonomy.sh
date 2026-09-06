@@ -106,6 +106,13 @@ am start -a android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS >/dev/null 2>&
 EOF
 chmod 700 "$HOME/bin/open-hakim-background-settings"
 
+# Make helper commands available in every Termux shell without requiring the
+# user's profile to add ~/bin to PATH. Keep canonical scripts under ~/bin and
+# expose stable symlinks through Termux's standard executable directory.
+for tool in hakim-android hakim-approval-test pair-chatgpt-device open-hakim-permissions open-hakim-background-settings; do
+  ln -sfn "$HOME/bin/$tool" "$PREFIX/bin/$tool"
+done
+
 cat > "$HOME/.termux/boot/20-hakim-omega" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock >/dev/null 2>&1 || true
@@ -118,6 +125,10 @@ chmod 700 "$HOME/.termux/boot/20-hakim-omega"
 
 python -m app.hakim.run_android_sovereign --root "$ROOT" init >/dev/null
 python -m app.hakim.run_android_sovereign --root "$ROOT" doctor
+
+for tool in hakim-android hakim-approval-test pair-chatgpt-device open-hakim-permissions open-hakim-background-settings; do
+  command -v "$tool" >/dev/null
+ done
 
 cat <<'EOF'
 
