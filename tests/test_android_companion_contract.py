@@ -36,3 +36,16 @@ def test_pairing_token_is_local_and_private():
     assert "secrets.token_urlsafe" in p
     assert "chmod 600" in p
     assert "hakim://pair?token=" in p
+
+
+def test_companion_self_heals_without_remote_bridge_dependency():
+    service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt")
+    server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    manifest = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
+    assert "START_STICKY" in service
+    assert "companion_heartbeat_ms" in service
+    assert 'putBoolean("persistent_model", false)' in service
+    assert "server?.isListening()" in service
+    assert "fun isListening()" in server
+    assert 'put("persistent_model", false)' in server
+    assert "android.intent.action.MY_PACKAGE_REPLACED" in manifest
