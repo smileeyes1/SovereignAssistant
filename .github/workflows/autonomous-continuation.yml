@@ -38,6 +38,9 @@ jobs:
       OMEGA_ALLOW_BRANCH_CREATE: 'true'
       OMEGA_ALLOW_COMMENT: 'true'
       OMEGA_ALLOW_MERGE: 'false'
+      # Deterministic infra-only recovery remains available even without any model.
+      # It may rerun failed jobs once only when logs contain explicit transient evidence.
+      OMEGA_ALLOW_PROVIDERLESS_CI_RERUN: 'true'
       OMEGA_ALLOW_FILE_WRITE: ${{ secrets.OMEGA_OPENAI_API_KEY != '' && secrets.OMEGA_OPENAI_MODEL != '' }}
       OMEGA_OPENAI_API_KEY: ${{ secrets.OMEGA_OPENAI_API_KEY }}
       OMEGA_OPENAI_MODEL: ${{ secrets.OMEGA_OPENAI_MODEL }}
@@ -75,5 +78,6 @@ jobs:
       - name: Enforce no-silent-stall capability gate
         if: env.OMEGA_ALLOW_FILE_WRITE != 'true'
         run: |
-          echo 'Mission liveness watchdog remains active, but autonomous code generation is fail-closed.'
+          echo 'Mission liveness watchdog remains active; deterministic transient-CI recovery is enabled.'
+          echo 'Autonomous source generation remains fail-closed until an approved coding provider is configured.'
           echo 'Unfinished roadmap work MUST remain BLOCKED with evidence; it must never be reported as idle or complete.'
