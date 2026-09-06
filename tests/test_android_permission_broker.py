@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 import json
 import subprocess
 import urllib.request
@@ -24,18 +23,6 @@ class Runner:
         return subprocess.CompletedProcess(argv, 0, '', '')
 
 
-class PmRunner(Runner):
-    def __init__(self, installed: bool):
-        super().__init__()
-        self.installed = installed
-    def __call__(self, argv, **kwargs):
-        self.calls.append((argv, kwargs))
-        if argv[:2] == ['pm', 'path']:
-            out = 'package:/data/app/com.termux.api/base.apk\n' if self.installed else ''
-            return subprocess.CompletedProcess(argv, 0 if self.installed else 1, out, '')
-        return subprocess.CompletedProcess(argv, 0, '', '')
-
-
 def test_approval_is_one_time_and_token_bound(tmp_path):
     clock = Clock(); runner = Runner()
     broker = AndroidPermissionBroker(tmp_path, clock=clock, runner=runner)
@@ -45,7 +32,6 @@ def test_approval_is_one_time_and_token_bound(tmp_path):
         broker.decide(rid, 'wrong-token', 'approved')
     assert broker.decision(rid).status == 'pending'
     assert broker.decide(rid, token, 'approved').status == 'approved'
-    # Final decisions are immutable; a later denial cannot rewrite approval.
     assert broker.decide(rid, token, 'rejected').status == 'approved'
 
 
@@ -71,12 +57,15 @@ def test_notification_has_only_fixed_approve_reject_actions(tmp_path, monkeypatc
     assert rid not in ''.join(argv[:1])
 
 
-def test_notification_backend_requires_android_companion(tmp_path, monkeypatch):
-    monkeypatch.setattr('app.hakim.android_permission_broker.shutil.which', lambda name: f'/bin/{name}')
-    missing = AndroidPermissionBroker(tmp_path, runner=PmRunner(installed=False))
-    assert missing.notifications_available() is False
-    installed = AndroidPermissionBroker(tmp_path, runner=PmRunner(installed=True))
-    assert installed.notifications_available() is True
+def test_notification_gate_requires_real_notification_channel_decision(tmp_path, monkeypatch):
+    runner = Runner()
+    broker = AndroidPermissionBroker(tmp_path, runner=runner)
+    monkeypatch.setattr(broker, 'notifications_available', lambda: True)
+    rid, token = broker.request('field-test', 'Notification field proof', ttl_seconds=60, notify=True)
+    assert broker.notification_gate_proven() is False
+    assert broker.decide(rid, token, 'approved').status == 'approved'
+    assert broker.notification_gate_proven() is True
+    assert not any(call[0][:2] == ['pm', 'path'] for call in runner.calls)
 
 
 def test_browser_fallback_binds_loopback_and_records_decision(tmp_path, monkeypatch):
@@ -100,6 +89,7 @@ def test_browser_fallback_binds_loopback_and_records_decision(tmp_path, monkeypa
         with urllib.request.urlopen(request, timeout=3) as response:
             assert response.status == 200
         assert broker.decision(rid).status == 'approved'
+        assert broker.notification_gate_proven() is False
     finally:
         server.shutdown()
         server.server_close()
