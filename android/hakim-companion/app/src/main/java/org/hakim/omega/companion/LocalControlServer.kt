@@ -16,7 +16,7 @@ class LocalControlServer(private val context: Context) {
     @Volatile private var socket: ServerSocket? = null
 
     fun start() {
-        if (socket != null) return
+        if (isListening()) return
         pool.execute {
             try {
                 val s = ServerSocket()
@@ -24,9 +24,11 @@ class LocalControlServer(private val context: Context) {
                 s.bind(InetSocketAddress(InetAddress.getLoopbackAddress(), PORT))
                 socket = s
                 while (!s.isClosed) runCatching { s.accept() }.getOrNull()?.let { client -> pool.execute { handle(client) } }
-            } catch (_: Exception) {}
+            } catch (_: Exception) { socket = null }
         }
     }
+
+    fun isListening(): Boolean = socket?.let { it.isBound && !it.isClosed } == true
 
     fun close() { runCatching { socket?.close() }; socket = null; pool.shutdownNow() }
 
@@ -56,11 +58,19 @@ class LocalControlServer(private val context: Context) {
     private fun route(c: Socket, method: String, path: String, body: String) {
         try {
             when {
-                method == "GET" && path == "/v1/status" -> respond(c, 200, JSONObject()
-                    .put("status", "PASS")
-                    .put("loopback_only", true)
-                    .put("accessibility", HakimAccessibilityService.instance != null)
-                    .put("notifications_buffered", HakimNotificationListener.snapshot().length()))
+                method == "GET" && path == "/v1/status" -> {
+                    val prefs = context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
+                    val heartbeat = prefs.getLong("companion_heartbeat_ms", 0L)
+                    respond(c, 200, JSONObject()
+                        .put("status", "PASS")
+                        .put("loopback_only", true)
+                        .put("control_server_listening", isListening())
+                        .put("companion_mode", prefs.getString("companion_mode", "UNKNOWN"))
+                        .put("heartbeat_age_ms", if (heartbeat > 0L) (System.currentTimeMillis() - heartbeat).coerceAtLeast(0L) else -1L)
+                        .put("persistent_model", false)
+                        .put("accessibility", HakimAccessibilityService.instance != null)
+                        .put("notifications_buffered", HakimNotificationListener.snapshot().length()))
+                }
                 method == "GET" && path == "/v1/ui" -> respond(c, 200, JSONObject().put("nodes", HakimAccessibilityService.instance?.uiSnapshot() ?: org.json.JSONArray()))
                 method == "GET" && path == "/v1/notifications" -> respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
                 method == "GET" && path == "/v1/screenshot" -> {
