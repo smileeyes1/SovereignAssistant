@@ -1,0 +1,56 @@
+name: HAKIM Android Companion Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/hakim-companion/**'
+      - 'scripts/install-android-companion-local.sh'
+      - '.github/workflows/android-companion-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unsigned-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build unsigned release APK
+        working-directory: android/hakim-companion
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Stage and hash unsigned APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp android/hakim-companion/app/build/outputs/apk/release/app-release-unsigned.apk hakim-companion-unsigned.apk
+          sha256sum hakim-companion-unsigned.apk > hakim-companion-unsigned.apk.sha256
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hakim-companion-unsigned-${{ github.sha }}
+          path: |
+            hakim-companion-unsigned.apk
+            hakim-companion-unsigned.apk.sha256
+          if-no-files-found: error
+      - name: Publish immutable source-build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="hakim-companion-${GITHUB_SHA::12}"
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "HAKIM Companion ${GITHUB_SHA::12}" \
+            --notes "Unsigned Android Companion built from verified main. Sign locally on the owned phone; no repository signing key exists." \
+            hakim-companion-unsigned.apk \
+            hakim-companion-unsigned.apk.sha256
