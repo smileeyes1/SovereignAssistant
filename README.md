@@ -61,6 +61,12 @@ Verification
 Audit + Memory
 ```
 
+## Local Sovereign Mode
+
+HAKIM Ω also has a platform-independent local runtime whose core requires only Python's standard library and SQLite. ChatGPT, OpenAI, Gemini, GitHub, cloud memory and remote APIs are optional adapters rather than runtime dependencies. A local GGUF model served by an OpenAI-compatible runtime such as `llama.cpp` can supply fully local reasoning.
+
+The local runtime includes an idempotent priority queue, restart-safe leases, an evidence ledger, promotion-gated checkpoints, verified backups/restores, workspace-confined reversible file tools, and a loopback-only model client by default. See [`docs/LOCAL_SOVEREIGN_MODE.md`](docs/LOCAL_SOVEREIGN_MODE.md).
+
 ## Repository rule
 
 The default branch is protected conceptually even before platform-level branch rules are added: changes to the governance kernel must pass automated tests and review before becoming a release candidate. Cost-policy regressions are release-blocking: paid providers must remain disabled by default and may never outrank an admitted local/free provider.
