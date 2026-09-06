@@ -6,8 +6,11 @@ on:
       - 'android/hakim-companion/**'
       - 'scripts/pair-android-companion.sh'
       - 'scripts/hakim-companion-status.sh'
+      - 'scripts/install-android-companion-local.sh'
       - 'tests/test_android_companion_contract.py'
+      - 'tests/test_android_companion_release_contract.py'
       - '.github/workflows/android-companion.yml'
+      - '.github/workflows/android-companion-release.yml'
   workflow_dispatch:
 
 permissions:
@@ -31,12 +34,17 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Contract tests
-        run: python -m pytest -q tests/test_android_companion_contract.py
+        run: python -m pytest -q tests/test_android_companion_contract.py tests/test_android_companion_release_contract.py
       - name: Build installable debug APK
         working-directory: android/hakim-companion
         run: gradle --no-daemon :app:assembleDebug
+      - name: Build unsigned release APK
+        working-directory: android/hakim-companion
+        run: gradle --no-daemon :app:assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: hakim-companion-debug-apk
-          path: android/hakim-companion/app/build/outputs/apk/debug/app-debug.apk
+          name: hakim-companion-pr-build
+          path: |
+            android/hakim-companion/app/build/outputs/apk/debug/app-debug.apk
+            android/hakim-companion/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
