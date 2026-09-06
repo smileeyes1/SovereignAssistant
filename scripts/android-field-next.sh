@@ -9,6 +9,8 @@ getprop_safe() {
   getprop "$1" 2>/dev/null | tr -d '\r'
 }
 
+# Historical Termux/background evidence is retained only as diagnostic context.
+# It must never gate Android Companion installation or qualification.
 background_json='{"status":"NOT_PROVEN","reason":"hakim-android unavailable"}'
 if command -v hakim-android >/dev/null 2>&1; then
   background_json="$(hakim-android background-test status 2>/dev/null || printf '%s' '{"status":"ERROR"}')"
@@ -44,13 +46,12 @@ except Exception:
 
 mem_kb = int(float(os.environ.get('MEM_KB') or 0))
 avail_kb = int(float(os.environ.get('AVAIL_KB') or 0))
-background_status = str(background.get('status', 'NOT_PROVEN'))
-if background_status == 'PASS':
-    next_gate = 'ANDROID_COMPANION_LOCAL_INSTALL'
-elif background_status in {'FAIL', 'ERROR'}:
-    next_gate = 'BACKGROUND_SURVIVAL_REPAIR'
-else:
-    next_gate = 'BACKGROUND_SURVIVAL_EVIDENCE'
+
+# Companion-first invariant: the historical Termux background result is
+# diagnostic-only. Companion foreground/background behavior must be measured
+# after the Companion is installed on the real device, not inherited from the
+# failed legacy daemon path.
+next_gate = 'ANDROID_COMPANION_LOCAL_INSTALL'
 
 payload = {
     'captured_at': datetime.now(timezone.utc).isoformat(),
@@ -69,6 +70,7 @@ payload = {
         'termux_version': os.environ.get('TERMUX_VERSION', ''),
     },
     'background_survival': background,
+    'background_survival_role': 'diagnostic_only_not_companion_prerequisite',
     'next_gate': next_gate,
     'model_selection_policy': (
         'Local inference is optional and on-demand only after core Companion field qualification; '
