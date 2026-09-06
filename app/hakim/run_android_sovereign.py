@@ -3,8 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import time
+import uuid
 
 from .android_permission_broker import AndroidPermissionBroker
 from .local_sovereign import (
@@ -107,6 +112,153 @@ def _approval_security_self_test(broker: AndroidPermissionBroker) -> dict:
     }
 
 
+def _atomic_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name('.' + path.name + '.tmp')
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    os.replace(tmp, path)
+
+
+def _background_worker(root: str, test_id: str, seconds: int, interval: int) -> None:
+    base = Path(root).expanduser().resolve() / '.omega' / 'background-tests'
+    base.mkdir(parents=True, exist_ok=True)
+    state_path = base / f'{test_id}.json'
+    heartbeat_path = base / f'{test_id}.jsonl'
+    started = time.time()
+    deadline = started + seconds
+    count = 0
+    while True:
+        now = time.time()
+        count += 1
+        with heartbeat_path.open('a', encoding='utf-8') as f:
+            f.write(json.dumps({'at': now, 'n': count}, sort_keys=True) + '\n')
+        _atomic_json(state_path, {
+            'test_id': test_id,
+            'status': 'running',
+            'pid': os.getpid(),
+            'started_at': started,
+            'expected_end_at': deadline,
+            'seconds': seconds,
+            'interval': interval,
+            'heartbeat_count': count,
+            'last_heartbeat_at': now,
+        })
+        if now >= deadline:
+            break
+        time.sleep(min(interval, max(0.1, deadline - now)))
+    completed = time.time()
+    _atomic_json(state_path, {
+        'test_id': test_id,
+        'status': 'completed',
+        'pid': os.getpid(),
+        'started_at': started,
+        'expected_end_at': deadline,
+        'completed_at': completed,
+        'seconds': seconds,
+        'interval': interval,
+        'heartbeat_count': count,
+        'last_heartbeat_at': completed,
+    })
+
+
+def _background_test_evaluate(state: dict, beats: list[float], *, now: float | None = None) -> dict:
+    now = time.time() if now is None else now
+    seconds = int(state.get('seconds', 0))
+    interval = int(state.get('interval', 0))
+    started = float(state.get('started_at', 0))
+    expected_end = float(state.get('expected_end_at', started + seconds))
+    if state.get('status') != 'completed':
+        if now <= expected_end + max(15, interval * 3):
+            return {'status': 'IN_PROGRESS', 'test_id': state.get('test_id'), 'heartbeat_count': len(beats)}
+        return {
+            'status': 'FAIL',
+            'test_id': state.get('test_id'),
+            'reason': 'background worker did not complete within grace window',
+            'heartbeat_count': len(beats),
+        }
+    if len(beats) < 2 or seconds <= 0 or interval <= 0:
+        return {'status': 'FAIL', 'test_id': state.get('test_id'), 'reason': 'insufficient heartbeat evidence'}
+    gaps = [b - a for a, b in zip(beats, beats[1:])]
+    observed = beats[-1] - beats[0]
+    max_gap = max(gaps) if gaps else 0.0
+    minimum_beats = max(2, int((seconds / interval) * 0.75))
+    passed = (
+        observed >= max(0, seconds - interval * 2)
+        and max_gap <= max(30, interval * 4)
+        and len(beats) >= minimum_beats
+    )
+    return {
+        'status': 'PASS' if passed else 'FAIL',
+        'test_id': state.get('test_id'),
+        'seconds_requested': seconds,
+        'heartbeat_count': len(beats),
+        'minimum_heartbeat_count': minimum_beats,
+        'observed_span_seconds': round(observed, 3),
+        'max_gap_seconds': round(max_gap, 3),
+        'wake_lock_expected': True,
+        'scope': 'Termux process survival under user-initiated background/screen-off test',
+    }
+
+
+def _background_test_start(root: Path, seconds: int, interval: int) -> dict:
+    if not 60 <= seconds <= 3600:
+        raise ValueError('seconds must be between 60 and 3600')
+    if not 2 <= interval <= 30:
+        raise ValueError('interval must be between 2 and 30')
+    base = root / '.omega' / 'background-tests'
+    base.mkdir(parents=True, exist_ok=True)
+    test_id = str(uuid.uuid4())
+    (base / 'latest').write_text(test_id + '\n', encoding='utf-8')
+    wake_lock_requested = False
+    if shutil.which('termux-wake-lock'):
+        proc = subprocess.run(['termux-wake-lock'], text=True, capture_output=True, timeout=10, shell=False)
+        wake_lock_requested = proc.returncode == 0
+    code = (
+        'from app.hakim.run_android_sovereign import _background_worker; '
+        '_background_worker(*__import__("sys").argv[1:3], '
+        'int(__import__("sys").argv[3]), int(__import__("sys").argv[4]))'
+    )
+    proc = subprocess.Popen(
+        [sys.executable, '-c', code, str(root), test_id, str(seconds), str(interval)],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=(base / f'{test_id}.stderr.log').open('ab'),
+        start_new_session=True,
+    )
+    time.sleep(0.25)
+    return {
+        'status': 'STARTED',
+        'test_id': test_id,
+        'pid': proc.pid,
+        'seconds': seconds,
+        'interval': interval,
+        'wake_lock_requested': wake_lock_requested,
+        'physical_step_required': 'ضع Termux على Unrestricted إن كان HiOS يعرض الخيار، ثم اخرج من Termux وأطفئ الشاشة طوال مدة الاختبار.',
+        'check_command': 'hakim-android background-test status',
+    }
+
+
+def _background_test_status(root: Path) -> dict:
+    base = root / '.omega' / 'background-tests'
+    latest = base / 'latest'
+    if not latest.is_file():
+        return {'status': 'NOT_PROVEN', 'reason': 'no background survival test has been started'}
+    test_id = latest.read_text(encoding='utf-8').strip()
+    state_path = base / f'{test_id}.json'
+    heartbeat_path = base / f'{test_id}.jsonl'
+    if not state_path.is_file():
+        return {'status': 'IN_PROGRESS', 'test_id': test_id, 'reason': 'worker has not written first state yet'}
+    state = json.loads(state_path.read_text(encoding='utf-8'))
+    beats: list[float] = []
+    if heartbeat_path.is_file():
+        for line in heartbeat_path.read_text(encoding='utf-8').splitlines():
+            try:
+                beats.append(float(json.loads(line)['at']))
+            except Exception:
+                continue
+    return _background_test_evaluate(state, beats)
+
+
 def _runtime(args):
     cfg = LocalSovereignConfig(Path(args.root).expanduser().resolve(), args.model, args.base_url)
     return AndroidSovereignRuntime(cfg)
@@ -119,6 +271,10 @@ def main():
     p.add_argument('--base-url', default='http://127.0.0.1:8080/v1')
     sub = p.add_subparsers(dest='cmd', required=True)
     sub.add_parser('init'); sub.add_parser('doctor'); sub.add_parser('approval-security-test')
+    background = sub.add_parser('background-test')
+    background.add_argument('action', choices=['start', 'status'])
+    background.add_argument('--seconds', type=int, default=300)
+    background.add_argument('--interval', type=int, default=5)
     enq = sub.add_parser('enqueue'); enq.add_argument('goal'); enq.add_argument('--priority', type=int, default=50)
     status = sub.add_parser('status'); status.add_argument('job_id', nargs='?')
     approval = sub.add_parser('approval-test'); approval.add_argument('--ttl', type=int, default=120)
@@ -139,6 +295,12 @@ def main():
     if args.cmd == 'doctor': print(json.dumps(rt.doctor(), ensure_ascii=False, indent=2)); return
     if args.cmd == 'approval-security-test':
         print(json.dumps(_approval_security_self_test(rt.broker), ensure_ascii=False, indent=2)); return
+    if args.cmd == 'background-test':
+        if args.action == 'start':
+            result = _background_test_start(rt.config.root, args.seconds, args.interval)
+        else:
+            result = _background_test_status(rt.config.root)
+        print(json.dumps(result, ensure_ascii=False, indent=2)); return
     if args.cmd == 'enqueue': print(rt.store.enqueue_goal(args.goal, priority=args.priority)); return
     if args.cmd == 'status':
         print(json.dumps(rt.store.get_job(args.job_id) if args.job_id else {'queue':rt.store.queue_counts(),'lkg':rt.store.last_verified_checkpoint()}, ensure_ascii=False, indent=2)); return
