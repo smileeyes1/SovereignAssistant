@@ -79,6 +79,34 @@ class AndroidSovereignRuntime:
         }
 
 
+def _approval_security_self_test(broker: AndroidPermissionBroker) -> dict:
+    request_id, real_token = broker.request(
+        'approval-security-self-test',
+        'اختبار داخلي: الرمز الخاطئ يجب ألا يمنح موافقة.',
+        risk='test',
+        ttl_seconds=60,
+        notify=False,
+    )
+    before = broker.decision(request_id).status
+    wrong_token_rejected = False
+    try:
+        broker.decide(request_id, 'HAKIM-intentionally-wrong-token', 'approved')
+    except PermissionError:
+        wrong_token_rejected = True
+    after_wrong = broker.decision(request_id).status
+    final = broker.decide(request_id, real_token, 'rejected').status
+    passed = wrong_token_rejected and before == 'pending' and after_wrong == 'pending' and final == 'rejected'
+    return {
+        'status': 'PASS' if passed else 'FAIL',
+        'request_id': request_id,
+        'wrong_token_rejected': wrong_token_rejected,
+        'state_before': before,
+        'state_after_wrong_token': after_wrong,
+        'cleanup_final_status': final,
+        'token_exposed': False,
+    }
+
+
 def _runtime(args):
     cfg = LocalSovereignConfig(Path(args.root).expanduser().resolve(), args.model, args.base_url)
     return AndroidSovereignRuntime(cfg)
@@ -90,7 +118,7 @@ def main():
     p.add_argument('--model', default='')
     p.add_argument('--base-url', default='http://127.0.0.1:8080/v1')
     sub = p.add_subparsers(dest='cmd', required=True)
-    sub.add_parser('init'); sub.add_parser('doctor')
+    sub.add_parser('init'); sub.add_parser('doctor'); sub.add_parser('approval-security-test')
     enq = sub.add_parser('enqueue'); enq.add_argument('goal'); enq.add_argument('--priority', type=int, default=50)
     status = sub.add_parser('status'); status.add_argument('job_id', nargs='?')
     approval = sub.add_parser('approval-test'); approval.add_argument('--ttl', type=int, default=120)
@@ -109,6 +137,8 @@ def main():
         rt.store.verify_checkpoint(cid); rt.store.promote_checkpoint(cid)
         print(json.dumps({'status':'PASS','root':str(rt.config.root),'checkpoint':cid}, ensure_ascii=False, indent=2)); return
     if args.cmd == 'doctor': print(json.dumps(rt.doctor(), ensure_ascii=False, indent=2)); return
+    if args.cmd == 'approval-security-test':
+        print(json.dumps(_approval_security_self_test(rt.broker), ensure_ascii=False, indent=2)); return
     if args.cmd == 'enqueue': print(rt.store.enqueue_goal(args.goal, priority=args.priority)); return
     if args.cmd == 'status':
         print(json.dumps(rt.store.get_job(args.job_id) if args.job_id else {'queue':rt.store.queue_counts(),'lkg':rt.store.last_verified_checkpoint()}, ensure_ascii=False, indent=2)); return
