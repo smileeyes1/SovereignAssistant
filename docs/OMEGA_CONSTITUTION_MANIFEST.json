@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "name": "Omega Sovereign Operating Constitution",
+  "canonical_file": "docs/OMEGA_SOVEREIGN_OPERATING_CONSTITUTION.md",
+  "amendment_protocol": "docs/CONSTITUTION_AMENDMENT_PROTOCOL.md",
+  "layers": [
+    "UNIVERSAL_CONSTITUTION",
+    "DOMAIN_OR_PROJECT_PROFILE",
+    "CURRENT_STATE_CAPSULE",
+    "EXECUTION"
+  ],
+  "required_principles": [
+    "goal_and_contract",
+    "reality_before_claim",
+    "autonomous_execution",
+    "continuation",
+    "causality",
+    "evidence",
+    "protect_proven_success",
+    "anti_regression",
+    "minimum_complete_cost",
+    "independence_and_ownership",
+    "human_authority",
+    "secret_and_permission_security",
+    "tool_selection",
+    "meaning_before_rendering",
+    "resource_adaptation",
+    "smart_automation",
+    "state_and_recovery",
+    "closure_quality"
+  ],
+  "official_evidence_states": [
+    "PROVEN",
+    "NOT_PROVEN",
+    "FAIL",
+    "BLOCKED"
+  ],
+  "human_gate_required_for": [
+    "new_permission",
+    "secret_or_private_disclosure",
+    "payment_or_purchase",
+    "legal_or_public_commitment",
+    "irreversible_change",
+    "goal_or_protected_invariant_change",
+    "sovereign_action_not_self-delegable"
+  ],
+  "forbidden_in_universal_layer": [
+    "mutable_sha",
+    "current_ci_result",
+    "temporary_blocker",
+    "device_specific_baseline",
+    "project_specific_release_id"
+  ],
+  "automation_preference": [
+    "event_driven",
+    "condition_or_deadman_watchdog",
+    "periodic_supervisory_recovery",
+    "local_durable_runtime_or_queue"
+  ]
+}
