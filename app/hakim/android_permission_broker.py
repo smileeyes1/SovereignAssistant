@@ -1,9 +1,9 @@
 """Local Android approval broker for HAKIM Ω.
 
-Prefers Termux:API notifications as the human-sovereign gate. When the Android
-companion app is unavailable, a loopback-only browser gate can be used as a
-bootstrap fallback. Approval state remains local; no cloud account, ChatGPT
-memory, or remote service is required.
+Prefers Termux:API notifications as the human-sovereign gate. When that backend
+cannot be used, a loopback-only browser gate is the bootstrap fallback. Approval
+state remains local; no cloud account, ChatGPT memory, or remote service is
+required.
 """
 from __future__ import annotations
 
@@ -52,12 +52,7 @@ class ApprovalDecision:
 
 
 class AndroidPermissionBroker:
-    """One-time, expiring local approval requests.
-
-    Termux:API notifications are the preferred Android UX. A loopback browser
-    gate is allowed only as a local bootstrap fallback when the companion app is
-    missing or unavailable; it does not qualify the notification gate itself.
-    """
+    """One-time, expiring local approval requests."""
 
     FINAL = {'approved', 'rejected', 'expired'}
 
@@ -75,21 +70,22 @@ class AndroidPermissionBroker:
         self.clock = clock
         self.runner = runner
 
-    def notifications_available(self) -> bool:
-        """Require both the Termux CLI shim and the Android companion package."""
-        if shutil.which('termux-notification') is None or shutil.which('pm') is None:
+    def notification_gate_proven(self) -> bool:
+        """Return PASS only after a real notification-channel human decision."""
+        if not self.audit_path.is_file():
             return False
         try:
-            proc = self.runner(
-                ['pm', 'path', 'com.termux.api'],
-                text=True,
-                capture_output=True,
-                timeout=8,
-                shell=False,
-            )
+            for line in self.audit_path.read_text(encoding='utf-8').splitlines():
+                row = json.loads(line)
+                if row.get('event') in {'approval.approved', 'approval.rejected'} and row.get('channel') == 'notification':
+                    return True
         except Exception:
             return False
-        return getattr(proc, 'returncode', 1) == 0 and 'package:' in str(getattr(proc, 'stdout', ''))
+        return False
+
+    def notifications_available(self) -> bool:
+        """Compatibility name: means field-qualified notification gate, not package presence."""
+        return self.notification_gate_proven()
 
     @staticmethod
     def browser_fallback_available() -> bool:
@@ -134,6 +130,7 @@ class AndroidPermissionBroker:
             'expires_at': (now + timedelta(seconds=ttl_seconds)).isoformat(),
             'status': 'pending',
             'decided_at': None,
+            'ui_channel': None,
             'token_sha256': hashlib.sha256(token.encode()).hexdigest(),
         }
         _atomic_json(self._path(request_id), doc)
@@ -142,9 +139,18 @@ class AndroidPermissionBroker:
             self._notify(doc, token)
         return request_id, token
 
+    def _set_channel(self, request_id: str, channel: str) -> dict[str, Any]:
+        doc = self._load(request_id)
+        doc['ui_channel'] = channel
+        _atomic_json(self._path(request_id), doc)
+        return doc
+
     def _notify(self, doc: dict[str, Any], token: str) -> None:
-        if not self.notifications_available():
-            raise RuntimeError('Termux:API notification backend is unavailable')
+        # Never query Android package manager here. On some Android/Termux builds
+        # package-service Binder queries themselves fail even while local runtime
+        # is healthy. The backend is judged by the actual notification command.
+        if shutil.which('termux-notification') is None and not self.notifications_available():
+            raise RuntimeError('termux-notification CLI is unavailable')
         script = str(Path(__file__).resolve())
         py = sys.executable or 'python3'
         root = str(self.root)
@@ -164,14 +170,15 @@ class AndroidPermissionBroker:
         proc = self.runner(argv, text=True, capture_output=True, timeout=15, shell=False)
         if getattr(proc, 'returncode', 0) != 0:
             raise RuntimeError(f"notification failed: {getattr(proc, 'stderr', '')}")
-        self._audit('approval.notified', {'request_id': rid, 'notification_id': nid})
+        self._set_channel(rid, 'notification')
+        self._audit('approval.notified', {'request_id': rid, 'notification_id': nid, 'channel': 'notification'})
 
     def _start_browser_gate(self, doc: dict[str, Any], token: str) -> ThreadingHTTPServer:
-        """Serve one capability URL on 127.0.0.1 and open it with Android."""
         if not self.browser_fallback_available():
             raise RuntimeError('local browser approval fallback is unavailable')
         broker = self
         rid = str(doc['request_id'])
+        self._set_channel(rid, 'browser')
         nonce = secrets.token_urlsafe(32)
         page_path = f'/approval/{nonce}'
         approve_path = f'{page_path}/approved'
@@ -248,8 +255,7 @@ button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
         thread.start()
         host, port = server.server_address[:2]
         if host != '127.0.0.1':
-            server.shutdown()
-            server.server_close()
+            server.shutdown(); server.server_close()
             raise RuntimeError('browser gate refused non-loopback bind')
         url = f'http://127.0.0.1:{port}{page_path}'
         proc = self.runner(
@@ -260,10 +266,9 @@ button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
             shell=False,
         )
         if getattr(proc, 'returncode', 0) != 0:
-            server.shutdown()
-            server.server_close()
+            server.shutdown(); server.server_close()
             raise RuntimeError(f"failed to open local approval page: {getattr(proc, 'stderr', '')}")
-        self._audit('approval.browser_fallback_opened', {'request_id': rid, 'bind': '127.0.0.1'})
+        self._audit('approval.browser_fallback_opened', {'request_id': rid, 'bind': '127.0.0.1', 'channel': 'browser'})
         return server
 
     def _load(self, request_id: str) -> dict[str, Any]:
@@ -281,7 +286,7 @@ button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
             doc['status'] = 'expired'
             doc['decided_at'] = self.clock().isoformat()
             _atomic_json(self._path(request_id), doc)
-            self._audit('approval.expired', {'request_id': request_id})
+            self._audit('approval.expired', {'request_id': request_id, 'channel': doc.get('ui_channel')})
         return ApprovalDecision(
             request_id=request_id, status=doc['status'], action=doc['action'], summary=doc['summary'],
             risk=doc['risk'], created_at=doc['created_at'], expires_at=doc['expires_at'], decided_at=doc.get('decided_at'),
@@ -297,14 +302,15 @@ button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
         expected = str(doc['token_sha256'])
         actual = hashlib.sha256(token.encode()).hexdigest()
         if not hmac.compare_digest(expected, actual):
-            self._audit('approval.invalid_token', {'request_id': request_id})
+            self._audit('approval.invalid_token', {'request_id': request_id, 'channel': doc.get('ui_channel')})
             raise PermissionError('invalid approval token')
         doc = self._load(request_id)
         doc['status'] = decision
         doc['decided_at'] = self.clock().isoformat()
         _atomic_json(self._path(request_id), doc)
-        self._audit(f'approval.{decision}', {'request_id': request_id, 'action': doc['action']})
-        if shutil.which('termux-notification-remove'):
+        channel = doc.get('ui_channel')
+        self._audit(f'approval.{decision}', {'request_id': request_id, 'action': doc['action'], 'channel': channel})
+        if channel == 'notification' and shutil.which('termux-notification-remove'):
             nid = str(int(uuid.UUID(request_id)) % 2_000_000_000)
             try:
                 self.runner(['termux-notification-remove', nid], text=True, capture_output=True, timeout=10, shell=False)
@@ -323,14 +329,25 @@ button{{font-size:1.2rem;padding:.8rem 1.4rem;margin:.5rem;border-radius:12px}}
     ) -> ApprovalDecision:
         request_id, token = self.request(action, summary, risk=risk, ttl_seconds=ttl_seconds, notify=False)
         server: ThreadingHTTPServer | None = None
+        notification_error: Exception | None = None
         try:
-            if self.notifications_available():
-                self._notify(self._load(request_id), token)
-            elif self.browser_fallback_available():
-                server = self._start_browser_gate(self._load(request_id), token)
-            else:
-                self._audit('approval.no_local_ui', {'request_id': request_id})
-                raise RuntimeError('no local human-approval UI is available')
+            if shutil.which('termux-notification') is not None or self.notifications_available():
+                try:
+                    self._notify(self._load(request_id), token)
+                except Exception as exc:
+                    notification_error = exc
+                    self._audit(
+                        'approval.notification_backend_failed',
+                        {'request_id': request_id, 'error': str(exc)[:300]},
+                    )
+            if self._load(request_id).get('ui_channel') != 'notification':
+                if self.browser_fallback_available():
+                    server = self._start_browser_gate(self._load(request_id), token)
+                else:
+                    self._audit('approval.no_local_ui', {'request_id': request_id})
+                    if notification_error is not None:
+                        raise RuntimeError('notification backend failed; falling back to local browser gate was unavailable') from notification_error
+                    raise RuntimeError('no local human-approval UI is available')
             while True:
                 d = self.decision(request_id)
                 if d.status in self.FINAL:
