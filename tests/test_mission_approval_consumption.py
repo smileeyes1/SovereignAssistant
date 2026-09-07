@@ -99,3 +99,57 @@ def test_approval_ledger_persists_only_digest_not_raw_proof():
         assert audit.consume_approval("m", "g", "production", proof)
         assert not audit.consume_approval("other", "g2", "production", proof)
         assert "sensitive-human-approval-token" not in db.read_bytes().decode("utf-8", errors="ignore")
+
+
+def test_unavailable_execution_reservation_does_not_burn_fresh_human_approval():
+    touched = []
+    proof = ("human-approval:reservation-blocked",)
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        audit = OutcomeAudit(DurableStateStore(db))
+        assert audit.reserve_execution("blocked-mission", "consequential", "production")
+
+        blocked = BoundedMissionRunner(
+            audit,
+            approval_verifier=lambda mission_id, step: (True, proof),
+        ).run("blocked-mission", (_consequential_step(touched),))
+        assert not blocked.completed
+        assert blocked.outcomes[0].status == "blocked"
+        assert blocked.outcomes[0].evidence == (
+            "execution reservation already exists without a completed or compensated outcome",
+        )
+        assert touched == []
+
+        reused = BoundedMissionRunner(
+            OutcomeAudit(DurableStateStore(db)),
+            approval_verifier=lambda mission_id, step: (True, proof),
+        ).run("different-mission", (_consequential_step(touched),))
+
+    assert reused.completed
+    assert touched == ["executed"]
+
+
+def test_consumed_human_approval_does_not_burn_execution_reservation():
+    touched = []
+    stale_proof = ("human-approval:already-consumed",)
+    fresh_proof = ("human-approval:fresh-after-consumed",)
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        audit = OutcomeAudit(DurableStateStore(db))
+        assert audit.consume_approval("prior", "g", "production", stale_proof)
+
+        blocked = BoundedMissionRunner(
+            audit,
+            approval_verifier=lambda mission_id, step: (True, stale_proof),
+        ).run("reservation-must-remain-free", (_consequential_step(touched),))
+        assert not blocked.completed
+        assert blocked.outcomes[0].evidence == ("human approval proof already consumed",)
+        assert touched == []
+
+        fresh = BoundedMissionRunner(
+            OutcomeAudit(DurableStateStore(db)),
+            approval_verifier=lambda mission_id, step: (True, fresh_proof),
+        ).run("reservation-must-remain-free", (_consequential_step(touched),))
+
+    assert fresh.completed
+    assert touched == ["executed"]
