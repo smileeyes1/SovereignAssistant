@@ -275,10 +275,21 @@ class BoundedMissionRunner:
             except Exception:
                 rollback_ok = False
             if rollback_ok:
-                recovered += 1
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", durable_evidence, True)
+                if self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment):
+                    recovered += 1
+                    record = OutcomeRecord(
+                        mission_id, step.goal_id, step.environment, "rolled_back", durable_evidence, True
+                    )
+                else:
+                    record = OutcomeRecord(
+                        mission_id,
+                        step.goal_id,
+                        step.environment,
+                        "blocked",
+                        durable_evidence + ("rollback succeeded but execution reservation compensation was not persisted",),
+                        False,
+                    )
                 self.audit.record(record)
-                self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment)
             else:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", durable_evidence, False)
                 self.audit.record(record)
