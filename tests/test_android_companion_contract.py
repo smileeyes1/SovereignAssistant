@@ -67,6 +67,8 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "script: sh scripts/android-companion-emulator-runtime-gate.sh" in workflow
     assert "set -eu" in gate
     assert "pipefail" not in gate
+    assert 'pm grant "$PKG" android.permission.POST_NOTIFICATIONS' in gate
+    assert "EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY" in gate
     assert "EMULATOR_RUNTIME=PROVEN" in gate
     assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
     assert "llama-server" in gate
