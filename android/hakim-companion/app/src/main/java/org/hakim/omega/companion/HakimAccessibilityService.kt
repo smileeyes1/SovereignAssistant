@@ -28,6 +28,7 @@ class HakimAccessibilityService : AccessibilityService() {
         while (queue.isNotEmpty() && arr.length() < limit) {
             val n = queue.removeFirst(); val r = android.graphics.Rect(); n.getBoundsInScreen(r)
             arr.put(JSONObject()
+                .put("package", n.packageName?.toString().orEmpty())
                 .put("text", n.text?.toString().orEmpty())
                 .put("desc", n.contentDescription?.toString().orEmpty())
                 .put("id", n.viewIdResourceName.orEmpty())

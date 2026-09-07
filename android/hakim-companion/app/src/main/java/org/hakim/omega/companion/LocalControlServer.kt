@@ -73,7 +73,11 @@ class LocalControlServer(private val context: Context) {
                         .put("accessibility", HakimAccessibilityService.instance != null)
                         .put("notifications_buffered", HakimNotificationListener.snapshot().length()))
                 }
-                method == "GET" && path == "/v1/ui" -> respond(c, 200, JSONObject().put("nodes", HakimAccessibilityService.instance?.uiSnapshot() ?: org.json.JSONArray()))
+                method == "GET" && path == "/v1/ui" -> {
+                    val service = HakimAccessibilityService.instance
+                    if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                    else respond(c, 200, JSONObject().put("nodes", service.uiSnapshot()))
+                }
                 method == "GET" && path == "/v1/notifications" -> respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
                 method == "GET" && path == "/v1/screenshot" -> {
                     val data = HakimAccessibilityService.instance?.screenshotBase64()
