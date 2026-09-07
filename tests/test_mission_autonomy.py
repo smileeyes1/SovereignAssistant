@@ -9,7 +9,6 @@ from app.hakim.mission_autonomy import (
     ImprovementSandbox,
     MissionStep,
     OutcomeAudit,
-    OutcomeRecord,
 )
 from app.hakim.mission_kernel import MissionKernel, OperationalEnvelope
 
@@ -38,42 +37,6 @@ def test_multi_environment_mission_records_durable_outcomes():
         assert run.completed and run.attempted == 3 and run.recovered == 0
         restarted = OutcomeAudit(DurableStateStore(db))
         assert restarted.get("m1", "g3", "production")["status"] == "completed"
-
-
-def test_completed_step_replay_reuses_durable_outcome_without_reexecution():
-    touched = []
-    with TemporaryDirectory() as tmp:
-        db = Path(tmp) / "omega.db"
-        audit = OutcomeAudit(DurableStateStore(db))
-        step = MissionStep(
-            "g1", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
-            execute=lambda: (touched.append("executed") or True, ("first-run",)),
-            rollback=lambda: True,
-        )
-        first = BoundedMissionRunner(audit).run("replay-safe", (step,))
-        restarted = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db)))
-        second = restarted.run("replay-safe", (step,))
-    assert first.completed and second.completed
-    assert touched == ["executed"]
-    assert second.outcomes[0].evidence == ("first-run",)
-
-
-def test_ambiguous_reserved_step_fails_closed_without_duplicate_execution():
-    touched = []
-    with TemporaryDirectory() as tmp:
-        db = Path(tmp) / "omega.db"
-        audit = OutcomeAudit(DurableStateStore(db))
-        assert audit.reserve_execution("crash-gap", "g1", "production")
-        step = MissionStep(
-            "g1", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
-            execute=lambda: (touched.append("duplicate") or True, ("bad",)),
-            rollback=lambda: True,
-        )
-        run = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run("crash-gap", (step,))
-    assert not run.completed
-    assert run.outcomes[0].status == "blocked"
-    assert "reservation already exists" in run.outcomes[0].evidence[0]
-    assert touched == []
 
 
 def test_failed_step_rolls_back_and_stops_later_environment():

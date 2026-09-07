@@ -78,21 +78,6 @@ class DurableStateStore:
                 (key, payload, self._now()),
             )
 
-    def set_state_if_absent(self, key: str, value: object) -> bool:
-        """Atomically reserve a durable state key without overwriting prior evidence."""
-        if not key.strip():
-            raise ValueError("state key is required")
-        payload = json.dumps(value, ensure_ascii=False, sort_keys=True)
-        try:
-            with self._connect() as conn:
-                conn.execute(
-                    "INSERT INTO state(key, value_json, updated_at) VALUES (?, ?, ?)",
-                    (key, payload, self._now()),
-                )
-            return True
-        except sqlite3.IntegrityError:
-            return False
-
     def get_state(self, key: str, default: object = None) -> object:
         with self._connect() as conn:
             row = conn.execute("SELECT value_json FROM state WHERE key=?", (key,)).fetchone()

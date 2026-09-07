@@ -27,7 +27,6 @@ class OutcomeRecord:
 
 class OutcomeAudit:
     PREFIX = "omega.outcomes"
-    RESERVATION_PREFIX = "omega.mission_execution_reservations"
 
     def __init__(self, state: DurableStateStore):
         self.state = state
@@ -54,14 +53,6 @@ class OutcomeAudit:
     def get(self, mission_id: str, goal_id: str, environment: str) -> dict[str, object]:
         value = self.state.get_state(f"{self.PREFIX}.{mission_id}.{goal_id}.{environment}", {})
         return dict(value) if isinstance(value, dict) else {}
-
-    def reserve_execution(self, mission_id: str, goal_id: str, environment: str) -> bool:
-        """Reserve exactly one execution slot durably before side effects begin."""
-        key = f"{self.RESERVATION_PREFIX}.{mission_id}.{goal_id}.{environment}"
-        return self.state.set_state_if_absent(
-            key,
-            {"mission_id": mission_id, "goal_id": goal_id, "environment": environment, "state": "reserved"},
-        )
 
 
 @dataclass(frozen=True)
@@ -172,41 +163,14 @@ class BoundedMissionRunner:
         )
         return self.mission_kernel.evaluate(mission, human_approved=False).allowed
 
-    @staticmethod
-    def _record_from_state(value: dict[str, object]) -> OutcomeRecord:
-        return OutcomeRecord(
-            str(value.get("mission_id", "")),
-            str(value.get("goal_id", "")),
-            str(value.get("environment", "")),
-            str(value.get("status", "")),
-            tuple(str(item) for item in value.get("evidence", []) if str(item)),
-            bool(value.get("rollback", False)),
-        )
-
     def run(self, mission_id: str, steps: Iterable[MissionStep]) -> MissionRun:
         outcomes: list[OutcomeRecord] = []
         recovered = 0
         attempted = 0
         for step in steps:
             attempted += 1
-            prior = self.audit.get(mission_id, step.goal_id, step.environment)
-            if prior.get("status") == "completed":
-                outcomes.append(self._record_from_state(prior))
-                continue
             if not self._authorized(step):
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
-                self.audit.record(record)
-                outcomes.append(record)
-                return MissionRun(False, attempted, recovered, tuple(outcomes))
-            if not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
-                record = OutcomeRecord(
-                    mission_id,
-                    step.goal_id,
-                    step.environment,
-                    "blocked",
-                    ("execution reservation already exists without a completed outcome",),
-                    False,
-                )
                 self.audit.record(record)
                 outcomes.append(record)
                 return MissionRun(False, attempted, recovered, tuple(outcomes))
