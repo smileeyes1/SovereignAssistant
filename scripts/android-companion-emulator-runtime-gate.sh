@@ -12,6 +12,7 @@ PORT="47651"
 PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
 AUTH="Authorization: Bearer ${PAIR_TOKEN}"
+LAUNCH_REQUEST_ID="emulator-launch-0001"
 
 fail_http() { echo "$1: expected HTTP $2 got $3" >&2; [ -f "$4" ] && cat "$4" >&2 || true; exit 1; }
 require_json() { printf '%s' "$1" | grep -F "$2" >/dev/null || { echo "$3: missing $2" >&2; printf '%s\n' "$1" >&2; exit 1; }; }
@@ -126,9 +127,13 @@ done
 [ "$i" -lt 10 ] || { echo 'HOME action did not move active Accessibility tree away from Companion' >&2; cat /tmp/hakim-observed-ui.json >&2 || true; exit 1; }
 echo 'STAGE_NAVIGATION=PROVEN'
 
-code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
+code=$(curl -sS -o /tmp/hakim-launch-missing-id.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
+[ "$code" = '400' ] || fail_http 'bounded launch missing request identity' 400 "$code" /tmp/hakim-launch-missing-id.json
+grep -F '"error":"request_id_required"' /tmp/hakim-launch-missing-id.json >/dev/null || { cat /tmp/hakim-launch-missing-id.json >&2; exit 1; }
+code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '200' ] || fail_http 'bounded launch' 200 "$code" /tmp/hakim-launch.json
 grep -F '"ok":true' /tmp/hakim-launch.json >/dev/null
+grep -F "\"request_id\":\"${LAUNCH_REQUEST_ID}\"" /tmp/hakim-launch.json >/dev/null
 i=0
 while [ "$i" -lt 10 ]; do
   code=$(curl -sS -o /tmp/hakim-observed-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
@@ -141,8 +146,15 @@ echo 'STAGE_BOUNDED_LAUNCH=PROVEN'
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 adb shell pidof "$PKG" >/dev/null
-curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-restart.json
+i=0
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-restart.json 2>/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Companion control plane did not recover after process death' >&2; exit 1; }; sleep 1
+done
 printf '%s' "$(cat /tmp/hakim-status-after-restart.json)" | grep -F '"persistent_model_allowed":false' >/dev/null
+code=$(curl -sS -o /tmp/hakim-launch-replay.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
+[ "$code" = '409' ] || fail_http 'bounded launch replay after process death' 409 "$code" /tmp/hakim-launch-replay.json
+grep -F '"error":"duplicate_request"' /tmp/hakim-launch-replay.json >/dev/null || { cat /tmp/hakim-launch-replay.json >&2; exit 1; }
+echo 'STAGE_LAUNCH_REPLAY_PROTECTION=PROVEN'
 if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then echo 'Unexpected resident local-model process' >&2; exit 1; fi
 
 adb reboot
@@ -169,6 +181,7 @@ echo 'EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN'
 echo 'EMULATOR_UI_TREE=PROVEN'
 echo 'EMULATOR_SCREENSHOT=PROVEN'
 echo 'EMULATOR_NAVIGATION=PROVEN'
+echo 'EMULATOR_LAUNCH_REPLAY_PROTECTION=PROVEN'
 echo 'EMULATOR_PAIRING_RECOVERY=PROVEN'
 echo 'EMULATOR_CONTROL_PLANE=PROVEN'
 echo 'EMULATOR_RUNTIME=PROVEN'
