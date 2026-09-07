@@ -15,6 +15,7 @@ AUTH="Authorization: Bearer ${PAIR_TOKEN}"
 
 fail_http() { echo "$1: expected HTTP $2 got $3" >&2; [ -f "$4" ] && cat "$4" >&2 || true; exit 1; }
 require_json() { printf '%s' "$1" | grep -F "$2" >/dev/null || { echo "$3: missing $2" >&2; printf '%s\n' "$1" >&2; exit 1; }; }
+focused_window() { adb shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | head -n 2 || true; }
 
 adb install -r "$APK"
 adb shell pm path "$PKG" | grep '^package:'
@@ -91,7 +92,6 @@ done
 [ "$i" -lt 20 ] || { echo 'Accessibility UI tree did not become non-empty' >&2; cat /tmp/hakim-ui.json >&2 || true; exit 1; }
 echo 'STAGE_UI_TREE=PROVEN'
 
-# Capture response even if the endpoint reports an error; diagnostics must survive curl failure.
 code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot") || { rc=$?; echo "Screenshot request transport failed rc=$rc" >&2; cat /tmp/hakim-screenshot.json >&2 || true; exit "$rc"; }
 echo "STAGE_SCREENSHOT_HTTP=$code"
 [ "$code" = '200' ] || fail_http 'screenshot with Accessibility' 200 "$code" /tmp/hakim-screenshot.json
@@ -107,15 +107,26 @@ echo 'STAGE_SCREENSHOT=PROVEN'
 code=$(curl -sS -o /tmp/hakim-action-home.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"home"}' "${BASE_URL}/v1/action")
 [ "$code" = '200' ] || fail_http 'HOME action' 200 "$code" /tmp/hakim-action-home.json
 grep -F '"ok":true' /tmp/hakim-action-home.json >/dev/null
-sleep 1
-if adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F "$PKG" >/dev/null; then echo 'HOME action did not produce an observable navigation result' >&2; exit 1; fi
+i=0
+while [ "$i" -lt 10 ]; do
+  focus=$(focused_window)
+  if ! printf '%s' "$focus" | grep -F "$PKG" >/dev/null; then break; fi
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 10 ] || { echo 'HOME action did not produce an observable navigation result' >&2; focused_window >&2; exit 1; }
 echo 'STAGE_NAVIGATION=PROVEN'
 
 code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '200' ] || fail_http 'bounded launch' 200 "$code" /tmp/hakim-launch.json
 grep -F '"ok":true' /tmp/hakim-launch.json >/dev/null
-sleep 1
-adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F "$PKG" >/dev/null
+i=0
+while [ "$i" -lt 10 ]; do
+  focus=$(focused_window)
+  if printf '%s' "$focus" | grep -F "$PKG" >/dev/null; then break; fi
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 10 ] || { echo 'Bounded launch did not foreground the requested package' >&2; focused_window >&2; cat /tmp/hakim-launch.json >&2; exit 1; }
+echo 'STAGE_BOUNDED_LAUNCH=PROVEN'
 
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
