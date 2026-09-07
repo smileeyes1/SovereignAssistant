@@ -10,6 +10,7 @@ on:
       - 'scripts/android-companion-emulator-runtime-gate.sh'
       - 'scripts/android-companion-emulator-notification-gate.sh'
       - 'scripts/android-companion-emulator-airplane-gate.sh'
+      - 'scripts/android-companion-emulator-idempotency-gate.sh'
       - 'tests/test_android_companion_contract.py'
       - 'tests/test_android_companion_release_contract.py'
       - 'tests/test_android_notification_emulator_gate_contract.py'
@@ -84,4 +85,4 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: sh scripts/android-companion-emulator-runtime-gate.sh && sh scripts/android-companion-emulator-notification-gate.sh && sh scripts/android-companion-emulator-airplane-gate.sh
+          script: sh scripts/android-companion-emulator-runtime-gate.sh && sh scripts/android-companion-emulator-notification-gate.sh && sh scripts/android-companion-emulator-airplane-gate.sh && sh scripts/android-companion-emulator-idempotency-gate.sh
