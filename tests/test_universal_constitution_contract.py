@@ -47,6 +47,10 @@ def test_universal_constitution_is_general_and_layered():
     for marker in forbidden:
         assert marker not in c
 
+    # The manifest forbids mutable_sha as a class, not only known historical SHAs.
+    # Reject any concrete 40-hex Git commit identity in the universal constitution.
+    assert re.search(r"\b[0-9a-f]{40}\b", c, flags=re.IGNORECASE) is None
+
 
 def test_chatgpt_adapter_respects_real_platform_authority_and_trigger_limits():
     a = text("CHATGPT_GENERAL_ASSISTANT_ADAPTER.md")
@@ -137,6 +141,7 @@ def test_machine_readable_manifest_matches_constitution_contract():
     ]
     assert set(m["official_evidence_states"]) == {"PROVEN", "NOT_PROVEN", "FAIL", "BLOCKED"}
     assert "new_permission" in m["human_gate_required_for"]
+    assert "mutable_sha" in m["forbidden_in_universal_layer"]
     assert "device_specific_baseline" in m["forbidden_in_universal_layer"]
     assert m["automation_preference"][0] == "event_driven"
     assert m["automation_preference"][-1] == "local_durable_runtime_or_queue"
