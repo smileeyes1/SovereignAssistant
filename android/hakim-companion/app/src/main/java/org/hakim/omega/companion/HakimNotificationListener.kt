@@ -7,6 +7,21 @@ import org.json.JSONObject
 import java.util.ArrayDeque
 
 class HakimNotificationListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        instance = this
+        super.onListenerConnected()
+    }
+
+    override fun onListenerDisconnected() {
+        if (instance === this) instance = null
+        super.onListenerDisconnected()
+    }
+
+    override fun onDestroy() {
+        if (instance === this) instance = null
+        super.onDestroy()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val extras = sbn.notification.extras
         val item = JSONObject()
@@ -21,7 +36,10 @@ class HakimNotificationListener : NotificationListenerService() {
     }
 
     companion object {
+        @Volatile var instance: HakimNotificationListener? = null
+            private set
         private val recent = ArrayDeque<JSONObject>()
+        fun isConnected(): Boolean = instance != null
         fun snapshot(): JSONArray = JSONArray().also { arr -> synchronized(recent) { recent.forEach { arr.put(it) } } }
     }
 }
