@@ -152,6 +152,38 @@ def test_kernel_denial_blocks_execution():
     assert touched == []
 
 
+def test_consequential_step_requires_verified_human_approval_and_audits_proof():
+    touched = []
+    step = MissionStep(
+        "consequential", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
+        execute=lambda: (touched.append("executed") or True, ("result-proof",)),
+        rollback=lambda: True,
+        requires_human_approval=True,
+    )
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        no_verifier = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run("approval-none", (step,))
+        rejected = BoundedMissionRunner(
+            OutcomeAudit(DurableStateStore(db)),
+            approval_verifier=lambda _: (False, ("rejected-proof",)),
+        ).run("approval-rejected", (step,))
+        empty_proof = BoundedMissionRunner(
+            OutcomeAudit(DurableStateStore(db)),
+            approval_verifier=lambda _: (True, ()),
+        ).run("approval-empty", (step,))
+        approved = BoundedMissionRunner(
+            OutcomeAudit(DurableStateStore(db)),
+            approval_verifier=lambda _: (True, ("human-approval:request-123",)),
+        ).run("approval-proven", (step,))
+
+    assert not no_verifier.completed and no_verifier.outcomes[0].status == "blocked"
+    assert not rejected.completed and rejected.outcomes[0].status == "blocked"
+    assert not empty_proof.completed and empty_proof.outcomes[0].status == "blocked"
+    assert approved.completed
+    assert touched == ["executed"]
+    assert approved.outcomes[0].evidence == ("result-proof", "human-approval:request-123")
+
+
 def test_improvement_sandbox_canary_failure_rolls_back_to_champion():
     sandbox = ImprovementSandbox()
     decision = sandbox.choose(
