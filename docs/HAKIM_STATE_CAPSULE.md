@@ -9,7 +9,7 @@
 ## Last Verified Baseline
 - baseline/ref: **resolve live `main` at recovery time**; never embed the repository commit SHA in this in-repository capsule because changing this file creates a new commit and would immediately invalidate that embedded SHA.
 - verification rule: treat the resolved `main` as repository-level PROVEN only when the required exact-main Governance, Reality, and Immediate Autonomous Continuation gates have completed successfully on that same resolved SHA.
-- verification scope: repository/CI/runtime only; this never implies Android Companion field qualification.
+- verification scope: repository/CI/runtime only; this does not imply Android Companion field qualification.
 
 ## Current Evidence State
 - PROVEN: the universal constitution/manifest/amendment protocol are canonical live-main references; repository recovery must re-read them before execution; Companion-first field progression is protected from the legacy Termux background-survival prerequisite.
