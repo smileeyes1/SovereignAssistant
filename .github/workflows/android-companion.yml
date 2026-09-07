@@ -7,6 +7,7 @@ on:
       - 'scripts/pair-android-companion.sh'
       - 'scripts/hakim-companion-status.sh'
       - 'scripts/install-android-companion-local.sh'
+      - 'scripts/android-companion-emulator-runtime-gate.sh'
       - 'tests/test_android_companion_contract.py'
       - 'tests/test_android_companion_release_contract.py'
       - '.github/workflows/android-companion.yml'
@@ -48,3 +49,34 @@ jobs:
             android/hakim-companion/app/build/outputs/apk/debug/app-debug.apk
             android/hakim-companion/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
+
+  android-15-runtime:
+    name: Android 15 pre-field runtime gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build disposable debug APK
+        working-directory: android/hakim-companion
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android 15 runtime smoke and recovery
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: sh scripts/android-companion-emulator-runtime-gate.sh
