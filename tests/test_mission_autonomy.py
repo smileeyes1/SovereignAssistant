@@ -76,6 +76,51 @@ def test_ambiguous_reserved_step_fails_closed_without_duplicate_execution():
     assert touched == []
 
 
+def test_proven_rollback_releases_only_compensated_slot_for_retry():
+    touched = []
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        audit = OutcomeAudit(DurableStateStore(db))
+        first = MissionStep(
+            "g1", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
+            execute=lambda: (touched.append("first") or False, ()),
+            rollback=lambda: True,
+        )
+        first_run = BoundedMissionRunner(audit).run("retry-safe", (first,))
+        assert not first_run.completed and first_run.outcomes[0].status == "rolled_back"
+
+        retry = MissionStep(
+            "g1", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
+            execute=lambda: (touched.append("retry") or True, ("retry-completed",)),
+            rollback=lambda: True,
+        )
+        restarted = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db)))
+        second_run = restarted.run("retry-safe", (retry,))
+        third_run = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run("retry-safe", (retry,))
+    assert second_run.completed and third_run.completed
+    assert touched == ["first", "retry"]
+    assert second_run.outcomes[0].evidence == ("retry-completed",)
+
+
+def test_restart_reconciles_crash_after_rollback_record_before_compensation():
+    touched = []
+    with TemporaryDirectory() as tmp:
+        db = Path(tmp) / "omega.db"
+        audit = OutcomeAudit(DurableStateStore(db))
+        assert audit.reserve_execution("rollback-gap", "g1", "production")
+        audit.record(OutcomeRecord("rollback-gap", "g1", "production", "rolled_back", (), True))
+
+        retry = MissionStep(
+            "g1", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
+            execute=lambda: (touched.append("retry") or True, ("recovered",)),
+            rollback=lambda: True,
+        )
+        run = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run("rollback-gap", (retry,))
+    assert run.completed
+    assert touched == ["retry"]
+    assert run.outcomes[0].evidence == ("recovered",)
+
+
 def test_failed_step_rolls_back_and_stops_later_environment():
     touched = []
     first = _step("g1", "sandbox", ok=False, evidence=())
