@@ -55,13 +55,31 @@ class OutcomeAudit:
         value = self.state.get_state(f"{self.PREFIX}.{mission_id}.{goal_id}.{environment}", {})
         return dict(value) if isinstance(value, dict) else {}
 
+    @staticmethod
+    def _reservation_value(mission_id: str, goal_id: str, environment: str, state: str) -> dict[str, str]:
+        return {"mission_id": mission_id, "goal_id": goal_id, "environment": environment, "state": state}
+
+    def _reservation_key(self, mission_id: str, goal_id: str, environment: str) -> str:
+        return f"{self.RESERVATION_PREFIX}.{mission_id}.{goal_id}.{environment}"
+
     def reserve_execution(self, mission_id: str, goal_id: str, environment: str) -> bool:
-        """Reserve exactly one execution slot durably before side effects begin."""
-        key = f"{self.RESERVATION_PREFIX}.{mission_id}.{goal_id}.{environment}"
-        return self.state.set_state_if_absent(
-            key,
-            {"mission_id": mission_id, "goal_id": goal_id, "environment": environment, "state": "reserved"},
-        )
+        """Reserve one execution slot, or reuse only a durably compensated slot."""
+        key = self._reservation_key(mission_id, goal_id, environment)
+        reserved = self._reservation_value(mission_id, goal_id, environment, "reserved")
+        if self.state.set_state_if_absent(key, reserved):
+            return True
+        compensated = self._reservation_value(mission_id, goal_id, environment, "compensated")
+        return self.state.compare_and_set_state(key, compensated, reserved)
+
+    def mark_execution_compensated(self, mission_id: str, goal_id: str, environment: str) -> bool:
+        """Durably prove a reservation is reusable only after a proven rollback."""
+        key = self._reservation_key(mission_id, goal_id, environment)
+        reserved = self._reservation_value(mission_id, goal_id, environment, "reserved")
+        compensated = self._reservation_value(mission_id, goal_id, environment, "compensated")
+        current = self.state.get_state(key, None)
+        if current == compensated:
+            return True
+        return self.state.compare_and_set_state(key, reserved, compensated)
 
 
 @dataclass(frozen=True)
@@ -193,6 +211,19 @@ class BoundedMissionRunner:
             if prior.get("status") == "completed":
                 outcomes.append(self._record_from_state(prior))
                 continue
+            if prior.get("status") == "rolled_back" and prior.get("rollback") is True:
+                if not self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment):
+                    record = OutcomeRecord(
+                        mission_id,
+                        step.goal_id,
+                        step.environment,
+                        "blocked",
+                        ("proven rollback could not reconcile execution reservation",),
+                        False,
+                    )
+                    self.audit.record(record)
+                    outcomes.append(record)
+                    return MissionRun(False, attempted, recovered, tuple(outcomes))
             if not self._authorized(step):
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
                 self.audit.record(record)
@@ -204,7 +235,7 @@ class BoundedMissionRunner:
                     step.goal_id,
                     step.environment,
                     "blocked",
-                    ("execution reservation already exists without a completed outcome",),
+                    ("execution reservation already exists without a completed or compensated outcome",),
                     False,
                 )
                 self.audit.record(record)
@@ -227,9 +258,11 @@ class BoundedMissionRunner:
             if rollback_ok:
                 recovered += 1
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", tuple(result_evidence), True)
+                self.audit.record(record)
+                self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment)
             else:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", tuple(result_evidence), False)
-            self.audit.record(record)
+                self.audit.record(record)
             outcomes.append(record)
             return MissionRun(False, attempted, recovered, tuple(outcomes))
         return MissionRun(bool(outcomes), attempted, recovered, tuple(outcomes))
