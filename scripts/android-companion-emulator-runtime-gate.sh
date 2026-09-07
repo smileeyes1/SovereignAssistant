@@ -13,6 +13,9 @@ PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
 AUTH="Authorization: Bearer ${PAIR_TOKEN}"
 
+fail_http() { echo "$1: expected HTTP $2 got $3" >&2; [ -f "$4" ] && cat "$4" >&2 || true; exit 1; }
+require_json() { printf '%s' "$1" | grep -F "$2" >/dev/null || { echo "$3: missing $2" >&2; printf '%s\n' "$1" >&2; exit 1; }; }
+
 adb install -r "$APK"
 adb shell pm path "$PKG" | grep '^package:'
 adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS
@@ -29,38 +32,48 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status.json 2>/de
   [ "$i" -lt 30 ] || { echo 'Companion control plane did not become ready' >&2; exit 1; }
   sleep 1
 done
+echo 'STAGE_CONTROL_READY=PROVEN'
 
 code=$(curl -sS -o /tmp/hakim-missing-auth.json -w '%{http_code}' "${BASE_URL}/v1/status")
-[ "$code" = '401' ]
+[ "$code" = '401' ] || fail_http 'missing auth fail-closed' 401 "$code" /tmp/hakim-missing-auth.json
 code=$(curl -sS -o /tmp/hakim-wrong-auth.json -w '%{http_code}' -H 'Authorization: Bearer definitely-wrong-token' "${BASE_URL}/v1/status")
-[ "$code" = '401' ]
+[ "$code" = '401' ] || fail_http 'wrong auth fail-closed' 401 "$code" /tmp/hakim-wrong-auth.json
+echo 'STAGE_AUTH_FAIL_CLOSED=PROVEN'
 
 status=$(cat /tmp/hakim-status.json)
-printf '%s' "$status" | grep -F '"evidence_state":"NOT_PROVEN"' >/dev/null
-printf '%s' "$status" | grep -F '"loopback_only":true' >/dev/null
-printf '%s' "$status" | grep -F '"control_server_listening":true' >/dev/null
-printf '%s' "$status" | grep -F '"persistent_model":null' >/dev/null
-printf '%s' "$status" | grep -F '"persistent_model_evidence":"NOT_PROVEN"' >/dev/null
-printf '%s' "$status" | grep -F '"persistent_model_allowed":false' >/dev/null
-printf '%s' "$status" | grep -F '"accessibility":false' >/dev/null
+require_json "$status" '"evidence_state":"NOT_PROVEN"' 'status semantics'
+require_json "$status" '"loopback_only":true' 'status semantics'
+require_json "$status" '"control_server_listening":true' 'status semantics'
+require_json "$status" '"persistent_model":null' 'status semantics'
+require_json "$status" '"persistent_model_evidence":"NOT_PROVEN"' 'status semantics'
+require_json "$status" '"persistent_model_allowed":false' 'status semantics'
+require_json "$status" '"accessibility":false' 'status precondition'
+echo 'STAGE_STATUS_SEMANTICS=PROVEN'
 
 listen=$(adb shell ss -ltn 2>/dev/null | grep ":${PORT}" || true)
-[ -n "$listen" ]
-printf '%s\n' "$listen" | grep -E '127\.0\.0\.1|\[::1\]|::1' >/dev/null
+[ -n "$listen" ] || { echo 'No kernel listener found for Companion port' >&2; adb shell ss -ltn >&2 || true; exit 1; }
+printf '%s\n' "$listen" | grep -E '127\.0\.0\.1|\[::1\]|::1' >/dev/null || { echo 'Companion listener is not visibly loopback-bound' >&2; printf '%s\n' "$listen" >&2; exit 1; }
 if printf '%s\n' "$listen" | grep -E '0\.0\.0\.0|\[::\]:|:::47651' >/dev/null; then
   echo 'Companion control plane is wildcard-bound' >&2
+  printf '%s\n' "$listen" >&2
   exit 1
 fi
+echo 'STAGE_KERNEL_LOOPBACK=PROVEN'
 
 code=$(curl -sS -o /tmp/hakim-ui-unavailable.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-[ "$code" = '409' ]
-grep -F '"error":"accessibility_unavailable"' /tmp/hakim-ui-unavailable.json >/dev/null
+[ "$code" = '409' ] || fail_http 'UI without Accessibility' 409 "$code" /tmp/hakim-ui-unavailable.json
+grep -F '"error":"accessibility_unavailable"' /tmp/hakim-ui-unavailable.json >/dev/null || { echo 'UI fail-closed error semantic mismatch' >&2; cat /tmp/hakim-ui-unavailable.json >&2; exit 1; }
+echo 'STAGE_UI_FAIL_CLOSED=PROVEN'
+
 code=$(curl -sS -o /tmp/hakim-screenshot-unavailable.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
-[ "$code" = '409' ]
-grep -F '"error":"screenshot_unavailable"' /tmp/hakim-screenshot-unavailable.json >/dev/null
+[ "$code" = '409' ] || fail_http 'screenshot without Accessibility' 409 "$code" /tmp/hakim-screenshot-unavailable.json
+grep -F '"error":"screenshot_unavailable"' /tmp/hakim-screenshot-unavailable.json >/dev/null || { echo 'Screenshot fail-closed error semantic mismatch' >&2; cat /tmp/hakim-screenshot-unavailable.json >&2; exit 1; }
+echo 'STAGE_SCREENSHOT_FAIL_CLOSED=PROVEN'
+
 code=$(curl -sS -o /tmp/hakim-action-unavailable.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"back"}' "${BASE_URL}/v1/action")
-[ "$code" = '409' ]
-grep -F '"ok":false' /tmp/hakim-action-unavailable.json >/dev/null
+[ "$code" = '409' ] || fail_http 'action without Accessibility' 409 "$code" /tmp/hakim-action-unavailable.json
+grep -F '"ok":false' /tmp/hakim-action-unavailable.json >/dev/null || { echo 'Action fail-closed semantic mismatch' >&2; cat /tmp/hakim-action-unavailable.json >&2; exit 1; }
+echo 'STAGE_ACTION_FAIL_CLOSED=PROVEN'
 
 # Accessibility enabling is CI-only scaffolding. Service connection and window-tree
 # publication are asynchronous on Android, so prove readiness rather than racing it.
@@ -74,7 +87,6 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-accessibil
   sleep 1
 done
 
-# Reassert a known foreground window after the service connects, then wait for a real tree.
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 i=0
 while [ "$i" -lt 20 ]; do
@@ -95,7 +107,7 @@ done
 [ "$i" -lt 20 ] || { echo 'Accessibility UI tree did not become non-empty' >&2; cat /tmp/hakim-ui.json >&2 || true; exit 1; }
 
 code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
-[ "$code" = '200' ]
+[ "$code" = '200' ] || fail_http 'screenshot with Accessibility' 200 "$code" /tmp/hakim-screenshot.json
 python3 - <<'PY'
 import base64, json
 with open('/tmp/hakim-screenshot.json', encoding='utf-8') as f:
@@ -106,7 +118,7 @@ assert data.startswith(b'\x89PNG\r\n\x1a\n'), data[:8]
 PY
 
 code=$(curl -sS -o /tmp/hakim-action-home.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"home"}' "${BASE_URL}/v1/action")
-[ "$code" = '200' ]
+[ "$code" = '200' ] || fail_http 'HOME action' 200 "$code" /tmp/hakim-action-home.json
 grep -F '"ok":true' /tmp/hakim-action-home.json >/dev/null
 sleep 1
 if adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F "$PKG" >/dev/null; then
@@ -115,7 +127,7 @@ if adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F 
 fi
 
 code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
-[ "$code" = '200' ]
+[ "$code" = '200' ] || fail_http 'bounded launch' 200 "$code" /tmp/hakim-launch.json
 grep -F '"ok":true' /tmp/hakim-launch.json >/dev/null
 sleep 1
 adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F "$PKG" >/dev/null
