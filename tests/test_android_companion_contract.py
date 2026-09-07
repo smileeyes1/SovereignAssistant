@@ -69,7 +69,28 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "pipefail" not in gate
     assert 'pm grant "$PKG" android.permission.POST_NOTIFICATIONS' in gate
     assert "EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY" in gate
+    assert "EMULATOR_PAIRING=SCAFFOLD_ONLY" in gate
     assert "EMULATOR_RUNTIME=PROVEN" in gate
     assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
     assert "llama-server" in gate
     assert "adb reboot" in gate
+
+
+def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_semantics():
+    gate = text("scripts/android-companion-emulator-runtime-gate.sh")
+    assert 'adb forward "tcp:${PORT}" "tcp:${PORT}"' in gate
+    assert "hakim://pair?token=${PAIR_TOKEN}" in gate
+    assert "Authorization: Bearer ${PAIR_TOKEN}" in gate
+    assert "definitely-wrong-token" in gate
+    assert "[ \"$code\" = '401' ]" in gate
+    assert '"evidence_state":"NOT_PROVEN"' in gate
+    assert '"loopback_only":true' in gate
+    assert '"control_server_listening":true' in gate
+    assert '"persistent_model":null' in gate
+    assert '"persistent_model_allowed":false' in gate
+    assert "screenshot_unavailable" in gate
+    assert '"ok":false' in gate
+    assert '"ok":true' in gate
+    assert "EMULATOR_AUTH_FAIL_CLOSED=PROVEN" in gate
+    assert "EMULATOR_STATUS_SEMANTICS=PROVEN" in gate
+    assert "EMULATOR_CONTROL_PLANE=PROVEN" in gate
