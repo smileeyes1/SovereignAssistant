@@ -25,6 +25,17 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-statu
 done
 echo 'STAGE_IDEMPOTENCY_ACCESSIBILITY_PRECONDITION=PROVEN'
 
+# Accessibility connection alone does not prove that a stable active window
+# exists for gesture dispatch. Earlier gates may leave HOME/system UI active.
+# Make this gate own that mutable precondition as well: launch Companion and
+# observe its package in the Accessibility tree before issuing the first tap.
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
+i=0
+until code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui") && [ "$code" = '200' ] && grep -F "\"package\":\"${PKG}\"" /tmp/hakim-idempotency-ui.json >/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 20 ] || { echo 'Stable Companion active window not observed for replay proof' >&2; cat /tmp/hakim-idempotency-ui.json >&2 || true; exit 1; }; sleep 1
+done
+echo 'STAGE_IDEMPOTENCY_ACTIVE_WINDOW_PRECONDITION=PROVEN'
+
 # Use a bounded gesture rather than BACK: BACK success depends on whatever
 # screen a previous gate happened to leave active, while dispatching a tap is
 # itself the non-idempotent side effect whose replay protection we need to prove.
