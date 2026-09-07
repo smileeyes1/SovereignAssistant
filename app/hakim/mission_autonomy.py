@@ -8,6 +8,8 @@ bounded multi-environment progression remain inside the declared envelope.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 from typing import Callable, Iterable
 
 from .core import Action, ActionRisk, Claim, Decision, Evidence, GovernanceKernel
@@ -28,6 +30,7 @@ class OutcomeRecord:
 class OutcomeAudit:
     PREFIX = "omega.outcomes"
     RESERVATION_PREFIX = "omega.mission_execution_reservations"
+    APPROVAL_PREFIX = "omega.human_approval_consumption"
 
     def __init__(self, state: DurableStateStore):
         self.state = state
@@ -80,6 +83,37 @@ class OutcomeAudit:
         if current == compensated:
             return True
         return self.state.compare_and_set_state(key, reserved, compensated)
+
+    def consume_approval(
+        self,
+        mission_id: str,
+        goal_id: str,
+        environment: str,
+        approval_evidence: tuple[str, ...],
+    ) -> bool:
+        """Atomically consume one human-approval proof before consequential execution.
+
+        The proof itself is never persisted in this ledger. Its canonical digest is
+        globally single-use, so the same approval cannot authorize another
+        consequential side effect after restart, rollback, or across mission steps.
+        """
+        if not mission_id.strip() or not goal_id.strip() or not environment.strip():
+            raise ValueError("mission_id, goal_id and environment are required")
+        normalized = tuple(str(item).strip() for item in approval_evidence if str(item).strip())
+        if not normalized:
+            return False
+        canonical = json.dumps(list(normalized), ensure_ascii=False, separators=(",", ":"))
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return self.state.set_state_if_absent(
+            f"{self.APPROVAL_PREFIX}.{digest}",
+            {
+                "proof_sha256": digest,
+                "mission_id": mission_id,
+                "goal_id": goal_id,
+                "environment": environment,
+                "state": "consumed",
+            },
+        )
 
 
 @dataclass(frozen=True)
@@ -244,6 +278,20 @@ class BoundedMissionRunner:
             authorized, approval_evidence = self._authorized(mission_id, step)
             if not authorized:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
+                self.audit.record(record)
+                outcomes.append(record)
+                return MissionRun(False, attempted, recovered, tuple(outcomes))
+            if approval_evidence and not self.audit.consume_approval(
+                mission_id, step.goal_id, step.environment, approval_evidence
+            ):
+                record = OutcomeRecord(
+                    mission_id,
+                    step.goal_id,
+                    step.environment,
+                    "blocked",
+                    ("human approval proof already consumed",),
+                    False,
+                )
                 self.audit.record(record)
                 outcomes.append(record)
                 return MissionRun(False, attempted, recovered, tuple(outcomes))
