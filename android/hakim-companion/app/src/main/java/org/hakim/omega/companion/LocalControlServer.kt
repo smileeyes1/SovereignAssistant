@@ -71,6 +71,7 @@ class LocalControlServer(private val context: Context) {
                         .put("persistent_model_evidence", "NOT_PROVEN")
                         .put("persistent_model_allowed", false)
                         .put("accessibility", HakimAccessibilityService.instance != null)
+                        .put("notification_listener", HakimNotificationListener.isConnected())
                         .put("notifications_buffered", HakimNotificationListener.snapshot().length()))
                 }
                 method == "GET" && path == "/v1/ui" -> {
@@ -78,7 +79,10 @@ class LocalControlServer(private val context: Context) {
                     if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
                     else respond(c, 200, JSONObject().put("nodes", service.uiSnapshot()))
                 }
-                method == "GET" && path == "/v1/notifications" -> respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
+                method == "GET" && path == "/v1/notifications" -> {
+                    if (!HakimNotificationListener.isConnected()) respond(c, 409, JSONObject().put("error", "notification_listener_unavailable"))
+                    else respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
+                }
                 method == "GET" && path == "/v1/screenshot" -> {
                     val data = HakimAccessibilityService.instance?.screenshotBase64()
                     if (data == null) respond(c, 409, JSONObject().put("error", "screenshot_unavailable"))
