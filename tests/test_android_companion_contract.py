@@ -59,3 +59,15 @@ def test_status_separates_runtime_health_from_field_evidence():
     assert '.put("persistent_model_allowed", false)' in server
     assert '.put("status", "PASS")' not in server
     assert '.put("persistent_model", false)' not in server
+
+
+def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field_pass():
+    workflow = text(".github/workflows/android-companion.yml")
+    gate = text("scripts/android-companion-emulator-runtime-gate.sh")
+    assert "script: sh scripts/android-companion-emulator-runtime-gate.sh" in workflow
+    assert "set -eu" in gate
+    assert "pipefail" not in gate
+    assert "EMULATOR_RUNTIME=PROVEN" in gate
+    assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
+    assert "llama-server" in gate
+    assert "adb reboot" in gate
