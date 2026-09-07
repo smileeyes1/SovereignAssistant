@@ -155,3 +155,21 @@ def test_emulator_gate_proves_kernel_loopback_binding_and_pairing_recovery():
     assert "Authenticated control plane did not recover after reboot" in gate
     assert "EMULATOR_PAIRING_RECOVERY=PROVEN" in gate
     assert "EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN" in gate
+
+
+def test_launch_requires_durable_identity_and_runtime_gate_proves_replay_rejection():
+    server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    gate = text("scripts/android-companion-emulator-runtime-gate.sh")
+    launch_block = server.split('path == "/v1/launch"', 1)[1].split('else -> respond(c, 404', 1)[0]
+    assert 'headers["x-hakim-request-id"]' in launch_block
+    assert 'JSONObject().put("error", "request_id_required")' in launch_block
+    assert '!claimRequest(requestId)' in launch_block
+    assert 'JSONObject().put("error", "duplicate_request")' in launch_block
+    assert 'context.startActivity(intent)' in launch_block
+    assert 'LAUNCH_REQUEST_ID="emulator-launch-0001"' in gate
+    assert 'X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}' in gate
+    assert "bounded launch missing request identity" in gate
+    assert "bounded launch replay after process death" in gate
+    assert '"error":"duplicate_request"' in gate
+    assert "STAGE_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate
+    assert "EMULATOR_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate

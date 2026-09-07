@@ -107,11 +107,23 @@ class LocalControlServer(private val context: Context) {
                     }
                 }
                 method == "POST" && path == "/v1/launch" -> {
-                    val pkg = JSONObject(body).optString("package")
-                    val valid = Regex("^[A-Za-z0-9_.]{3,200}$").matches(pkg)
-                    val intent = if (valid) context.packageManager.getLaunchIntentForPackage(pkg) else null
-                    if (intent == null) respond(c, 404, JSONObject().put("error", "package_not_launchable"))
-                    else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent); respond(c, 200, JSONObject().put("ok", true)) }
+                    val requestId = headers["x-hakim-request-id"]
+                    if (requestId == null || !REQUEST_ID.matches(requestId)) {
+                        respond(c, 400, JSONObject().put("error", "request_id_required"))
+                    } else {
+                        val pkg = JSONObject(body).optString("package")
+                        val valid = Regex("^[A-Za-z0-9_.]{3,200}$").matches(pkg)
+                        val intent = if (valid) context.packageManager.getLaunchIntentForPackage(pkg) else null
+                        if (intent == null) {
+                            respond(c, 404, JSONObject().put("error", "package_not_launchable"))
+                        } else if (!claimRequest(requestId)) {
+                            respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                        } else {
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                            respond(c, 200, JSONObject().put("ok", true).put("request_id", requestId))
+                        }
+                    }
                 }
                 else -> respond(c, 404, JSONObject().put("error", "not_found"))
             }
