@@ -93,6 +93,19 @@ class DurableStateStore:
         except sqlite3.IntegrityError:
             return False
 
+    def compare_and_set_state(self, key: str, expected: object, value: object) -> bool:
+        """Atomically replace a state value only when the durable value is exactly expected."""
+        if not key.strip():
+            raise ValueError("state key is required")
+        expected_payload = json.dumps(expected, ensure_ascii=False, sort_keys=True)
+        payload = json.dumps(value, ensure_ascii=False, sort_keys=True)
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE state SET value_json=?, updated_at=? WHERE key=? AND value_json=?",
+                (payload, self._now(), key, expected_payload),
+            )
+            return cur.rowcount == 1
+
     def get_state(self, key: str, default: object = None) -> object:
         with self._connect() as conn:
             row = conn.execute("SELECT value_json FROM state WHERE key=?", (key,)).fetchone()
