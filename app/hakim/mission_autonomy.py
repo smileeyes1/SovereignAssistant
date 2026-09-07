@@ -84,6 +84,14 @@ class OutcomeAudit:
             return True
         return self.state.compare_and_set_state(key, reserved, compensated)
 
+    @staticmethod
+    def _approval_digest(approval_evidence: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
+        normalized = tuple(str(item).strip() for item in approval_evidence if str(item).strip())
+        if not normalized:
+            return "", ()
+        canonical = json.dumps(list(normalized), ensure_ascii=False, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest(), normalized
+
     def consume_approval(
         self,
         mission_id: str,
@@ -99,11 +107,9 @@ class OutcomeAudit:
         """
         if not mission_id.strip() or not goal_id.strip() or not environment.strip():
             raise ValueError("mission_id, goal_id and environment are required")
-        normalized = tuple(str(item).strip() for item in approval_evidence if str(item).strip())
-        if not normalized:
+        digest, _ = self._approval_digest(approval_evidence)
+        if not digest:
             return False
-        canonical = json.dumps(list(normalized), ensure_ascii=False, separators=(",", ":"))
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         return self.state.set_state_if_absent(
             f"{self.APPROVAL_PREFIX}.{digest}",
             {
@@ -113,6 +119,36 @@ class OutcomeAudit:
                 "environment": environment,
                 "state": "consumed",
             },
+        )
+
+    def claim_approved_execution(
+        self,
+        mission_id: str,
+        goal_id: str,
+        environment: str,
+        approval_evidence: tuple[str, ...],
+    ) -> str:
+        """Atomically consume approval authority and acquire its execution slot."""
+        if not mission_id.strip() or not goal_id.strip() or not environment.strip():
+            raise ValueError("mission_id, goal_id and environment are required")
+        digest, _ = self._approval_digest(approval_evidence)
+        if not digest:
+            return "claim_exists"
+        reservation_key = self._reservation_key(mission_id, goal_id, environment)
+        reserved = self._reservation_value(mission_id, goal_id, environment, "reserved")
+        compensated = self._reservation_value(mission_id, goal_id, environment, "compensated")
+        return self.state.claim_once_and_reserve(
+            f"{self.APPROVAL_PREFIX}.{digest}",
+            {
+                "proof_sha256": digest,
+                "mission_id": mission_id,
+                "goal_id": goal_id,
+                "environment": environment,
+                "state": "consumed",
+            },
+            reservation_key,
+            reserved,
+            compensated,
         )
 
 
@@ -281,21 +317,28 @@ class BoundedMissionRunner:
                 self.audit.record(record)
                 outcomes.append(record)
                 return MissionRun(False, attempted, recovered, tuple(outcomes))
-            if approval_evidence and not self.audit.consume_approval(
-                mission_id, step.goal_id, step.environment, approval_evidence
-            ):
-                record = OutcomeRecord(
-                    mission_id,
-                    step.goal_id,
-                    step.environment,
-                    "blocked",
-                    ("human approval proof already consumed",),
-                    False,
+            if approval_evidence:
+                claim_status = self.audit.claim_approved_execution(
+                    mission_id, step.goal_id, step.environment, approval_evidence
                 )
-                self.audit.record(record)
-                outcomes.append(record)
-                return MissionRun(False, attempted, recovered, tuple(outcomes))
-            if not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
+                if claim_status != "claimed":
+                    evidence = (
+                        ("human approval proof already consumed",)
+                        if claim_status == "claim_exists"
+                        else ("execution reservation already exists without a completed or compensated outcome",)
+                    )
+                    record = OutcomeRecord(
+                        mission_id,
+                        step.goal_id,
+                        step.environment,
+                        "blocked",
+                        evidence,
+                        False,
+                    )
+                    self.audit.record(record)
+                    outcomes.append(record)
+                    return MissionRun(False, attempted, recovered, tuple(outcomes))
+            elif not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
                 record = OutcomeRecord(
                     mission_id,
                     step.goal_id,

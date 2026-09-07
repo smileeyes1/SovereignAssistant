@@ -106,6 +106,64 @@ class DurableStateStore:
             )
             return cur.rowcount == 1
 
+    def claim_once_and_reserve(
+        self,
+        claim_key: str,
+        claim_value: object,
+        reservation_key: str,
+        reserved_value: object,
+        reusable_value: object,
+    ) -> str:
+        """Atomically consume a one-time claim and acquire its execution reservation.
+
+        The claim is written only if the reservation can be acquired in the same
+        SQLite transaction. A reservation is claimable when absent or when its
+        durable value exactly matches ``reusable_value``. This closes the crash/
+        retry gap where a one-time authority proof could otherwise be consumed
+        even though no execution slot was obtained.
+        """
+        if not claim_key.strip() or not reservation_key.strip():
+            raise ValueError("state keys are required")
+        if claim_key == reservation_key:
+            raise ValueError("claim and reservation keys must differ")
+        claim_payload = json.dumps(claim_value, ensure_ascii=False, sort_keys=True)
+        reserved_payload = json.dumps(reserved_value, ensure_ascii=False, sort_keys=True)
+        reusable_payload = json.dumps(reusable_value, ensure_ascii=False, sort_keys=True)
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            if conn.execute("SELECT 1 FROM state WHERE key=?", (claim_key,)).fetchone() is not None:
+                conn.rollback()
+                return "claim_exists"
+            reservation = conn.execute(
+                "SELECT value_json FROM state WHERE key=?", (reservation_key,)
+            ).fetchone()
+            now = self._now()
+            if reservation is None:
+                conn.execute(
+                    "INSERT INTO state(key, value_json, updated_at) VALUES (?, ?, ?)",
+                    (reservation_key, reserved_payload, now),
+                )
+            elif reservation["value_json"] == reusable_payload:
+                conn.execute(
+                    "UPDATE state SET value_json=?, updated_at=? WHERE key=?",
+                    (reserved_payload, now, reservation_key),
+                )
+            else:
+                conn.rollback()
+                return "reservation_unavailable"
+            conn.execute(
+                "INSERT INTO state(key, value_json, updated_at) VALUES (?, ?, ?)",
+                (claim_key, claim_payload, now),
+            )
+            conn.commit()
+            return "claimed"
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def get_state(self, key: str, default: object = None) -> object:
         with self._connect() as conn:
             row = conn.execute("SELECT value_json FROM state WHERE key=?", (key,)).fetchone()
