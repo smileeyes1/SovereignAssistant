@@ -15,18 +15,14 @@ AUTH="Authorization: Bearer ${PAIR_TOKEN}"
 
 adb install -r "$APK"
 adb shell pm path "$PKG" | grep '^package:'
-# Avoid the Android 13+ notification prompt blocking lifecycle smoke in disposable CI.
 adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS
 adb shell am start -W -n "$PKG/.MainActivity"
 adb shell dumpsys activity activities | grep -F "$PKG" >/dev/null
 adb shell pidof "$PKG" >/dev/null
 
-# Pair only inside the disposable emulator. This token is non-secret test data and is
-# intentionally unrelated to physical-device pairing or LOCAL_DEVICE_ONLY material.
 adb shell am start -W -a android.intent.action.VIEW -d "hakim://pair?token=${PAIR_TOKEN}" "$PKG" >/dev/null
 adb forward "tcp:${PORT}" "tcp:${PORT}"
 
-# Wait for the loopback control plane to be reachable through the ADB test tunnel.
 i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status.json 2>/dev/null; do
   i=$((i + 1))
@@ -34,13 +30,11 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status.json 2>/de
   sleep 1
 done
 
-# Authentication must fail closed for missing and incorrect credentials.
 code=$(curl -sS -o /tmp/hakim-missing-auth.json -w '%{http_code}' "${BASE_URL}/v1/status")
 [ "$code" = '401' ]
 code=$(curl -sS -o /tmp/hakim-wrong-auth.json -w '%{http_code}' -H 'Authorization: Bearer definitely-wrong-token' "${BASE_URL}/v1/status")
 [ "$code" = '401' ]
 
-# Authenticated status must report runtime facts without fabricating field evidence.
 status=$(cat /tmp/hakim-status.json)
 printf '%s' "$status" | grep -F '"evidence_state":"NOT_PROVEN"' >/dev/null
 printf '%s' "$status" | grep -F '"loopback_only":true' >/dev/null
@@ -50,7 +44,6 @@ printf '%s' "$status" | grep -F '"persistent_model_evidence":"NOT_PROVEN"' >/dev
 printf '%s' "$status" | grep -F '"persistent_model_allowed":false' >/dev/null
 printf '%s' "$status" | grep -F '"accessibility":false' >/dev/null
 
-# Prove the actual kernel socket is loopback-bound, not merely self-reported as such.
 listen=$(adb shell ss -ltn 2>/dev/null | grep ":${PORT}" || true)
 [ -n "$listen" ]
 printf '%s\n' "$listen" | grep -E '127\.0\.0\.1|\[::1\]|::1' >/dev/null
@@ -59,7 +52,6 @@ if printf '%s\n' "$listen" | grep -E '0\.0\.0\.0|\[::\]:|:::47651' >/dev/null; t
   exit 1
 fi
 
-# Permission-gated capabilities must fail explicitly before Accessibility is enabled.
 code=$(curl -sS -o /tmp/hakim-ui-unavailable.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
 [ "$code" = '409' ]
 grep -F '"error":"accessibility_unavailable"' /tmp/hakim-ui-unavailable.json >/dev/null
@@ -70,8 +62,8 @@ code=$(curl -sS -o /tmp/hakim-action-unavailable.json -w '%{http_code}' -H "$AUT
 [ "$code" = '409' ]
 grep -F '"ok":false' /tmp/hakim-action-unavailable.json >/dev/null
 
-# Enable Accessibility only inside this disposable emulator. This is CI scaffolding,
-# not evidence of user consent or a physical-device permission grant.
+# Accessibility enabling is CI-only scaffolding. Service connection and window-tree
+# publication are asynchronous on Android, so prove readiness rather than racing it.
 adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
 adb shell settings put secure accessibility_enabled 1
 
@@ -82,19 +74,26 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-accessibil
   sleep 1
 done
 
-# UI acquisition must now produce an actual non-empty node tree from the running app.
-code=$(curl -sS -o /tmp/hakim-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-[ "$code" = '200' ]
-python3 - <<'PY'
+# Reassert a known foreground window after the service connects, then wait for a real tree.
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
+i=0
+while [ "$i" -lt 20 ]; do
+  code=$(curl -sS -o /tmp/hakim-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+  if [ "$code" = '200' ] && python3 - <<'PY'
 import json
 with open('/tmp/hakim-ui.json', encoding='utf-8') as f:
     obj = json.load(f)
 nodes = obj.get('nodes')
-assert isinstance(nodes, list) and len(nodes) > 0, obj
-assert any(n.get('class') for n in nodes), nodes
+raise SystemExit(0 if isinstance(nodes, list) and len(nodes) > 0 and any(n.get('class') for n in nodes) else 1)
 PY
+  then
+    break
+  fi
+  i=$((i + 1))
+  sleep 1
+done
+[ "$i" -lt 20 ] || { echo 'Accessibility UI tree did not become non-empty' >&2; cat /tmp/hakim-ui.json >&2 || true; exit 1; }
 
-# Accessibility screenshot must be real PNG data, not a placeholder success.
 code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
 [ "$code" = '200' ]
 python3 - <<'PY'
@@ -106,7 +105,6 @@ assert len(data) > 1000, len(data)
 assert data.startswith(b'\x89PNG\r\n\x1a\n'), data[:8]
 PY
 
-# A bounded navigation action must traverse the same authenticated/Accessibility path.
 code=$(curl -sS -o /tmp/hakim-action-home.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"home"}' "${BASE_URL}/v1/action")
 [ "$code" = '200' ]
 grep -F '"ok":true' /tmp/hakim-action-home.json >/dev/null
@@ -116,27 +114,23 @@ if adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F 
   exit 1
 fi
 
-# A bounded safe launch request through the authenticated local service must restore the app.
 code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '200' ]
 grep -F '"ok":true' /tmp/hakim-launch.json >/dev/null
 sleep 1
 adb shell dumpsys activity activities | grep -F "mResumedActivity" | grep -F "$PKG" >/dev/null
 
-# Process death must not corrupt installability, pairing, or authenticated relaunch.
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 adb shell pidof "$PKG" >/dev/null
 curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-restart.json
 printf '%s' "$(cat /tmp/hakim-status-after-restart.json)" | grep -F '"persistent_model_allowed":false' >/dev/null
 
-# The Companion must never package or spawn a resident local LLM.
 if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then
   echo 'Unexpected resident local-model process' >&2
   exit 1
 fi
 
-# Reboot smoke: package, pairing, and authenticated local control remain recoverable.
 adb reboot
 adb wait-for-device
 boot=''
