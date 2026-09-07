@@ -69,6 +69,17 @@ def test_ui_endpoint_fails_closed_without_accessibility_instead_of_returning_emp
     assert 'JSONObject().put("nodes", service.uiSnapshot())' in server
 
 
+def test_notification_endpoint_fails_closed_without_listener_and_status_exposes_availability():
+    server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    listener = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimNotificationListener.kt")
+    assert '.put("notification_listener", HakimNotificationListener.isConnected())' in server
+    assert 'JSONObject().put("error", "notification_listener_unavailable")' in server
+    assert 'if (!HakimNotificationListener.isConnected()) respond(c, 409' in server
+    assert "override fun onListenerConnected()" in listener
+    assert "override fun onListenerDisconnected()" in listener
+    assert "fun isConnected(): Boolean = instance != null" in listener
+
+
 def test_ui_snapshot_exposes_package_identity_for_runtime_observation():
     service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimAccessibilityService.kt")
     assert '.put("package", n.packageName?.toString().orEmpty())' in service
