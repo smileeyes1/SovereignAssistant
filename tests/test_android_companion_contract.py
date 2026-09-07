@@ -94,3 +94,15 @@ def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_sem
     assert "EMULATOR_AUTH_FAIL_CLOSED=PROVEN" in gate
     assert "EMULATOR_STATUS_SEMANTICS=PROVEN" in gate
     assert "EMULATOR_CONTROL_PLANE=PROVEN" in gate
+
+
+def test_emulator_gate_proves_kernel_loopback_binding_and_pairing_recovery():
+    gate = text("scripts/android-companion-emulator-runtime-gate.sh")
+    assert "adb shell ss -ltn" in gate
+    assert "Companion control plane is wildcard-bound" in gate
+    assert "EMULATOR_LOOPBACK_BINDING=PROVEN" in gate
+    assert "hakim-status-after-restart.json" in gate
+    assert "hakim-status-after-reboot.json" in gate
+    assert "Authenticated control plane did not recover after reboot" in gate
+    assert "EMULATOR_PAIRING_RECOVERY=PROVEN" in gate
+    assert "EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN" in gate
