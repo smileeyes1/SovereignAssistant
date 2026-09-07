@@ -51,11 +51,11 @@ class LocalControlServer(private val context: Context) {
             val body = String(chars, 0, off)
             val token = context.getSharedPreferences("hakim", Context.MODE_PRIVATE).getString("pair_token", null)
             if (token == null || headers["authorization"] != "Bearer $token") return respond(c, 401, JSONObject().put("error", "unauthorized"))
-            route(c, method, path, body)
+            route(c, method, path, body, headers)
         }
     }
 
-    private fun route(c: Socket, method: String, path: String, body: String) {
+    private fun route(c: Socket, method: String, path: String, body: String, headers: Map<String, String>) {
         try {
             when {
                 method == "GET" && path == "/v1/status" -> {
@@ -89,8 +89,22 @@ class LocalControlServer(private val context: Context) {
                     else respond(c, 200, JSONObject().put("png_base64", data))
                 }
                 method == "POST" && path == "/v1/action" -> {
-                    val ok = HakimAccessibilityService.instance?.action(JSONObject(body)) == true
-                    respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok))
+                    val service = HakimAccessibilityService.instance
+                    if (service == null) {
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "accessibility_unavailable"))
+                    } else {
+                        val obj = JSONObject(body)
+                        val action = obj.optString("action")
+                        val requestId = headers["x-hakim-request-id"]
+                        if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
+                            respond(c, 400, JSONObject().put("error", "request_id_required"))
+                        } else if (requestId != null && !claimRequest(requestId)) {
+                            respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                        } else {
+                            val ok = service.action(obj)
+                            respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
+                        }
+                    }
                 }
                 method == "POST" && path == "/v1/launch" -> {
                     val pkg = JSONObject(body).optString("package")
@@ -104,6 +118,13 @@ class LocalControlServer(private val context: Context) {
         } catch (e: Exception) { respond(c, 500, JSONObject().put("error", e.javaClass.simpleName)) }
     }
 
+    @Synchronized
+    private fun claimRequest(requestId: String): Boolean {
+        val prefs = context.getSharedPreferences("hakim_idempotency", Context.MODE_PRIVATE)
+        if (prefs.contains(requestId)) return false
+        return prefs.edit().putLong(requestId, System.currentTimeMillis()).commit()
+    }
+
     private fun respond(c: Socket, code: Int, json: JSONObject) {
         val bytes = json.toString().toByteArray(Charsets.UTF_8)
         val reason = if (code == 200) "OK" else "Error"
@@ -111,5 +132,8 @@ class LocalControlServer(private val context: Context) {
         c.getOutputStream().write(head.toByteArray(Charsets.UTF_8)); c.getOutputStream().write(bytes); c.getOutputStream().flush()
     }
 
-    companion object { const val PORT = 47651 }
+    companion object {
+        const val PORT = 47651
+        private val REQUEST_ID = Regex("^[A-Za-z0-9._:-]{8,128}$")
+    }
 }
