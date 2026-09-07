@@ -159,14 +159,16 @@ class BoundedMissionRunner:
         *,
         governance: GovernanceKernel | None = None,
         mission_kernel: MissionKernel | None = None,
+        approval_verifier: Callable[[MissionStep], tuple[bool, tuple[str, ...]]] | None = None,
     ):
         self.audit = audit
         self.governance = governance or GovernanceKernel()
         self.mission_kernel = mission_kernel or MissionKernel(
             OperationalEnvelope(frozenset({"mission-step"}), max_risk=2, require_reversible_above=1, min_evidence=1)
         )
+        self.approval_verifier = approval_verifier
 
-    def _authorized(self, step: MissionStep) -> bool:
+    def _authorized(self, step: MissionStep) -> tuple[bool, tuple[str, ...]]:
         claim = Claim(
             f"mission step {step.goal_id} in {step.environment} is ready",
             tuple(Evidence("mission-plan", item, 1.0) for item in step.evidence if item.strip()),
@@ -178,8 +180,22 @@ class BoundedMissionRunner:
             reversible=step.reversible,
             requires_human_approval=step.requires_human_approval,
         )
-        if self.governance.evaluate(claim, action) != Decision.PROCEED:
-            return False
+        governance_decision = self.governance.evaluate(claim, action)
+        human_approved = False
+        approval_evidence: tuple[str, ...] = ()
+        if governance_decision == Decision.APPROVAL_REQUIRED:
+            if self.approval_verifier is None:
+                return False, ()
+            try:
+                approved, proof = self.approval_verifier(step)
+            except Exception:
+                return False, ()
+            approval_evidence = tuple(str(item) for item in proof if str(item).strip())
+            if not approved or not approval_evidence:
+                return False, ()
+            human_approved = True
+        elif governance_decision != Decision.PROCEED:
+            return False, ()
         mission = MissionAction(
             name=step.goal_id,
             capability=step.capability,
@@ -188,7 +204,8 @@ class BoundedMissionRunner:
             authority=AuthorityLevel.CONSEQUENTIAL if step.requires_human_approval else AuthorityLevel.MODERATE,
             evidence=step.evidence,
         )
-        return self.mission_kernel.evaluate(mission, human_approved=False).allowed
+        allowed = self.mission_kernel.evaluate(mission, human_approved=human_approved).allowed
+        return allowed, approval_evidence if allowed else ()
 
     @staticmethod
     def _record_from_state(value: dict[str, object]) -> OutcomeRecord:
@@ -224,7 +241,8 @@ class BoundedMissionRunner:
                     self.audit.record(record)
                     outcomes.append(record)
                     return MissionRun(False, attempted, recovered, tuple(outcomes))
-            if not self._authorized(step):
+            authorized, approval_evidence = self._authorized(step)
+            if not authorized:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
                 self.audit.record(record)
                 outcomes.append(record)
@@ -245,8 +263,9 @@ class BoundedMissionRunner:
                 ok, result_evidence = step.execute()
             except Exception:
                 ok, result_evidence = False, ()
+            durable_evidence = tuple(result_evidence) + approval_evidence
             if ok and result_evidence:
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "completed", tuple(result_evidence), False)
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "completed", durable_evidence, False)
                 self.audit.record(record)
                 outcomes.append(record)
                 continue
@@ -257,11 +276,11 @@ class BoundedMissionRunner:
                 rollback_ok = False
             if rollback_ok:
                 recovered += 1
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", tuple(result_evidence), True)
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "rolled_back", durable_evidence, True)
                 self.audit.record(record)
                 self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment)
             else:
-                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", tuple(result_evidence), False)
+                record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", durable_evidence, False)
                 self.audit.record(record)
             outcomes.append(record)
             return MissionRun(False, attempted, recovered, tuple(outcomes))
