@@ -69,6 +69,11 @@ def test_ui_endpoint_fails_closed_without_accessibility_instead_of_returning_emp
     assert 'JSONObject().put("nodes", service.uiSnapshot())' in server
 
 
+def test_ui_snapshot_exposes_package_identity_for_runtime_observation():
+    service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimAccessibilityService.kt")
+    assert '.put("package", n.packageName?.toString().orEmpty())' in service
+
+
 def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field_pass():
     workflow = text(".github/workflows/android-companion.yml")
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
@@ -118,8 +123,12 @@ def test_emulator_gate_proves_accessibility_ui_screenshot_and_navigation():
     assert '"${BASE_URL}/v1/screenshot"' in gate
     assert "base64.b64decode" in gate
     assert "data.startswith(b'\\x89PNG\\r\\n\\x1a\\n')" in gate
+    assert "ui_has_package" in gate
+    assert "UI tree lacks package identity" in gate
     assert '-d \'{\"action\":\"home\"}\'' in gate
-    assert "HOME action did not produce an observable navigation result" in gate
+    assert "HOME action did not move active Accessibility tree away from Companion" in gate
+    assert "Bounded launch did not restore Companion Accessibility tree" in gate
+    assert "STAGE_BOUNDED_LAUNCH=PROVEN" in gate
     assert "EMULATOR_UI_TREE=PROVEN" in gate
     assert "EMULATOR_SCREENSHOT=PROVEN" in gate
     assert "EMULATOR_NAVIGATION=PROVEN" in gate
