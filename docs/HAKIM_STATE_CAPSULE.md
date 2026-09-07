@@ -4,19 +4,19 @@
 
 ## Identity
 - project/profile: `smileeyes1/SovereignAssistant` / `docs/HAKIM_SOVEREIGN_AUTONOMOUS_CONTINUATION.md`
-- captured_at: 2026-09-06
+- captured_at: 2026-09-07
 - environment: GitHub repository + TECNO POVA 7 Android field target
 
 ## Last Verified Baseline
-- baseline/ref: `85624d6f7adb2772cc0e6c10f8059965cd4b69b8`
-- evidence: exact-main Governance Gate #404 PASS; Reality Gate #76 PASS; Immediate Autonomous Continuation #316 PASS
+- baseline/ref: `53d438f5ff1f381810f6ab76950f7a99ed15cc47`
+- evidence: exact-main Governance Gate #420 PROVEN; Reality Gate #79 PROVEN; Immediate Autonomous Continuation #335 PROVEN via `workflow_run`; subsequent scheduled Reality Gate #80 and Immediate Autonomous Continuation #336 also completed successfully on the same SHA.
 - verification scope: repository/CI/runtime only; this does not imply Android Companion field qualification
 
 ## Current Evidence State
-- PROVEN: universal constitution/manifest/amendment protocol present on the verified main; package installability and governance/reality/continuation gates passed on the exact main; previously recorded device human-approval security outcomes and selected local-core recovery gates remain historical field evidence unless contradicted by newer evidence.
+- PROVEN: universal constitution/manifest/amendment protocol re-read from the verified main; no open PR existed at capture time; package/governance/reality/continuation gates are green on the exact baseline; Companion-first field progression is protected from the legacy Termux background-survival prerequisite.
 - NOT_PROVEN: Android Companion install/pairing and the full Accessibility/UI/screenshot/navigation/Notification Listener/background/reboot/offline/recovery qualification on the current Companion build.
-- FAIL: prior Termux daemon screen-off background survival approach failed on TECNO POVA 7; do not reuse that approach as a proven runtime baseline.
-- BLOCKED: Remote Desktop Commander device channel is currently offline, so current phone-side state cannot be re-read or advanced remotely.
+- FAIL: prior Termux daemon screen-off background survival approach failed on TECNO POVA 7; this is diagnostic historical evidence only and must not gate Companion qualification.
+- BLOCKED: Remote Desktop Commander device `55f9056b-88b1-4041-abd4-f25f050158c6` was rechecked on 2026-09-07 and remains registered with valid auth but offline, so fresh phone-side state cannot be read or advanced remotely.
 
 ## Protected Invariants
 - Local Sovereign Mode; GovernanceKernel → MissionKernel authority path.
@@ -26,11 +26,13 @@
 - signing key/password remain `LOCAL_DEVICE_ONLY` and are never committed to GitHub.
 - Remote Desktop Commander remains optional maintenance only, never a runtime dependency.
 - `python -m pip install .` remains a permanent regression gate.
+- canonical constitution changes only through `docs/CONSTITUTION_AMENDMENT_PROTOCOL.md`.
 
 ## Open Work in Causal Order
 1. first provable blocker / next safe action: when the device channel is actually online, re-verify exact device state and update to the latest verified `main`; confirm no persistent `llama-server`; then execute the device-owned Companion signing/install flow.
-2. next dependency: after OS-mandated install/Accessibility/Notification Access approvals, pair locally and run the field qualification matrix: auth, loopback isolation, status, Accessibility/UI tree, screenshot, navigation/tap/swipe/text, notification listener, background, reboot, offline, crash/restart/recovery, backup/restore, no-persistent-model.
+2. next dependency: after OS-mandated install/Accessibility/Notification Access approvals, pair locally and run the field qualification matrix: auth, loopback isolation, status, Accessibility/UI tree, screenshot, navigation/tap/swipe/text, notification listener, background, reboot, offline, crash/restart/recovery, idempotency/LKG, backup/restore, containment, no-persistent-model.
 3. escalation: add Shizuku/ADB only after a field test proves a necessary capability gap; root/Device Owner requires explicit sovereign approval.
+4. repository autonomy: continue bounded mission-autonomy work only when it has independent acceptance evidence and does not substitute CI success for field evidence.
 
 ## External / Human Gates
 - required action: Android Package Installer confirmation and any Accessibility/Notification Access grants actually required by the Companion.
