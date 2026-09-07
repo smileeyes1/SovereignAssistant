@@ -159,7 +159,7 @@ class BoundedMissionRunner:
         *,
         governance: GovernanceKernel | None = None,
         mission_kernel: MissionKernel | None = None,
-        approval_verifier: Callable[[MissionStep], tuple[bool, tuple[str, ...]]] | None = None,
+        approval_verifier: Callable[[str, MissionStep], tuple[bool, tuple[str, ...]]] | None = None,
     ):
         self.audit = audit
         self.governance = governance or GovernanceKernel()
@@ -168,7 +168,7 @@ class BoundedMissionRunner:
         )
         self.approval_verifier = approval_verifier
 
-    def _authorized(self, step: MissionStep) -> tuple[bool, tuple[str, ...]]:
+    def _authorized(self, mission_id: str, step: MissionStep) -> tuple[bool, tuple[str, ...]]:
         claim = Claim(
             f"mission step {step.goal_id} in {step.environment} is ready",
             tuple(Evidence("mission-plan", item, 1.0) for item in step.evidence if item.strip()),
@@ -187,7 +187,7 @@ class BoundedMissionRunner:
             if self.approval_verifier is None:
                 return False, ()
             try:
-                approved, proof = self.approval_verifier(step)
+                approved, proof = self.approval_verifier(mission_id, step)
             except Exception:
                 return False, ()
             approval_evidence = tuple(str(item) for item in proof if str(item).strip())
@@ -241,7 +241,7 @@ class BoundedMissionRunner:
                     self.audit.record(record)
                     outcomes.append(record)
                     return MissionRun(False, attempted, recovered, tuple(outcomes))
-            authorized, approval_evidence = self._authorized(step)
+            authorized, approval_evidence = self._authorized(mission_id, step)
             if not authorized:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
                 self.audit.record(record)

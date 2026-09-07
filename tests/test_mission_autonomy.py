@@ -154,6 +154,7 @@ def test_kernel_denial_blocks_execution():
 
 def test_consequential_step_requires_verified_human_approval_and_audits_proof():
     touched = []
+    observed = []
     step = MissionStep(
         "consequential", "production", "mission-step", ActionRisk.MODERATE, True, ("plan-evidence",),
         execute=lambda: (touched.append("executed") or True, ("result-proof",)),
@@ -165,15 +166,20 @@ def test_consequential_step_requires_verified_human_approval_and_audits_proof():
         no_verifier = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run("approval-none", (step,))
         rejected = BoundedMissionRunner(
             OutcomeAudit(DurableStateStore(db)),
-            approval_verifier=lambda _: (False, ("rejected-proof",)),
+            approval_verifier=lambda mission_id, _: (False, (f"rejected:{mission_id}",)),
         ).run("approval-rejected", (step,))
         empty_proof = BoundedMissionRunner(
             OutcomeAudit(DurableStateStore(db)),
-            approval_verifier=lambda _: (True, ()),
+            approval_verifier=lambda mission_id, _: (True, ()),
         ).run("approval-empty", (step,))
+
+        def verify(mission_id, verified_step):
+            observed.append((mission_id, verified_step.goal_id, verified_step.environment))
+            return True, (f"human-approval:{mission_id}:request-123",)
+
         approved = BoundedMissionRunner(
             OutcomeAudit(DurableStateStore(db)),
-            approval_verifier=lambda _: (True, ("human-approval:request-123",)),
+            approval_verifier=verify,
         ).run("approval-proven", (step,))
 
     assert not no_verifier.completed and no_verifier.outcomes[0].status == "blocked"
@@ -181,7 +187,8 @@ def test_consequential_step_requires_verified_human_approval_and_audits_proof():
     assert not empty_proof.completed and empty_proof.outcomes[0].status == "blocked"
     assert approved.completed
     assert touched == ["executed"]
-    assert approved.outcomes[0].evidence == ("result-proof", "human-approval:request-123")
+    assert observed == [("approval-proven", "consequential", "production")]
+    assert approved.outcomes[0].evidence == ("result-proof", "human-approval:approval-proven:request-123")
 
 
 def test_improvement_sandbox_canary_failure_rolls_back_to_champion():
