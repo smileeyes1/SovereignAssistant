@@ -4,6 +4,7 @@
 set -eu
 
 PKG="org.hakim.omega.companion"
+ACCESSIBILITY_SERVICE="${PKG}/.HakimAccessibilityService"
 PORT="47651"
 PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
@@ -12,8 +13,18 @@ RID="emulator-replay-proof-0001"
 
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 
-# The runtime gate has already connected Accessibility. A non-idempotent action
-# without a durable identity must fail closed.
+# Earlier gates intentionally exercise reboot/revocation and may leave
+# Accessibility disconnected. Establish this gate's own explicit precondition
+# instead of depending on mutable state from another test.
+adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
+adb shell settings put secure accessibility_enabled 1
+i=0
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-idempotency-status.json >/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Accessibility did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
+done
+echo 'STAGE_IDEMPOTENCY_ACCESSIBILITY_PRECONDITION=PROVEN'
+
+# A non-idempotent action without a durable identity must fail closed.
 code=$(curl -sS -o /tmp/hakim-no-rid.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"back"}' "${BASE_URL}/v1/action")
 [ "$code" = '400' ] || { echo "missing request identity expected 400 got $code" >&2; cat /tmp/hakim-no-rid.json >&2; exit 1; }
 grep -F '"error":"request_id_required"' /tmp/hakim-no-rid.json >/dev/null
