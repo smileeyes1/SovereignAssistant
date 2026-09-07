@@ -88,22 +88,30 @@ class LocalControlServer(private val context: Context) {
                     if (data == null) respond(c, 409, JSONObject().put("error", "screenshot_unavailable"))
                     else respond(c, 200, JSONObject().put("png_base64", data))
                 }
-                method == "POST" && (path == "/v1/action" || path == "/v1/launch") -> {
-                    val requestId = headers["x-hakim-request-id"]
-                    if (requestId == null || !REQUEST_ID.matches(requestId)) {
-                        respond(c, 400, JSONObject().put("error", "request_id_required"))
-                    } else if (!claimRequest(requestId)) {
-                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
-                    } else if (path == "/v1/action") {
-                        val ok = HakimAccessibilityService.instance?.action(JSONObject(body)) == true
-                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId))
+                method == "POST" && path == "/v1/action" -> {
+                    val service = HakimAccessibilityService.instance
+                    if (service == null) {
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "accessibility_unavailable"))
                     } else {
-                        val pkg = JSONObject(body).optString("package")
-                        val valid = Regex("^[A-Za-z0-9_.]{3,200}$").matches(pkg)
-                        val intent = if (valid) context.packageManager.getLaunchIntentForPackage(pkg) else null
-                        if (intent == null) respond(c, 404, JSONObject().put("error", "package_not_launchable").put("request_id", requestId))
-                        else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent); respond(c, 200, JSONObject().put("ok", true).put("request_id", requestId)) }
+                        val obj = JSONObject(body)
+                        val action = obj.optString("action")
+                        val requestId = headers["x-hakim-request-id"]
+                        if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
+                            respond(c, 400, JSONObject().put("error", "request_id_required"))
+                        } else if (requestId != null && !claimRequest(requestId)) {
+                            respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                        } else {
+                            val ok = service.action(obj)
+                            respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
+                        }
                     }
+                }
+                method == "POST" && path == "/v1/launch" -> {
+                    val pkg = JSONObject(body).optString("package")
+                    val valid = Regex("^[A-Za-z0-9_.]{3,200}$").matches(pkg)
+                    val intent = if (valid) context.packageManager.getLaunchIntentForPackage(pkg) else null
+                    if (intent == null) respond(c, 404, JSONObject().put("error", "package_not_launchable"))
+                    else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent); respond(c, 200, JSONObject().put("ok", true)) }
                 }
                 else -> respond(c, 404, JSONObject().put("error", "not_found"))
             }
