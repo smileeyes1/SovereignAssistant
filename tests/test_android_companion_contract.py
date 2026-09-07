@@ -113,7 +113,8 @@ def test_emulator_gate_proves_accessibility_ui_screenshot_and_navigation():
     assert "settings put secure accessibility_enabled 1" in gate
     assert '"accessibility":true' in gate
     assert '"${BASE_URL}/v1/ui"' in gate
-    assert "len(nodes) > 0" in gate
+    assert "isinstance(nodes,list)" in gate
+    assert "nodes and any" in gate
     assert '"${BASE_URL}/v1/screenshot"' in gate
     assert "base64.b64decode" in gate
     assert "data.startswith(b'\\x89PNG\\r\\n\\x1a\\n')" in gate
