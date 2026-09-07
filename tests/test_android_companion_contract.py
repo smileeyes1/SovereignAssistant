@@ -44,8 +44,18 @@ def test_companion_self_heals_without_remote_bridge_dependency():
     manifest = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
     assert "START_STICKY" in service
     assert "companion_heartbeat_ms" in service
-    assert 'putBoolean("persistent_model", false)' in service
+    assert 'putBoolean("persistent_model_allowed", false)' in service
     assert "server?.isListening()" in service
     assert "fun isListening()" in server
-    assert 'put("persistent_model", false)' in server
     assert "android.intent.action.MY_PACKAGE_REPLACED" in manifest
+
+
+def test_status_separates_runtime_health_from_field_evidence():
+    server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    assert '.put("evidence_state", "NOT_PROVEN")' in server
+    assert '.put("runtime_health", prefs.getString("companion_mode", "UNKNOWN"))' in server
+    assert '.put("persistent_model", JSONObject.NULL)' in server
+    assert '.put("persistent_model_evidence", "NOT_PROVEN")' in server
+    assert '.put("persistent_model_allowed", false)' in server
+    assert '.put("status", "PASS")' not in server
+    assert '.put("persistent_model", false)' not in server

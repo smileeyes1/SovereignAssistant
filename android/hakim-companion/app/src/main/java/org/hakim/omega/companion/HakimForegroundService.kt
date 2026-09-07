@@ -30,7 +30,7 @@ class HakimForegroundService : Service() {
             prefs.edit()
                 .putLong("companion_heartbeat_ms", System.currentTimeMillis())
                 .putString("companion_mode", if (healthy) "HEALTHY" else if (paired) "RECOVERING" else "UNPAIRED")
-                .putBoolean("persistent_model", false)
+                .putBoolean("persistent_model_allowed", false)
                 .apply()
 
             supervisor.postDelayed(this, SUPERVISOR_INTERVAL_MS)
