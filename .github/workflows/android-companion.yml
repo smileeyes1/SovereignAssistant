@@ -7,6 +7,7 @@ on:
       - 'scripts/pair-android-companion.sh'
       - 'scripts/hakim-companion-status.sh'
       - 'scripts/install-android-companion-local.sh'
+      - 'scripts/android-companion-emulator-runtime-gate.sh'
       - 'tests/test_android_companion_contract.py'
       - 'tests/test_android_companion_release_contract.py'
       - '.github/workflows/android-companion.yml'
@@ -78,32 +79,4 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -eu
-            APK=android/hakim-companion/app/build/outputs/apk/debug/app-debug.apk
-            PKG=org.hakim.omega.companion
-            adb install -r "$APK"
-            adb shell pm path "$PKG" | grep '^package:'
-            adb shell am start -W -n "$PKG/.MainActivity"
-            adb shell dumpsys activity activities | grep -F "$PKG" >/dev/null
-            adb shell am force-stop "$PKG"
-            adb shell am start -W -n "$PKG/.MainActivity"
-            adb shell pidof "$PKG" >/dev/null
-            if adb shell ps -A | grep -E 'llama-server|llama\.cpp' ; then
-              echo 'Unexpected resident local-model process' >&2
-              exit 1
-            fi
-            adb reboot
-            adb wait-for-device
-            boot=''
-            for i in $(seq 1 90); do
-              boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              [ "$boot" = '1' ] && break
-              sleep 2
-            done
-            [ "$boot" = '1' ]
-            adb shell pm path "$PKG" | grep '^package:'
-            adb shell am start -W -n "$PKG/.MainActivity"
-            adb shell pidof "$PKG" >/dev/null
-            echo 'EMULATOR_RUNTIME=PROVEN'
-            echo 'PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN'
+          script: sh scripts/android-companion-emulator-runtime-gate.sh
