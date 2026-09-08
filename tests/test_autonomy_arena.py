@@ -106,3 +106,27 @@ def test_baseline_can_certify_l3_only_when_all_required_probes_pass():
     cert = arena.certify(OmegaLevel.L3, scenarios, report)
     assert cert.certified is True
     assert cert.evidence_count == 4
+
+
+def test_l7_requires_every_governing_evidence_domain():
+    arena = AutonomyArena()
+    categories = (
+        "mission-autonomy",
+        "mission-safety",
+        "mission-recovery",
+        "self-improvement",
+        "long-duration",
+    )
+    scenarios = tuple(
+        ArenaScenario(f"l7-{category}", category, 5, OmegaLevel.L7, lambda: True)
+        for category in categories
+    )
+
+    complete = arena.certify(OmegaLevel.L7, scenarios, arena.run(scenarios))
+    assert complete.certified is True
+
+    for missing in categories:
+        reduced = tuple(scenario for scenario in scenarios if scenario.category != missing)
+        cert = arena.certify(OmegaLevel.L7, reduced, arena.run(reduced))
+        assert cert.certified is False
+        assert f"missing required L7 evidence category: {missing}" in cert.reasons
