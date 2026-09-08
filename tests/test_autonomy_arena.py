@@ -143,6 +143,17 @@ def test_certification_rejects_reused_id_with_different_evidence_identity():
     assert "evidence identity mismatch: same-id" in cert.reasons
 
 
+def test_certification_rejects_reused_id_from_weaker_required_level():
+    arena = AutonomyArena()
+    weaker = (ArenaScenario("same-id", "mission-control", 5, OmegaLevel.L2, lambda: True),)
+    claimed = (ArenaScenario("same-id", "mission-control", 5, OmegaLevel.L4, lambda: True),)
+
+    cert = arena.certify(OmegaLevel.L4, claimed, arena.run(weaker))
+
+    assert cert.certified is False
+    assert "evidence identity mismatch: same-id" in cert.reasons
+
+
 def test_certification_rejects_duplicate_scenario_and_evidence_ids():
     arena = AutonomyArena()
     scenarios = (
