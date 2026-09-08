@@ -24,7 +24,7 @@ jobs:
       - name: Run governance regression tests
         run: python -m pytest -q
       - name: Run Ω autonomy arena certification
-        run: python -m app.hakim.run_arena_gate
+        run: python -m app.hakim.run_l7_certification_gate
       - name: Build production autonomy container
         run: docker build -t omega-apex:test .
       - name: Smoke-test live autonomy container
