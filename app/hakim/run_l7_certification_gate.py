@@ -19,7 +19,7 @@ CERTIFICATE_PATH = Path(".omega/autonomy-certification.json")
 def _envelope_payload() -> dict[str, object]:
     envelope = L7_OPERATIONAL_ENVELOPE
     return {
-        "capabilities": sorted(envelope.capabilities),
+        "capabilities": sorted(envelope.allowed_capabilities),
         "max_risk": envelope.max_risk,
         "require_reversible_above": envelope.require_reversible_above,
         "min_evidence": envelope.min_evidence,
