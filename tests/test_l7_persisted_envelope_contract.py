@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from app.hakim.autonomy_arena import L7_OPERATIONAL_ENVELOPE
@@ -9,7 +8,7 @@ def test_persisted_l7_envelope_payload_matches_runtime_contract():
     payload = _envelope_payload()
 
     assert payload == {
-        "capabilities": sorted(L7_OPERATIONAL_ENVELOPE.capabilities),
+        "capabilities": sorted(L7_OPERATIONAL_ENVELOPE.allowed_capabilities),
         "max_risk": L7_OPERATIONAL_ENVELOPE.max_risk,
         "require_reversible_above": L7_OPERATIONAL_ENVELOPE.require_reversible_above,
         "min_evidence": L7_OPERATIONAL_ENVELOPE.min_evidence,
