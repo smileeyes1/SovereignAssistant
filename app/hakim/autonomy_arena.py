@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Callable, Iterable
 
+from .mission_kernel import OperationalEnvelope
+
 
 class OmegaLevel(IntEnum):
     L0 = 0
@@ -28,6 +30,17 @@ REQUIRED_CERTIFICATION_CATEGORIES: dict[OmegaLevel, frozenset[str]] = {
         }
     ),
 }
+
+# ΩL7 is certified only inside the same bounded deterministic mission envelope
+# used by BoundedMissionRunner's default MissionKernel. This is intentionally
+# narrow: one mission capability, moderate risk ceiling, reversibility above
+# low risk, and at least one item of execution evidence.
+L7_OPERATIONAL_ENVELOPE = OperationalEnvelope(
+    frozenset({"mission-step"}),
+    max_risk=2,
+    require_reversible_above=1,
+    min_evidence=1,
+)
 
 
 @dataclass(frozen=True)
@@ -77,6 +90,7 @@ class Certification:
     certified: bool
     reasons: tuple[str, ...]
     evidence_count: int
+    operational_envelope: OperationalEnvelope | None = None
 
 
 class AutonomyArena:
@@ -109,12 +123,27 @@ class AutonomyArena:
                 )
         return ArenaReport(tuple(results))
 
-    def certify(self, level: OmegaLevel, scenarios: Iterable[ArenaScenario], report: ArenaReport) -> Certification:
+    def certify(
+        self,
+        level: OmegaLevel,
+        scenarios: Iterable[ArenaScenario],
+        report: ArenaReport,
+        *,
+        operational_envelope: OperationalEnvelope | None = None,
+    ) -> Certification:
         scenario_list = list(scenarios)
         applicable = [s for s in scenario_list if s.required_level <= level]
         level_specific = [s for s in scenario_list if s.required_level == level]
         prior = [s for s in scenario_list if s.required_level < level]
         reasons: list[str] = []
+
+        certified_envelope: OperationalEnvelope | None = None
+        if level == OmegaLevel.L7:
+            certified_envelope = operational_envelope or L7_OPERATIONAL_ENVELOPE
+            if certified_envelope != L7_OPERATIONAL_ENVELOPE:
+                reasons.append("unsupported operational envelope for L7")
+        elif operational_envelope is not None:
+            certified_envelope = operational_envelope
 
         scenario_ids = [scenario.scenario_id for scenario in scenario_list]
         duplicate_scenario_ids = sorted({scenario_id for scenario_id in scenario_ids if scenario_ids.count(scenario_id) > 1})
@@ -177,7 +206,7 @@ class AutonomyArena:
         if level >= OmegaLevel.L4 and level_specific and not any(s.severity >= 4 for s in level_specific):
             reasons.append(f"no level-specific high-severity evidence for {level.name}")
 
-        return Certification(level, not reasons, tuple(reasons), len(applicable))
+        return Certification(level, not reasons, tuple(reasons), len(applicable), certified_envelope)
 
 
 def baseline_scenarios(
