@@ -104,8 +104,19 @@ class AutonomyArena:
         applicable = [s for s in scenario_list if s.required_level <= level]
         level_specific = [s for s in scenario_list if s.required_level == level]
         prior = [s for s in scenario_list if s.required_level < level]
-        by_id = {result.scenario_id: result for result in report.results}
         reasons: list[str] = []
+
+        scenario_ids = [scenario.scenario_id for scenario in scenario_list]
+        duplicate_scenario_ids = sorted({scenario_id for scenario_id in scenario_ids if scenario_ids.count(scenario_id) > 1})
+        for scenario_id in duplicate_scenario_ids:
+            reasons.append(f"duplicate scenario id: {scenario_id}")
+
+        report_ids = [result.scenario_id for result in report.results]
+        duplicate_report_ids = sorted({scenario_id for scenario_id in report_ids if report_ids.count(scenario_id) > 1})
+        for scenario_id in duplicate_report_ids:
+            reasons.append(f"duplicate evidence id: {scenario_id}")
+
+        by_id = {result.scenario_id: result for result in report.results}
         if not applicable:
             reasons.append("no applicable evidence scenarios")
 
@@ -138,6 +149,8 @@ class AutonomyArena:
             result = by_id.get(scenario.scenario_id)
             if result is None:
                 reasons.append(f"missing evidence: {scenario.scenario_id}")
+            elif result.category != scenario.category or result.severity != scenario.severity:
+                reasons.append(f"evidence identity mismatch: {scenario.scenario_id}")
             elif not result.passed:
                 reasons.append(f"failed scenario: {scenario.scenario_id}")
 
