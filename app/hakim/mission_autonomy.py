@@ -288,6 +288,30 @@ class BoundedMissionRunner:
             bool(value.get("rollback", False)),
         )
 
+    def _blocked_without_side_effect(
+        self,
+        mission_id: str,
+        step: MissionStep,
+        attempted: int,
+        recovered: int,
+        outcomes: list[OutcomeRecord],
+        reason: str,
+    ) -> MissionRun:
+        """Contain pre-execution persistence faults as a fail-closed in-memory outcome.
+
+        Recording the blocked outcome is best-effort because the same persistence
+        layer may be unavailable. The authoritative safety property is that the
+        step callback is never invoked when reservation/authority persistence is
+        not proven.
+        """
+        record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", (reason,), False)
+        try:
+            self.audit.record(record)
+        except Exception:
+            pass
+        outcomes.append(record)
+        return MissionRun(False, attempted, recovered, tuple(outcomes))
+
     def run(self, mission_id: str, steps: Iterable[MissionStep]) -> MissionRun:
         outcomes: list[OutcomeRecord] = []
         recovered = 0
@@ -317,39 +341,49 @@ class BoundedMissionRunner:
                 self.audit.record(record)
                 outcomes.append(record)
                 return MissionRun(False, attempted, recovered, tuple(outcomes))
-            if approval_evidence:
-                claim_status = self.audit.claim_approved_execution(
-                    mission_id, step.goal_id, step.environment, approval_evidence
-                )
-                if claim_status != "claimed":
-                    evidence = (
-                        ("human approval proof already consumed",)
-                        if claim_status == "claim_exists"
-                        else ("execution reservation already exists without a completed or compensated outcome",)
+            try:
+                if approval_evidence:
+                    claim_status = self.audit.claim_approved_execution(
+                        mission_id, step.goal_id, step.environment, approval_evidence
                     )
+                    if claim_status != "claimed":
+                        evidence = (
+                            ("human approval proof already consumed",)
+                            if claim_status == "claim_exists"
+                            else ("execution reservation already exists without a completed or compensated outcome",)
+                        )
+                        record = OutcomeRecord(
+                            mission_id,
+                            step.goal_id,
+                            step.environment,
+                            "blocked",
+                            evidence,
+                            False,
+                        )
+                        self.audit.record(record)
+                        outcomes.append(record)
+                        return MissionRun(False, attempted, recovered, tuple(outcomes))
+                elif not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
                     record = OutcomeRecord(
                         mission_id,
                         step.goal_id,
                         step.environment,
                         "blocked",
-                        evidence,
+                        ("execution reservation already exists without a completed or compensated outcome",),
                         False,
                     )
                     self.audit.record(record)
                     outcomes.append(record)
                     return MissionRun(False, attempted, recovered, tuple(outcomes))
-            elif not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
-                record = OutcomeRecord(
+            except Exception:
+                return self._blocked_without_side_effect(
                     mission_id,
-                    step.goal_id,
-                    step.environment,
-                    "blocked",
-                    ("execution reservation already exists without a completed or compensated outcome",),
-                    False,
+                    step,
+                    attempted,
+                    recovered,
+                    outcomes,
+                    "execution authority/reservation persistence unavailable; no side effect executed",
                 )
-                self.audit.record(record)
-                outcomes.append(record)
-                return MissionRun(False, attempted, recovered, tuple(outcomes))
             try:
                 ok, result_evidence = step.execute()
             except Exception:
