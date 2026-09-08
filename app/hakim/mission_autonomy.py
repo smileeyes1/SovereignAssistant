@@ -312,18 +312,71 @@ class BoundedMissionRunner:
         outcomes.append(record)
         return MissionRun(False, attempted, recovered, tuple(outcomes))
 
+    def _blocked_after_side_effect(
+        self,
+        mission_id: str,
+        step: MissionStep,
+        attempted: int,
+        recovered: int,
+        outcomes: list[OutcomeRecord],
+        evidence: tuple[str, ...],
+        reason: str,
+    ) -> MissionRun:
+        """Contain post-execution audit faults without risking duplicate execution.
+
+        The existing reservation is deliberately retained unless a rollback was
+        durably compensated. This converts ambiguous persistence into an explicit
+        fail-closed outcome instead of allowing an exception to escape or a retry
+        to repeat a consequential side effect.
+        """
+        record = OutcomeRecord(
+            mission_id,
+            step.goal_id,
+            step.environment,
+            "blocked",
+            tuple(evidence) + (reason,),
+            False,
+        )
+        try:
+            self.audit.record(record)
+        except Exception:
+            pass
+        outcomes.append(record)
+        return MissionRun(False, attempted, recovered, tuple(outcomes))
+
     def run(self, mission_id: str, steps: Iterable[MissionStep]) -> MissionRun:
         outcomes: list[OutcomeRecord] = []
         recovered = 0
         attempted = 0
         for step in steps:
             attempted += 1
-            prior = self.audit.get(mission_id, step.goal_id, step.environment)
+            try:
+                prior = self.audit.get(mission_id, step.goal_id, step.environment)
+            except Exception:
+                return self._blocked_without_side_effect(
+                    mission_id,
+                    step,
+                    attempted,
+                    recovered,
+                    outcomes,
+                    "outcome audit persistence unavailable before execution; no side effect executed",
+                )
             if prior.get("status") == "completed":
                 outcomes.append(self._record_from_state(prior))
                 continue
             if prior.get("status") == "rolled_back" and prior.get("rollback") is True:
-                if not self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment):
+                try:
+                    reconciled = self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment)
+                except Exception:
+                    return self._blocked_without_side_effect(
+                        mission_id,
+                        step,
+                        attempted,
+                        recovered,
+                        outcomes,
+                        "rollback reservation reconciliation persistence unavailable; no new side effect executed",
+                    )
+                if not reconciled:
                     record = OutcomeRecord(
                         mission_id,
                         step.goal_id,
@@ -332,13 +385,19 @@ class BoundedMissionRunner:
                         ("proven rollback could not reconcile execution reservation",),
                         False,
                     )
-                    self.audit.record(record)
+                    try:
+                        self.audit.record(record)
+                    except Exception:
+                        pass
                     outcomes.append(record)
                     return MissionRun(False, attempted, recovered, tuple(outcomes))
             authorized, approval_evidence = self._authorized(mission_id, step)
             if not authorized:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "blocked", step.evidence, False)
-                self.audit.record(record)
+                try:
+                    self.audit.record(record)
+                except Exception:
+                    pass
                 outcomes.append(record)
                 return MissionRun(False, attempted, recovered, tuple(outcomes))
             try:
@@ -360,7 +419,10 @@ class BoundedMissionRunner:
                             evidence,
                             False,
                         )
-                        self.audit.record(record)
+                        try:
+                            self.audit.record(record)
+                        except Exception:
+                            pass
                         outcomes.append(record)
                         return MissionRun(False, attempted, recovered, tuple(outcomes))
                 elif not self.audit.reserve_execution(mission_id, step.goal_id, step.environment):
@@ -372,7 +434,10 @@ class BoundedMissionRunner:
                         ("execution reservation already exists without a completed or compensated outcome",),
                         False,
                     )
-                    self.audit.record(record)
+                    try:
+                        self.audit.record(record)
+                    except Exception:
+                        pass
                     outcomes.append(record)
                     return MissionRun(False, attempted, recovered, tuple(outcomes))
             except Exception:
@@ -391,7 +456,18 @@ class BoundedMissionRunner:
             durable_evidence = tuple(result_evidence) + approval_evidence
             if ok and result_evidence:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "completed", durable_evidence, False)
-                self.audit.record(record)
+                try:
+                    self.audit.record(record)
+                except Exception:
+                    return self._blocked_after_side_effect(
+                        mission_id,
+                        step,
+                        attempted,
+                        recovered,
+                        outcomes,
+                        durable_evidence,
+                        "side effect succeeded but completed outcome persistence is unavailable; reservation retained",
+                    )
                 outcomes.append(record)
                 continue
             rollback_ok = False
@@ -400,7 +476,19 @@ class BoundedMissionRunner:
             except Exception:
                 rollback_ok = False
             if rollback_ok:
-                if self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment):
+                try:
+                    compensated = self.audit.mark_execution_compensated(mission_id, step.goal_id, step.environment)
+                except Exception:
+                    return self._blocked_after_side_effect(
+                        mission_id,
+                        step,
+                        attempted,
+                        recovered,
+                        outcomes,
+                        durable_evidence,
+                        "rollback succeeded but reservation compensation persistence is unavailable",
+                    )
+                if compensated:
                     recovered += 1
                     record = OutcomeRecord(
                         mission_id, step.goal_id, step.environment, "rolled_back", durable_evidence, True
@@ -414,10 +502,32 @@ class BoundedMissionRunner:
                         durable_evidence + ("rollback succeeded but execution reservation compensation was not persisted",),
                         False,
                     )
-                self.audit.record(record)
+                try:
+                    self.audit.record(record)
+                except Exception:
+                    return self._blocked_after_side_effect(
+                        mission_id,
+                        step,
+                        attempted,
+                        recovered,
+                        outcomes,
+                        durable_evidence,
+                        "rollback outcome audit persistence unavailable after side effect handling",
+                    )
             else:
                 record = OutcomeRecord(mission_id, step.goal_id, step.environment, "failed", durable_evidence, False)
-                self.audit.record(record)
+                try:
+                    self.audit.record(record)
+                except Exception:
+                    return self._blocked_after_side_effect(
+                        mission_id,
+                        step,
+                        attempted,
+                        recovered,
+                        outcomes,
+                        durable_evidence,
+                        "failed execution outcome persistence unavailable; reservation retained",
+                    )
             outcomes.append(record)
             return MissionRun(False, attempted, recovered, tuple(outcomes))
         return MissionRun(bool(outcomes), attempted, recovered, tuple(outcomes))
