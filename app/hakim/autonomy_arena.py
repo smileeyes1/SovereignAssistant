@@ -51,6 +51,7 @@ class ScenarioResult:
     passed: bool
     category: str
     severity: int
+    required_level: OmegaLevel
     error: str | None = None
 
 
@@ -86,7 +87,15 @@ class AutonomyArena:
         for scenario in scenarios:
             try:
                 passed = bool(scenario.probe())
-                results.append(ScenarioResult(scenario.scenario_id, passed, scenario.category, scenario.severity))
+                results.append(
+                    ScenarioResult(
+                        scenario.scenario_id,
+                        passed,
+                        scenario.category,
+                        scenario.severity,
+                        scenario.required_level,
+                    )
+                )
             except Exception as exc:
                 results.append(
                     ScenarioResult(
@@ -94,6 +103,7 @@ class AutonomyArena:
                         False,
                         scenario.category,
                         scenario.severity,
+                        scenario.required_level,
                         f"{type(exc).__name__}: {exc}",
                     )
                 )
@@ -149,7 +159,11 @@ class AutonomyArena:
             result = by_id.get(scenario.scenario_id)
             if result is None:
                 reasons.append(f"missing evidence: {scenario.scenario_id}")
-            elif result.category != scenario.category or result.severity != scenario.severity:
+            elif (
+                result.category != scenario.category
+                or result.severity != scenario.severity
+                or result.required_level != scenario.required_level
+            ):
                 reasons.append(f"evidence identity mismatch: {scenario.scenario_id}")
             elif not result.passed:
                 reasons.append(f"failed scenario: {scenario.scenario_id}")
