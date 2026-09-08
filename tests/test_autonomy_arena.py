@@ -130,3 +130,28 @@ def test_l7_requires_every_governing_evidence_domain():
         cert = arena.certify(OmegaLevel.L7, reduced, arena.run(reduced))
         assert cert.certified is False
         assert f"missing required L7 evidence category: {missing}" in cert.reasons
+
+
+def test_certification_rejects_reused_id_with_different_evidence_identity():
+    arena = AutonomyArena()
+    benign = (ArenaScenario("same-id", "runtime", 1, OmegaLevel.L1, lambda: True),)
+    claimed = (ArenaScenario("same-id", "safety", 5, OmegaLevel.L1, lambda: True),)
+
+    cert = arena.certify(OmegaLevel.L1, claimed, arena.run(benign))
+
+    assert cert.certified is False
+    assert "evidence identity mismatch: same-id" in cert.reasons
+
+
+def test_certification_rejects_duplicate_scenario_and_evidence_ids():
+    arena = AutonomyArena()
+    scenarios = (
+        ArenaScenario("duplicate", "runtime", 4, OmegaLevel.L2, lambda: True),
+        ArenaScenario("duplicate", "events", 4, OmegaLevel.L2, lambda: True),
+    )
+
+    cert = arena.certify(OmegaLevel.L2, scenarios, arena.run(scenarios))
+
+    assert cert.certified is False
+    assert "duplicate scenario id: duplicate" in cert.reasons
+    assert "duplicate evidence id: duplicate" in cert.reasons
