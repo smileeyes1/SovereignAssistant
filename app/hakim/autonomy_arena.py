@@ -17,6 +17,19 @@ class OmegaLevel(IntEnum):
     L7 = 7
 
 
+REQUIRED_CERTIFICATION_CATEGORIES: dict[OmegaLevel, frozenset[str]] = {
+    OmegaLevel.L7: frozenset(
+        {
+            "mission-autonomy",
+            "mission-safety",
+            "mission-recovery",
+            "self-improvement",
+            "long-duration",
+        }
+    ),
+}
+
+
 @dataclass(frozen=True)
 class ArenaScenario:
     scenario_id: str
@@ -102,14 +115,22 @@ class AutonomyArena:
             reasons.append(f"no level-specific evidence scenarios for {level.name}")
 
         categories = {s.category for s in applicable}
+        level_categories = {s.category for s in level_specific}
         if level >= OmegaLevel.L3 and len(categories) < 2:
             reasons.append("insufficient fault-domain diversity")
+
+        # Certification levels with an explicit acceptance portfolio must fail
+        # closed when any governing evidence domain is absent. Diversity alone is
+        # insufficient because a reduced scenario set could otherwise certify a
+        # level while silently dropping one of its acceptance dimensions.
+        required_categories = REQUIRED_CERTIFICATION_CATEGORIES.get(level, frozenset())
+        for category in sorted(required_categories - level_categories):
+            reasons.append(f"missing required {level.name} evidence category: {category}")
 
         # Each newly claimed level from L2 onward must introduce at least one
         # genuinely new evidence domain rather than merely relabeling a prior probe.
         if level >= OmegaLevel.L2 and level_specific:
             prior_categories = {s.category for s in prior}
-            level_categories = {s.category for s in level_specific}
             if not (level_categories - prior_categories):
                 reasons.append(f"no new level-specific fault domain for {level.name}")
 
