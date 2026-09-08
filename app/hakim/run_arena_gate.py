@@ -323,30 +323,75 @@ def champion_challenger_canary_probe() -> bool:
 
 
 def bounded_soak_continuity_probe() -> bool:
-    """Deterministic soak: repeat bounded mission cycles with durable outcome continuity."""
+    """Deterministic soak with injected failures, rollback, restart and durable outcome audit."""
     with TemporaryDirectory() as tmp:
         db = Path(tmp) / "omega.db"
+        injected_cycles = {17, 53, 89}
+        failures = 0
+        rollbacks = 0
+        recoveries = 0
+
         for cycle in range(100):
-            audit = OutcomeAudit(DurableStateStore(db))
-            run = BoundedMissionRunner(audit).run(
-                f"soak-{cycle}",
-                (
-                    MissionStep(
-                        "goal",
-                        "sandbox" if cycle % 2 == 0 else "canary",
-                        "mission-step",
-                        ActionRisk.MODERATE,
-                        True,
-                        (f"plan-{cycle}",),
-                        execute=lambda c=cycle: (True, (f"outcome-{c}",)),
-                        rollback=lambda: True,
-                    ),
+            environment = "sandbox" if cycle % 2 == 0 else "canary"
+            should_fail = cycle in injected_cycles
+
+            step = MissionStep(
+                "goal",
+                environment,
+                "mission-step",
+                ActionRisk.MODERATE,
+                True,
+                (f"plan-{cycle}",),
+                execute=(
+                    (lambda: (False, ()))
+                    if should_fail
+                    else (lambda c=cycle: (True, (f"outcome-{c}",)))
                 ),
+                rollback=lambda: True,
             )
-            if not run.completed:
+            run = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db))).run(
+                f"soak-{cycle}",
+                (step,),
+            )
+
+            if not should_fail:
+                if not run.completed:
+                    return False
+                continue
+
+            failures += 1
+            if run.completed or run.recovered != 1 or run.outcomes[0].status != "rolled_back":
                 return False
-        final = OutcomeAudit(DurableStateStore(db)).get("soak-99", "goal", "canary")
-        return final.get("status") == "completed" and final.get("evidence") == ["outcome-99"]
+            rollbacks += 1
+
+            restarted_runner = BoundedMissionRunner(OutcomeAudit(DurableStateStore(db)))
+            retry = MissionStep(
+                "goal",
+                environment,
+                "mission-step",
+                ActionRisk.MODERATE,
+                True,
+                (f"retry-plan-{cycle}",),
+                execute=lambda c=cycle: (True, (f"recovered-{c}",)),
+                rollback=lambda: True,
+            )
+            restarted = restarted_runner.run(f"soak-{cycle}", (retry,))
+            if not restarted.completed or restarted.outcomes[0].evidence != (f"recovered-{cycle}",):
+                return False
+            recoveries += 1
+
+        audit = OutcomeAudit(DurableStateStore(db))
+        final = audit.get("soak-99", "goal", "canary")
+        recovered = audit.get("soak-89", "goal", "canary")
+        return (
+            failures == 3
+            and rollbacks == 3
+            and recoveries == 3
+            and final.get("status") == "completed"
+            and final.get("evidence") == ["outcome-99"]
+            and recovered.get("status") == "completed"
+            and recovered.get("evidence") == ["recovered-89"]
+        )
 
 
 def main() -> None:
