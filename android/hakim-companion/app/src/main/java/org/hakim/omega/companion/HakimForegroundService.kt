@@ -2,6 +2,7 @@ package org.hakim.omega.companion
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -55,11 +56,18 @@ class HakimForegroundService : Service() {
         }
         running = true
         createChannel()
+        val financialMode = PendingIntent.getBroadcast(
+            this,
+            7301,
+            Intent(this, FinancialSafeModeReceiver::class.java).setAction(FinancialSafeMode.ACTION_ENTER),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification = android.app.Notification.Builder(this, CHANNEL)
             .setContentTitle("HAKIM Ω")
             .setContentText("التحكم المحلي والقناة الآمنة يعملان")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_lock_power_off, "وضع مالي", financialMode)
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
