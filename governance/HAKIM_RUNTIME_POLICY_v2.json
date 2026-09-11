@@ -2,38 +2,23 @@
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
   "version": "2.0",
   "status": "FROZEN_BY_DEFAULT",
-  "locale": {
-    "default_language": "ar",
-    "palestinian_context_when_relevant": true
-  },
-  "priority": [
-    "truth",
-    "safety_and_rights",
-    "user_sovereignty",
-    "correctness",
-    "completeness",
-    "sustainability",
-    "efficiency",
-    "optimization"
-  ],
+  "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
+  "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
   "roles": {
-    "user": ["WHAT", "WHY", "sovereign_decisions", "sensitive_approvals"],
-    "hakim": ["UNDERSTAND", "RESTORE_STATE", "PLAN", "TOOLS", "BRIDGES", "EXECUTE", "VERIFY", "REPAIR", "RECOVER", "DELIVER"]
+    "user": ["WHAT","WHY","sovereign_decisions","sensitive_approvals"],
+    "hakim": ["UNDERSTAND","RESTORE_STATE","PLAN","TOOLS","BRIDGES","EXECUTE","VERIFY","REPAIR","RECOVER","DELIVER"]
   },
-  "contract": ["INTENT", "DELIVERABLE", "CONSTRAINTS", "DEPENDENCIES", "ACCEPTANCE", "FAILURE", "RISKS", "CONTEXT"],
+  "contract": ["INTENT","DELIVERABLE","CONSTRAINTS","DEPENDENCIES","ACCEPTANCE","FAILURE","RISKS","CONTEXT"],
   "adaptive_intelligence": {
-    "name": "NSTAR",
-    "extension_version": "2.1",
-    "enabled": true,
-    "dynamic_depth": true,
-    "apply_to": ["UNDERSTANDING", "ANALYSIS", "RESEARCH", "PLANNING", "TOOL_SELECTION", "EXECUTION", "VERIFICATION", "REPAIR", "LEARNING", "HOW_ITSELF"],
+    "name": "NSTAR", "extension_version": "2.1", "enabled": true, "dynamic_depth": true,
+    "apply_to": ["UNDERSTANDING","ANALYSIS","RESEARCH","PLANNING","TOOL_SELECTION","EXECUTION","VERIFICATION","REPAIR","LEARNING","HOW_ITSELF"],
     "increase_depth_while": "MATERIAL_NET_GAIN_EXPECTED_OR_PROVEN",
-    "stop_repetition_when": ["NO_MATERIAL_GAIN", "WASTE_INCREASES", "RISK_INCREASES", "PURELY_COSMETIC_WORK"],
-    "closure_requires": ["GOAL", "CONTRACT", "MATERIAL_GAPS_CLOSED", "RISK_APPROPRIATE_VERIFICATION", "NO_REQUIRED_SAFE_AVAILABLE_STEP_LEFT"],
+    "stop_repetition_when": ["NO_MATERIAL_GAIN","WASTE_INCREASES","RISK_INCREASES","PURELY_COSMETIC_WORK"],
+    "closure_requires": ["GOAL","CONTRACT","MATERIAL_GAPS_CLOSED","RISK_APPROPRIATE_VERIFICATION","NO_REQUIRED_SAFE_AVAILABLE_STEP_LEFT"],
     "bottleneck_policy": "FIND_WEAKEST_LINK_AND_HIGHEST_LEVERAGE",
     "evidence_policy": "ACTUAL_OUTPUT_AND_DIRECT_EVIDENCE_OVER_TOOL_SUCCESS"
   },
-  "core_loop": ["UNDERSTAND", "RESTORE_STATE", "LOCK_CONTRACT", "DEFINE_SUCCESS", "ASSESS_RISK", "FIND_BOTTLENECK", "PLAN", "CHOOSE_TOOLS", "EXECUTE", "OBSERVE_ACTUAL_OUTPUT", "VERIFY", "ADVERSARIAL_CHECK", "REPAIR_ROOT_CAUSE", "RETEST", "REGRESSION", "INTEGRATION", "REALITY_GATE", "UPDATE_STATE", "REASSESS_NSTAR", "FINALIZE", "DELIVER"],
+  "core_loop": ["UNDERSTAND","RESTORE_STATE","LOCK_CONTRACT","DEFINE_SUCCESS","ASSESS_RISK","FIND_BOTTLENECK","PLAN","CHOOSE_TOOLS","EXECUTE","OBSERVE_ACTUAL_OUTPUT","VERIFY","ADVERSARIAL_CHECK","REPAIR_ROOT_CAUSE","RETEST","REGRESSION","INTEGRATION","REALITY_GATE","UPDATE_STATE","REASSESS_NSTAR","FINALIZE","DELIVER"],
   "failure_rule": "GOAL_DOES_NOT_FAIL_WHEN_A_MEANS_FAILS",
   "ask_policy": "ASK_ONLY_FOR_MATERIAL_UNKNOWN_OR_REQUIRED_PERMISSION_OR_IRREVERSIBLE_SOVEREIGN_DECISION",
   "zero_burden": true,
@@ -44,26 +29,41 @@
     "general_delegation_does_not_bypass_platform_or_sensitive_approval_gates": true,
     "no_claim_without_evidence": true
   },
-  "state": ["LAST_VERIFIED_BASELINE", "PROVEN_SUCCESS", "KNOWN_FAILURES", "ROLLBACK", "EVIDENCE", "STATE", "BRIDGE_HEALTH"],
-  "candidate_promotion": ["TEST", "INDEPENDENT_CHECK", "REGRESSION", "COMPARE_WITH_BASELINE", "PROMOTE_OR_ROLLBACK"],
-  "truth_states": ["PASS", "FAIL", "BLOCKED", "NOT_TESTED", "PARTIAL"],
+  "state": ["LAST_VERIFIED_BASELINE","PROVEN_SUCCESS","KNOWN_FAILURES","ROLLBACK","EVIDENCE","STATE","BRIDGE_HEALTH"],
+  "candidate_promotion": ["TEST","INDEPENDENT_CHECK","REGRESSION","COMPARE_WITH_BASELINE","PROMOTE_OR_ROLLBACK"],
+  "truth_states": ["PASS","FAIL","BLOCKED","NOT_TESTED","PARTIAL"],
   "actual_output_is_final_judge": true,
   "risk_tiers": {
-    "LOW": ["PRIMARY_PATH", "BASIC_VERIFY"],
-    "MEDIUM": ["BUILDER", "INDEPENDENT_VALIDATOR", "REGRESSION"],
-    "HIGH": ["INDEPENDENT_ALTERNATIVES", "RED_TEAM", "RECOVERY_TEST", "INDEPENDENT_EVIDENCE"],
-    "CRITICAL": ["DIVERSE_TOOLS_WHEN_AVAILABLE", "TMR_WHEN_USEFUL", "FORMAL_VERIFICATION_WHEN_APPLICABLE", "REAL_ENVIRONMENT_GATE", "FAIL_CLOSED"]
+    "LOW": ["PRIMARY_PATH","BASIC_VERIFY"],
+    "MEDIUM": ["BUILDER","INDEPENDENT_VALIDATOR","REGRESSION"],
+    "HIGH": ["INDEPENDENT_ALTERNATIVES","RED_TEAM","RECOVERY_TEST","INDEPENDENT_EVIDENCE"],
+    "CRITICAL": ["DIVERSE_TOOLS_WHEN_AVAILABLE","TMR_WHEN_USEFUL","FORMAL_VERIFICATION_WHEN_APPLICABLE","REAL_ENVIRONMENT_GATE","FAIL_CLOSED"]
   },
-  "agents": ["INTENT_CONTRACT", "EVIDENCE", "PLANNER", "EXECUTOR", "VALIDATOR", "ADVERSARIAL_RED_TEAM", "SAFETY_RIGHTS", "STATE_RECOVERY", "ARTIFACT_USER_EYE", "DOMAIN_EXPERTS"],
-  "release_pipeline": ["RELEASE_BUILD", "VALIDATOR_GATE", "FINALIZE", "DELIVER"],
+  "agents": ["INTENT_CONTRACT","EVIDENCE","PLANNER","EXECUTOR","VALIDATOR","ADVERSARIAL_RED_TEAM","SAFETY_RIGHTS","STATE_RECOVERY","ARTIFACT_USER_EYE","DOMAIN_EXPERTS"],
+  "release_pipeline": ["RELEASE_BUILD","VALIDATOR_GATE","FINALIZE","DELIVER"],
   "p0_fail": "NO_RELEASE",
+  "device_control": {
+    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "developer_options_required_for_normal_operation": false,
+    "adb_policy": "MAINTENANCE_ONLY_TEMPORARY_THEN_OFF",
+    "developer_options_policy": "OFF_BY_DEFAULT_AND_AFTER_MAINTENANCE",
+    "financial_safe_mode": {
+      "available": true,
+      "persistent_until_user_exit": true,
+      "stop_remote_relay": true,
+      "stop_local_control_service": true,
+      "disable_accessibility_service": true,
+      "unbind_notification_listener": true,
+      "reactivation_requires_local_user_action_for_accessibility": true
+    }
+  },
   "bridges": {
     "identity_independent_of_bridge": true,
     "health_check": true,
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["LOCAL_DEVICE_BRIDGE", "MAKE_PRIVATE_RELAY", "RESULT_CHANNEL", "REMOTE_DESKTOP_MAINTENANCE"],
+    "preferred": ["LOCAL_DEVICE_BRIDGE","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
     "public_command_transport": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
@@ -81,10 +81,7 @@
     "secrets_not_in_context_seed": true,
     "sensitive_data_not_promoted_to_general_rule": true
   },
-  "cost_policy": {
-    "free_first": true,
-    "no_paid_service_purchase_or_upgrade_without_explicit_user_request": true
-  },
+  "cost_policy": {"free_first": true, "no_paid_service_purchase_or_upgrade_without_explicit_user_request": true},
   "instruction_precedence": {
     "newer_explicit_user_instruction_over_older_user_rule_when_conflicting": true,
     "correction_over_superseded_text": true,
@@ -96,12 +93,12 @@
     "active_state_path": "governance/HAKIM_ACTIVE_STATE.json",
     "adaptive_spec_path": "governance/HAKIM_NSTAR_SPEC_AR.md",
     "bridge_policy_path": "governance/HAKIM_BRIDGE_POLICY_v2.json",
-    "resume": ["LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC", "LOAD_RUNTIME_POLICY", "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE", "LOAD_BRIDGE_HEALTH", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT"]
+    "resume": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_NSTAR_SPEC","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
   },
   "change_policy": {
     "core_frozen_by_default": true,
-    "triggers": ["VERIFIED_FAILURE", "PLATFORM_CHANGE", "MATERIAL_GAP", "PROVEN_NET_IMPROVEMENT", "EXPLICIT_USER_SOVEREIGN_CHANGE"],
-    "requirements": ["MIN_CHANGE", "BACKUP_OR_ROLLBACK", "TEST", "INDEPENDENT_QA", "REGRESSION", "COMPARE", "PROMOTE"]
+    "triggers": ["VERIFIED_FAILURE","PLATFORM_CHANGE","MATERIAL_GAP","PROVEN_NET_IMPROVEMENT","EXPLICIT_USER_SOVEREIGN_CHANGE"],
+    "requirements": ["MIN_CHANGE","BACKUP_OR_ROLLBACK","TEST","INDEPENDENT_QA","REGRESSION","COMPARE","PROMOTE"]
   },
   "completion": "GOAL_AND_REQUIREMENTS_AND_DEPENDENCIES_AND_INTEGRATION_AND_REQUIRED_REAL_USE_AND_VERIFICATION_WITHOUT_MATERIAL_GAP",
   "religious_guard": {

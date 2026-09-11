@@ -2,6 +2,7 @@ package org.hakim.omega.companion
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -18,56 +19,58 @@ class HakimForegroundService : Service() {
 
     private val supervise = object : Runnable {
         override fun run() {
+            if (FinancialSafeMode.isEnabled(this@HakimForegroundService)) { stopSelf(); return }
             val prefs = getSharedPreferences("hakim", Context.MODE_PRIVATE)
             val paired = prefs.getString("pair_token", null) != null
             var healthy = paired && server?.isListening() == true
-
             if (paired && !healthy) {
                 server?.close()
                 server = LocalControlServer(this@HakimForegroundService).also { it.start() }
                 healthy = server?.isListening() == true
             }
-
-            if (remoteRelay == null) {
-                remoteRelay = HakimRemoteRelay(this@HakimForegroundService).also { it.start() }
-            }
-
+            if (remoteRelay == null) remoteRelay = HakimRemoteRelay(this@HakimForegroundService).also { it.start() }
             prefs.edit()
                 .putLong("companion_heartbeat_ms", System.currentTimeMillis())
                 .putString("companion_mode", if (healthy) "HEALTHY" else if (paired) "RECOVERING" else "UNPAIRED")
                 .putBoolean("persistent_model_allowed", false)
                 .apply()
-
             supervisor.postDelayed(this, SUPERVISOR_INTERVAL_MS)
         }
     }
 
     override fun onCreate() {
         super.onCreate()
+        if (FinancialSafeMode.isEnabled(this)) { stopSelf(); return }
         running = true
         createChannel()
+        val financialMode = PendingIntent.getBroadcast(
+            this, 7301,
+            Intent(this, FinancialSafeModeReceiver::class.java).setAction(FinancialSafeMode.ACTION_ENTER),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification = android.app.Notification.Builder(this, CHANNEL)
             .setContentTitle("HAKIM Ω")
             .setContentText("التحكم المحلي والقناة الآمنة يعملان")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setOngoing(true)
+            .addAction(android.R.drawable.ic_lock_power_off, "وضع مالي", financialMode)
             .build()
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else startForeground(7, notification)
+        if (Build.VERSION.SDK_INT >= 34) startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        else startForeground(7, notification)
         server = LocalControlServer(this).also { it.start() }
         remoteRelay = HakimRemoteRelay(this).also { it.start() }
         supervisor.postDelayed(supervise, INITIAL_SUPERVISOR_DELAY_MS)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (FinancialSafeMode.isEnabled(this)) { stopSelf(); return START_NOT_STICKY }
+        return START_STICKY
+    }
 
     override fun onDestroy() {
         supervisor.removeCallbacks(supervise)
-        remoteRelay?.stop()
-        remoteRelay = null
-        server?.close()
-        server = null
+        remoteRelay?.stop(); remoteRelay = null
+        server?.close(); server = null
         running = false
         super.onDestroy()
     }
@@ -76,8 +79,8 @@ class HakimForegroundService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "HAKIM Ω Local Control", NotificationManager.IMPORTANCE_LOW))
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(NotificationChannel(CHANNEL, "HAKIM Ω Local Control", NotificationManager.IMPORTANCE_LOW))
         }
     }
 
@@ -87,6 +90,7 @@ class HakimForegroundService : Service() {
         const val SUPERVISOR_INTERVAL_MS = 30_000L
         @Volatile var running = false
         fun start(context: Context) {
+            if (FinancialSafeMode.isEnabled(context)) return
             val i = Intent(context, HakimForegroundService::class.java)
             try { context.startForegroundService(i) } catch (_: Exception) { try { context.startService(i) } catch (_: Exception) {} }
         }
