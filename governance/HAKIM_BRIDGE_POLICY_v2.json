@@ -1,0 +1,35 @@
+{
+  "name": "HAKIM_SECURE_BRIDGE_POLICY",
+  "version": "2.0-secure-private-relay",
+  "status": "ACTIVE_OVERRIDE",
+  "priority": [
+    "LOCAL_DEVICE_BRIDGE",
+    "MAKE_PRIVATE_RELAY",
+    "RESULT_CHANNEL",
+    "REMOTE_DESKTOP_MAINTENANCE"
+  ],
+  "public_command_transport": false,
+  "public_github_command_relay": "DISABLED",
+  "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
+  "phone_execution": "TERMUX_WIRELESS_ADB",
+  "self_healing_supervisor": true,
+  "security": {
+    "outbound_only_preferred": true,
+    "signed_commands": true,
+    "hmac_sha256": true,
+    "expiry_required": true,
+    "anti_replay": true,
+    "allowlist_only": true,
+    "general_remote_shell": false,
+    "mutating_actions_fail_closed": true,
+    "mutating_actions_require_local_control_window": true,
+    "platform_protection_bypass": false,
+    "secrets_in_public_repository": false
+  },
+  "qualification": {
+    "cloud_private_relay": "VERIFIED",
+    "physical_phone": "PENDING_FIRST_WIRELESS_DEBUGGING_PAIR",
+    "field_verified_requires_real_round_trip": true
+  },
+  "rule": "When this policy conflicts with legacy bridge preferences in older canonical text, this active security override governs bridge selection."
+}
