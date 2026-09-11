@@ -43,6 +43,10 @@ PY
   chmod 600 "$PASSFILE"
 fi
 PASS="$(cat "$PASSFILE")"
+if [ -z "$PASS" ]; then
+  echo 'ERROR: Android signing password file is empty' >&2
+  exit 4
+fi
 if [ ! -s "$KEYSTORE" ]; then
   keytool -genkeypair -noprompt \
     -keystore "$KEYSTORE" -storepass "$PASS" -keypass "$PASS" \
@@ -51,12 +55,26 @@ if [ ! -s "$KEYSTORE" ]; then
   chmod 600 "$KEYSTORE"
 fi
 
+# apksigner consumes password-file input as a stream. Reusing the same one-line
+# file for both --ks-pass and --key-pass can leave the second read at EOF.
+# Keep the durable device-owned password unchanged, but feed each credential
+# option from its own short-lived 0600 file.
+KS_PASS_SOURCE="$(mktemp "$ROOT/.ks-pass.XXXXXX")"
+KEY_PASS_SOURCE="$(mktemp "$ROOT/.key-pass.XXXXXX")"
+cleanup_password_sources() {
+  rm -f "$KS_PASS_SOURCE" "$KEY_PASS_SOURCE"
+}
+trap cleanup_password_sources EXIT INT TERM
+chmod 600 "$KS_PASS_SOURCE" "$KEY_PASS_SOURCE"
+printf '%s\n' "$PASS" > "$KS_PASS_SOURCE"
+printf '%s\n' "$PASS" > "$KEY_PASS_SOURCE"
+
 rm -f "$SIGNED"
 apksigner sign \
   --ks "$KEYSTORE" \
   --ks-key-alias hakim-companion \
-  --ks-pass "file:$PASSFILE" \
-  --key-pass "file:$PASSFILE" \
+  --ks-pass "file:$KS_PASS_SOURCE" \
+  --key-pass "file:$KEY_PASS_SOURCE" \
   --out "$SIGNED" "$UNSIGNED"
 apksigner verify --verbose --print-certs "$SIGNED" > "$ROOT/signature-verification.txt"
 chmod 600 "$SIGNED" "$ROOT/signature-verification.txt"
