@@ -1,22 +1,36 @@
 {
   "name": "HAKIM_ACTIVE_STATE",
   "schema_version": "1.0",
-  "canonical_candidate_version": "2.1",
-  "status_contract": "ACTIVE_IF_MERGED_TO_MAIN_AND_GOVERNANCE_GATE_PASS_OTHERWISE_CANDIDATE",
-  "base_main_at_pr_review": "08e1072b4d7544f00fcf09fd3c9d6fa22cde5990",
-  "base_main_verification": "CURRENT_MAIN_OBSERVED; WORKFLOW_PASS_NOT_INDEPENDENTLY_RESOLVED_BY_CONNECTOR",
+  "active_extension_version": "2.1",
+  "status": "ACTIVE_VERIFIED_BY_IDENTICAL_TESTED_TREE",
+  "last_verified_baseline": "a1e308bbb0ccad9537c420fa5848ea957a318e78",
+  "verified_tree_sha": "20d22a4582e822d0c0f8a22c4f2a7ba47b8fdea9",
+  "governance_gate_run_id": 34658085442,
+  "tested_merge_commit": "2836d626445cdc23afc15e8450ef877ff2908ce8",
+  "tested_head": "28574cb29f1d62baa6b4ab7ce6a662e927c3c435",
+  "tested_base": "08e1072b4d7544f00fcf09fd3c9d6fa22cde5990",
+  "promotion_evidence": {
+    "regression_tests": "PASS",
+    "autonomy_certification": "PASS",
+    "production_container_build": "PASS",
+    "live_container_smoke_test": "PASS",
+    "tested_merge_tree_equals_actual_main_tree": true
+  },
   "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
   "intent": "قيادة ذاتية مستمرة ومستدامة مع ن★ تكيفية، وحفظ خارج المحادثة دون تجاوز الأمان أو الموافقات اللازمة",
-  "proven_success_to_preserve": [
-    "canonical_governance_v2",
+  "proven_success": [
+    "canonical_governance_v2_frozen",
+    "nstar_adaptive_intelligence_extension_v2_1",
+    "durable_active_state_recovery",
     "self_healing_multibridge_supervisor",
     "fail_closed_sensitive_mutations",
     "arabic_first",
     "goal_does_not_fail_when_a_means_fails"
   ],
-  "material_gap_closed_by_candidate": [
+  "closed_material_gaps": [
     "adaptive_intelligence_nstar_not_machine_encoded",
-    "restore_sequence_referenced_active_state_without_repository_state_file"
+    "restore_sequence_referenced_active_state_without_repository_state_file",
+    "candidate_status_not_reflecting_verified_merge"
   ],
   "known_live_constraint": {
     "remote_desktop_commander": "OFFLINE_AT_LAST_DIRECT_CHECK_2026-09-12",
@@ -27,9 +41,5 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY",
     "present": false
   },
-  "post_merge_verification": [
-    "VERIFY_MAIN_HEAD",
-    "VERIFY_GOVERNANCE_GATE_ON_MERGED_HEAD",
-    "PROMOTE_LAST_VERIFIED_BASELINE_ONLY_WITH_DIRECT_EVIDENCE"
-  ]
+  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT"
 }
