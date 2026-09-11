@@ -27,11 +27,14 @@ def test_restore_chain_is_complete_and_files_exist():
     active = _json("HAKIM_ACTIVE.json")
     expected = [
         "LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC",
-        "LOAD_RUNTIME_POLICY", "LOAD_ACTIVE_STATE", "VERIFY_FRESHNESS",
-        "RESUME_FROM_LAST_PROVEN_POINT",
+        "LOAD_RUNTIME_POLICY", "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE",
+        "LOAD_BRIDGE_HEALTH", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT",
     ]
     assert active["restore_sequence"] == expected
-    for key in ("core", "adaptive_intelligence_spec", "runtime_policy", "active_state", "context_seed"):
+    for key in (
+        "core", "adaptive_intelligence_spec", "runtime_policy",
+        "bridge_policy", "active_state", "context_seed",
+    ):
         assert (ROOT / active[key]).is_file(), key
 
 
