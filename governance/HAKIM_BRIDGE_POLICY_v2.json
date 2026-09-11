@@ -1,17 +1,23 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.1-secure-private-relay",
-  "status": "ACTIVE_OVERRIDE",
+  "version": "2.2-companion-runtime-one-time-adb-bootstrap",
+  "status": "ACTIVE_OVERRIDE_CANDIDATE",
   "priority": [
-    "LOCAL_DEVICE_BRIDGE",
+    "ANDROID_COMPANION_RUNTIME",
     "MAKE_PRIVATE_RELAY",
     "RESULT_CHANNEL",
+    "TERMUX_WIRELESS_ADB_MAINTENANCE",
     "REMOTE_DESKTOP_MAINTENANCE"
   ],
   "public_command_transport": false,
   "public_github_command_relay": "DISABLED",
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
-  "phone_execution": "TERMUX_WIRELESS_ADB",
+  "phone_execution": "ANDROID_COMPANION",
+  "normal_operation_requires_developer_options": false,
+  "normal_operation_requires_adb": false,
+  "maintenance_bootstrap": "TERMUX_WIRELESS_ADB_ONE_TIME_OR_ON_DEMAND",
+  "maintenance_close_after_companion_qualification": true,
+  "financial_safe_mode": true,
   "self_healing_supervisor": true,
   "security": {
     "outbound_only_preferred": true,
@@ -22,14 +28,30 @@
     "allowlist_only": true,
     "general_remote_shell": false,
     "mutating_actions_fail_closed": true,
-    "mutating_actions_require_local_control_window": true,
+    "mutating_actions_require_local_approval": true,
     "platform_protection_bypass": false,
-    "secrets_in_public_repository": false
+    "secrets_in_public_repository": false,
+    "developer_options_persistent": false
   },
+  "bootstrap_sequence": [
+    "ANDROID_LOCAL_WIRELESS_DEBUGGING_PAIR_ONCE",
+    "DOWNLOAD_VERIFIED_MAIN_RELEASE",
+    "SIGN_WITH_DEVICE_OWNED_KEY",
+    "ADB_INSTALL_SIGNED_COMPANION",
+    "CONFIGURE_LOOPBACK_PAIR_TOKEN_AND_PRIVATE_RELAY",
+    "VERIFY_LOOPBACK_STATUS",
+    "LOCAL_ANDROID_APPROVE_ACCESSIBILITY",
+    "LOCAL_ANDROID_APPROVE_NOTIFICATION_ACCESS",
+    "PROVE_PRIVATE_SIGNED_ROUND_TRIP",
+    "CLOSE_ADB_MAINTENANCE",
+    "RUN_COMPANION_ONLY"
+  ],
   "qualification": {
     "cloud_private_relay": "VERIFIED",
-    "physical_phone": "PENDING_FIRST_WIRELESS_DEBUGGING_PAIR",
-    "field_verified_requires_real_round_trip": true
+    "companion_android15_build_runtime": "VERIFIED_IN_CI_NOT_PHYSICAL_PHONE",
+    "physical_phone": "PENDING_ONE_TIME_ANDROID_LOCAL_PAIR_AND_LOCAL_APPROVALS",
+    "field_verified_requires_real_round_trip": true,
+    "field_verified_requires_adb_closed_after_bootstrap": true
   },
-  "rule": "When this active bridge policy conflicts with legacy bridge preferences, this security override governs bridge selection."
+  "rule": "Companion is the normal phone runtime. ADB is a temporary bootstrap/maintenance bridge only and must not remain a normal-operation dependency. When this policy conflicts with legacy bridge preferences, this override governs."
 }
