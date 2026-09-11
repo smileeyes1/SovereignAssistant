@@ -2,8 +2,9 @@
   "name": "HAKIM_ACTIVE_STATE",
   "schema_version": "1.0",
   "canonical_candidate_version": "2.1",
-  "status": "CANDIDATE_UNTIL_GOVERNANCE_PASS_AND_MERGE",
-  "last_verified_main_before_change": "23c6b893dda972501ef21830865b0389fd09feae",
+  "status_contract": "ACTIVE_IF_MERGED_TO_MAIN_AND_GOVERNANCE_GATE_PASS_OTHERWISE_CANDIDATE",
+  "base_main_at_pr_review": "08e1072b4d7544f00fcf09fd3c9d6fa22cde5990",
+  "base_main_verification": "CURRENT_MAIN_OBSERVED; WORKFLOW_PASS_NOT_INDEPENDENTLY_RESOLVED_BY_CONNECTOR",
   "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
   "intent": "قيادة ذاتية مستمرة ومستدامة مع ن★ تكيفية، وحفظ خارج المحادثة دون تجاوز الأمان أو الموافقات اللازمة",
   "proven_success_to_preserve": [
@@ -26,9 +27,9 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY",
     "present": false
   },
-  "next_after_merge": [
+  "post_merge_verification": [
     "VERIFY_MAIN_HEAD",
     "VERIFY_GOVERNANCE_GATE_ON_MERGED_HEAD",
-    "UPDATE_LAST_VERIFIED_BASELINE_ONLY_WITH_DIRECT_EVIDENCE"
+    "PROMOTE_LAST_VERIFIED_BASELINE_ONLY_WITH_DIRECT_EVIDENCE"
   ]
 }
