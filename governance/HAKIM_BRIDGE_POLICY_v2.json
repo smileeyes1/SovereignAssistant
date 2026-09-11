@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
   "version": "2.2-companion-runtime-one-time-adb-bootstrap",
-  "status": "ACTIVE_OVERRIDE_CANDIDATE",
+  "status": "ACTIVE_OVERRIDE",
   "priority": [
     "ANDROID_COMPANION_RUNTIME",
     "MAKE_PRIVATE_RELAY",
