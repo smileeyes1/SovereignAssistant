@@ -13,6 +13,7 @@ import android.os.Looper
 
 class HakimForegroundService : Service() {
     private var server: LocalControlServer? = null
+    private var remoteRelay: HakimRemoteRelay? = null
     private val supervisor = Handler(Looper.getMainLooper())
 
     private val supervise = object : Runnable {
@@ -25,6 +26,10 @@ class HakimForegroundService : Service() {
                 server?.close()
                 server = LocalControlServer(this@HakimForegroundService).also { it.start() }
                 healthy = server?.isListening() == true
+            }
+
+            if (remoteRelay == null) {
+                remoteRelay = HakimRemoteRelay(this@HakimForegroundService).also { it.start() }
             }
 
             prefs.edit()
@@ -43,7 +48,7 @@ class HakimForegroundService : Service() {
         createChannel()
         val notification = android.app.Notification.Builder(this, CHANNEL)
             .setContentTitle("HAKIM Ω")
-            .setContentText("التحكم المحلي جاهز — 127.0.0.1 فقط")
+            .setContentText("التحكم المحلي والقناة الآمنة يعملان")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setOngoing(true)
             .build()
@@ -51,6 +56,7 @@ class HakimForegroundService : Service() {
             startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else startForeground(7, notification)
         server = LocalControlServer(this).also { it.start() }
+        remoteRelay = HakimRemoteRelay(this).also { it.start() }
         supervisor.postDelayed(supervise, INITIAL_SUPERVISOR_DELAY_MS)
     }
 
@@ -58,6 +64,8 @@ class HakimForegroundService : Service() {
 
     override fun onDestroy() {
         supervisor.removeCallbacks(supervise)
+        remoteRelay?.stop()
+        remoteRelay = null
         server?.close()
         server = null
         running = false
