@@ -63,7 +63,9 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["LOCAL_DEVICE_BRIDGE", "GITHUB_OWNER_RELAY", "RESULT_CHANNEL", "MAKE_FALLBACK", "REMOTE_DESKTOP_MAINTENANCE"]
+    "preferred": ["LOCAL_DEVICE_BRIDGE", "MAKE_PRIVATE_RELAY", "RESULT_CHANNEL", "REMOTE_DESKTOP_MAINTENANCE"],
+    "public_command_transport": false,
+    "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
   "security": {
     "least_privilege": true,
@@ -93,7 +95,8 @@
     "checkpoint_after_material_stage": true,
     "active_state_path": "governance/HAKIM_ACTIVE_STATE.json",
     "adaptive_spec_path": "governance/HAKIM_NSTAR_SPEC_AR.md",
-    "resume": ["LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC", "LOAD_RUNTIME_POLICY", "LOAD_ACTIVE_STATE", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT"]
+    "bridge_policy_path": "governance/HAKIM_BRIDGE_POLICY_v2.json",
+    "resume": ["LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC", "LOAD_RUNTIME_POLICY", "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE", "LOAD_BRIDGE_HEALTH", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT"]
   },
   "change_policy": {
     "core_frozen_by_default": true,
