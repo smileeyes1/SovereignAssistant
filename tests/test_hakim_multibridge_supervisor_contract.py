@@ -16,14 +16,17 @@ def test_supervisor_reconnects_and_restarts_worker():
     assert "hakim-multibridge-state.json" in s
 
 
-def test_bootstrap_installs_supervisor_status_and_optional_boot_recovery():
+def test_bootstrap_installs_supervisor_status_and_private_transport_only():
     s = text("scripts/bootstrap-hakim-termux-adb.sh")
     assert "hakim-multibridge-supervisor" in s
     assert "hakim-bridges-status" in s
     assert ".termux/boot/99-hakim-multibridge" in s
     assert "upstream_bridges" in s
-    assert "github-owner-relay" in s
-    assert "make-fallback" in s
+    assert "make-private-relay" in s
+    assert "fallback_bridges':[]" in s
+    assert "public_command_transport':False" in s
+    assert "github-owner-relay" not in s
+    assert "make-fallback" not in s
     assert "remote-desktop-commander" in s
 
 

@@ -41,7 +41,9 @@ cfg={
  'adb_target':old.get('adb_target',''),
  'transport':'termux-wireless-adb',
  'apk_required':False,
- 'upstream_bridges':['github-owner-relay','make-fallback'],
+ 'upstream_bridges':['make-private-relay'],
+ 'fallback_bridges':[],
+ 'public_command_transport':False,
  'maintenance_bridges':['remote-desktop-commander'],
 }
 fd,tmp=tempfile.mkstemp(prefix='.hakim-cfg-',dir=str(p.parent)); os.close(fd)
