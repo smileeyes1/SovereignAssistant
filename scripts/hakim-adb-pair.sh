@@ -6,7 +6,7 @@ PAIR_CODE="${2:-}"
 CONNECT_ADDR="${3:-}"
 OMEGA="$HOME/.omega"
 CFG="$OMEGA/hakim-termux-adb.json"
-BRIDGE="$OMEGA/bin/hakim-termux-adb-bridge.py"
+SUPERVISOR="$OMEGA/bin/hakim-multibridge-supervisor"
 
 if [[ ! "$PAIR_ADDR" =~ ^[0-9a-fA-F:.]+:[0-9]{2,5}$ ]]; then
   echo 'الاستخدام: hakim-adb-pair IP:PAIR_PORT PAIR_CODE [IP:CONNECT_PORT]' >&2
@@ -43,21 +43,29 @@ if ! adb -s "$CONNECT_ADDR" get-state 2>/dev/null | grep -qx device; then
 fi
 
 python - "$CONNECT_ADDR" <<'PY'
-import json,sys
+import json,sys,os,tempfile
 from pathlib import Path
 p=Path.home()/'.omega'/'hakim-termux-adb.json'
 d=json.loads(p.read_text())
 d['adb_target']=sys.argv[1]
-p.write_text(json.dumps(d,ensure_ascii=False,indent=2))
-p.chmod(0o600)
+fd,tmp=tempfile.mkstemp(prefix='.hakim-cfg-',dir=str(p.parent)); os.close(fd)
+Path(tmp).write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding='utf-8'); os.chmod(tmp,0o600); os.replace(tmp,p)
 PY
 
+# The supervisor owns reconnect/restart. Mutating commands remain closed until
+# the user explicitly opens a local control window with hakim-control-on.
 tmux kill-session -t hakim-adb-bridge 2>/dev/null || true
-tmux new-session -d -s hakim-adb-bridge "python '$BRIDGE'"
-"$OMEGA/bin/hakim-control-window" 60 >/dev/null
-sleep 1
+tmux kill-session -t hakim-multibridge-supervisor 2>/dev/null || true
+if [ -x "$SUPERVISOR" ]; then
+  tmux new-session -d -s hakim-multibridge-supervisor "$SUPERVISOR"
+else
+  echo 'ERROR: multibridge supervisor is not installed; rerun bootstrap' >&2
+  exit 7
+fi
+sleep 2
 
-echo '✅ HAKIM_ADB_PAIRED_AND_LIVE'
+echo '✅ HAKIM_ADB_PAIRED_AND_SUPERVISED'
 echo "TARGET=$CONNECT_ADDR"
+echo '🔒 أوامر التغيير مغلقة افتراضيًا؛ افتح نافذة محلية فقط عند الحاجة: hakim-control-on 15'
 adb -s "$CONNECT_ADDR" shell getprop ro.product.manufacturer | tr -d '\r'
 adb -s "$CONNECT_ADDR" shell getprop ro.product.model | tr -d '\r'
