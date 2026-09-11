@@ -20,12 +20,15 @@ def test_remote_relay_has_no_shell_surface_and_requires_approval_for_mutation():
     assert "/bin/sh" not in text
 
 
-def test_remote_relay_is_outbound_only_and_replay_guarded():
+def test_remote_relay_is_outbound_only_signed_and_replay_guarded():
     text = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt").read_text()
     assert "https://ntfy.sh/" in text
-    assert "https://" in text
     assert "claimRemoteRequest" in text
     assert "request_expired" in text
+    assert "HmacSHA256" in text
+    assert "MessageDigest.isEqual" in text
+    assert "validSignature" in text
+    assert 'KEY_RELAY_KEY = "relay_hmac_key"' in text
     assert "ServerSocket" not in text
 
 
@@ -42,7 +45,11 @@ def test_live_bridge_shell_entrypoints_parse_and_chain_expected_scripts():
     bootstrap = ROOT / "scripts/bootstrap-hakim-live-bridge.sh"
     for script in (configure, bootstrap):
         subprocess.run(["bash", "-n", str(script)], check=True)
-    text = bootstrap.read_text()
-    assert "install-android-companion-local.sh" in text
-    assert "configure-hakim-live-bridge.sh" in text
-    assert "git pull --ff-only" in text
+    configure_text = configure.read_text()
+    bootstrap_text = bootstrap.read_text()
+    assert "relay_key" in configure_text
+    assert "RELAY_KEY" in configure_text
+    assert "install-android-companion-local.sh" in bootstrap_text
+    assert "configure-hakim-live-bridge.sh" in bootstrap_text
+    assert "RELAY_KEY" in bootstrap_text
+    assert "git pull --ff-only" in bootstrap_text
