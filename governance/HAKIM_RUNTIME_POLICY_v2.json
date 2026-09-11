@@ -63,7 +63,7 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["ANDROID_COMPANION","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "preferred": ["LOCAL_DEVICE_BRIDGE","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
     "public_command_transport": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
