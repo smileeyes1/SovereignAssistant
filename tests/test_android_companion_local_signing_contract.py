@@ -9,15 +9,18 @@ def test_local_signer_script_parses() -> None:
     subprocess.run(["bash", "-n", str(SCRIPT)], check=True)
 
 
-def test_apksigner_uses_distinct_password_sources() -> None:
+def test_apksigner_uses_one_password_file_read() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'KS_PASS_SOURCE="$(mktemp' in text
-    assert 'KEY_PASS_SOURCE="$(mktemp' in text
     assert '--ks-pass "file:$KS_PASS_SOURCE"' in text
-    assert '--key-pass "file:$KEY_PASS_SOURCE"' in text
+    assert '--key-pass' not in text
     assert '--ks-pass "file:$PASSFILE"' not in text
-    assert '--key-pass "file:$PASSFILE"' not in text
-    assert 'trap cleanup_password_sources EXIT INT TERM' in text
+    assert 'trap cleanup_password_source EXIT INT TERM' in text
+
+
+def test_keystore_key_passwords_are_intentionally_identical() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert '-storepass "$PASS" -keypass "$PASS"' in text
 
 
 def test_durable_password_and_keystore_remain_device_owned() -> None:
