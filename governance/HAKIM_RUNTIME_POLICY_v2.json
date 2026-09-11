@@ -32,7 +32,9 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["LOCAL_DEVICE_BRIDGE","GITHUB_OWNER_RELAY","RESULT_CHANNEL","MAKE_FALLBACK","REMOTE_DESKTOP_MAINTENANCE"]
+    "preferred": ["LOCAL_DEVICE_BRIDGE","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "public_command_transport": false,
+    "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
   "security": {
     "least_privilege": true,
@@ -49,7 +51,7 @@
   "persistence": {
     "do_not_rely_on_chat_memory_only": true,
     "checkpoint_after_material_stage": true,
-    "resume": ["LOAD_CANONICAL","LOAD_ACTIVE_STATE","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
+    "resume": ["LOAD_CANONICAL","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
   },
   "change_policy": {
     "core_frozen_by_default": true,
