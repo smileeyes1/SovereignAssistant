@@ -37,6 +37,11 @@ class MainActivity : Activity() {
             val token = uri.getQueryParameter("token").orEmpty()
             if (token.length >= 32 && token.length <= 256) {
                 getSharedPreferences("hakim", MODE_PRIVATE).edit().putString("pair_token", token).apply()
+                HakimRemoteRelay.configure(
+                    this,
+                    uri.getQueryParameter("relay_topic"),
+                    uri.getQueryParameter("result_url")
+                )
                 HakimForegroundService.start(this)
             }
         }
@@ -53,21 +58,21 @@ class MainActivity : Activity() {
             textSize = 26f
         })
         root.addView(TextView(this).apply {
-            text = "طبقة تحكم محلية على هذا الهاتف فقط. لا تعمل السيطرة على الواجهة أو الإشعارات إلا بعد موافقتك من إعدادات Android."
+            text = "طبقة تحكم محلية مع قناة اتصال صادرة فقط. التحكم في الواجهة والإشعارات يحتاج موافقتك من إعدادات أندرويد، وأوامر تغيير حالة الهاتف الواردة من القناة البعيدة تحتاج موافقة محلية قبل التنفيذ."
             textSize = 16f
         })
         status = TextView(this).apply { textSize = 16f; setPadding(0, 24, 0, 24) }
         root.addView(status)
-        root.addView(button("تفعيل التحكم بالواجهة (Accessibility)") {
+        root.addView(button("تفعيل التحكم بالواجهة") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
         root.addView(button("تفعيل الوصول إلى الإشعارات") {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
-        root.addView(button("فتح إعدادات بطارية HAKIM") {
+        root.addView(button("فتح إعدادات بطارية حكيم") {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         })
-        root.addView(button("تشغيل الخدمة المحلية") { HakimForegroundService.start(this); refreshStatus() })
+        root.addView(button("تشغيل خدمة حكيم") { HakimForegroundService.start(this); refreshStatus() })
         setContentView(root)
         refreshStatus()
     }
@@ -78,10 +83,14 @@ class MainActivity : Activity() {
     }
 
     private fun refreshStatus() {
-        val paired = getSharedPreferences("hakim", MODE_PRIVATE).getString("pair_token", null) != null
+        val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
+        val paired = prefs.getString("pair_token", null) != null
+        val relay = !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
+            !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank()
         status.text = "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
-            "Accessibility: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
-            "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل على 127.0.0.1:47651" else "متوقف"}"
+            "القناة البعيدة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
+            "التحكم بالواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
+            "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل محليًا" else "متوقف"}"
     }
 
     private fun ensureNotificationPermission() {
