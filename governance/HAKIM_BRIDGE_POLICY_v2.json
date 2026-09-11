@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
   "version": "2.2-companion-primary-pre-field",
-  "status": "ACTIVE_OVERRIDE_CANDIDATE",
+  "status": "ACTIVE_OVERRIDE",
   "priority": [
     "ANDROID_COMPANION_OUTBOUND_RELAY",
     "MAKE_PRIVATE_RELAY",
