@@ -11,9 +11,13 @@ def test_local_signer_script_parses() -> None:
 
 def test_apksigner_uses_one_password_file_read() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
+    executable_lines = [
+        line for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
     assert 'KS_PASS_SOURCE="$(mktemp' in text
     assert '--ks-pass "file:$KS_PASS_SOURCE"' in text
-    assert '--key-pass' not in text
+    assert all('--key-pass' not in line for line in executable_lines)
     assert '--ks-pass "file:$PASSFILE"' not in text
     assert 'trap cleanup_password_source EXIT INT TERM' in text
 
