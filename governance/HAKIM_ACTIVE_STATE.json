@@ -1,0 +1,35 @@
+{
+  "name": "HAKIM_ACTIVE_STATE",
+  "schema_version": "1.0",
+  "canonical_candidate_version": "2.1",
+  "status_contract": "ACTIVE_IF_MERGED_TO_MAIN_AND_GOVERNANCE_GATE_PASS_OTHERWISE_CANDIDATE",
+  "base_main_at_pr_review": "08e1072b4d7544f00fcf09fd3c9d6fa22cde5990",
+  "base_main_verification": "CURRENT_MAIN_OBSERVED; WORKFLOW_PASS_NOT_INDEPENDENTLY_RESOLVED_BY_CONNECTOR",
+  "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
+  "intent": "قيادة ذاتية مستمرة ومستدامة مع ن★ تكيفية، وحفظ خارج المحادثة دون تجاوز الأمان أو الموافقات اللازمة",
+  "proven_success_to_preserve": [
+    "canonical_governance_v2",
+    "self_healing_multibridge_supervisor",
+    "fail_closed_sensitive_mutations",
+    "arabic_first",
+    "goal_does_not_fail_when_a_means_fails"
+  ],
+  "material_gap_closed_by_candidate": [
+    "adaptive_intelligence_nstar_not_machine_encoded",
+    "restore_sequence_referenced_active_state_without_repository_state_file"
+  ],
+  "known_live_constraint": {
+    "remote_desktop_commander": "OFFLINE_AT_LAST_DIRECT_CHECK_2026-09-12",
+    "effect": "LIVE_LOCAL_DEVICE_EXECUTION_NOT_PROVEN",
+    "goal_rule": "DO_NOT_TREAT_BRIDGE_FAILURE_AS_GOAL_FAILURE"
+  },
+  "secrets": {
+    "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY",
+    "present": false
+  },
+  "post_merge_verification": [
+    "VERIFY_MAIN_HEAD",
+    "VERIFY_GOVERNANCE_GATE_ON_MERGED_HEAD",
+    "PROMOTE_LAST_VERIFIED_BASELINE_ONLY_WITH_DIRECT_EVIDENCE"
+  ]
+}

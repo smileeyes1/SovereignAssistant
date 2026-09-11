@@ -1,11 +1,27 @@
 {
   "name": "HAKIM_ACTIVE_CANONICAL",
-  "version": "2.0",
-  "activation": "ACTIVE_AFTER_MERGE_WITH_GOVERNANCE_PASS",
+  "version": "2.1",
+  "activation": "ACTIVE_ONLY_AFTER_GOVERNANCE_PASS_AND_MERGE",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
+  "adaptive_intelligence_spec": "governance/HAKIM_NSTAR_SPEC_AR.md",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
+  "active_state": "governance/HAKIM_ACTIVE_STATE.json",
   "context_seed": "governance/HAKIM_CONTEXT_SEED_AR.txt",
   "legacy_reference": "governance/HAKIM_KING_CONSTITUTION_AR.md",
-  "restore_sequence": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_RUNTIME_POLICY","LOAD_ACTIVE_STATE","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"],
-  "rule": "new environments remain UNQUALIFIED for critical functions until actual behavior is verified"
+  "restore_sequence": [
+    "LOAD_ACTIVE_POINTER",
+    "LOAD_CANONICAL",
+    "LOAD_NSTAR_SPEC",
+    "LOAD_RUNTIME_POLICY",
+    "LOAD_ACTIVE_STATE",
+    "VERIFY_FRESHNESS",
+    "RESUME_FROM_LAST_PROVEN_POINT"
+  ],
+  "rule": "new environments remain UNQUALIFIED for critical functions until actual behavior is verified",
+  "promotion_gate": [
+    "GOVERNANCE_TESTS_PASS",
+    "REGRESSION_PASS",
+    "NO_SECRET_LEAK_IN_GOVERNANCE",
+    "MERGED_TO_MAIN"
+  ]
 }
