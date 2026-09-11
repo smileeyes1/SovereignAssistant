@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "android" / "hakim-companion" / "app" / "src" / "main"
 JAVA = APP / "java" / "org" / "hakim" / "omega" / "companion"
 POLICY = ROOT / "governance" / "HAKIM_RUNTIME_POLICY_v2.json"
+MANIFEST = APP / "AndroidManifest.xml"
 
 
 def read(path: Path) -> str:
@@ -28,6 +29,18 @@ def test_financial_safe_mode_blocks_restart_paths():
     assert "if (FinancialSafeMode.isEnabled(context)) return" in boot
     assert "if (FinancialSafeMode.isEnabled(context)) return" in service
     assert "START_NOT_STICKY" in service
+
+
+def test_notification_has_one_tap_financial_safe_mode_action():
+    safe = read(JAVA / "FinancialSafeMode.kt")
+    service = read(JAVA / "HakimForegroundService.kt")
+    manifest = read(MANIFEST)
+    assert 'ACTION_ENTER = "org.hakim.omega.companion.ENTER_FINANCIAL_SAFE_MODE"' in safe
+    assert "class FinancialSafeModeReceiver : BroadcastReceiver()" in safe
+    assert 'android:name=".FinancialSafeModeReceiver"' in manifest
+    assert 'android:exported="false"' in manifest
+    assert '"وضع مالي"' in service
+    assert "FinancialSafeMode.ACTION_ENTER" in service
 
 
 def test_normal_companion_control_does_not_require_developer_options_or_adb():
