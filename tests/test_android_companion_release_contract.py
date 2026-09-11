@@ -28,9 +28,11 @@ def test_phone_owns_stable_signing_key_and_verifies_source_hash():
     assert "LOCAL_DEVICE_ONLY" in script
 
 
-def test_install_still_uses_android_package_installer():
+def test_install_handoff_uses_verified_public_downloads_not_silent_install():
     script = text("scripts/install-android-companion-local.sh")
-    assert "termux-open --view" in script
-    assert "application/vnd.android.package-archive" in script
+    assert 'PUBLIC_DOWNLOADS="$HOME_DIR/storage/downloads"' in script
+    assert 'PUBLIC_APK="$PUBLIC_DOWNLOADS/HAKIM-Companion.apk"' in script
+    assert "public Downloads APK hash mismatch" in script
+    assert "OPEN_FILES_APP_AND_TAP=HAKIM-Companion.apk" in script
     assert "adb install" not in script
     assert "pm install" not in script
