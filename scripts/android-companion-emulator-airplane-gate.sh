@@ -16,6 +16,7 @@ trap restore_network EXIT INT TERM
 
 adb shell cmd connectivity airplane-mode enable >/dev/null
 i=0
+mode=''
 while [ "$i" -lt 15 ]; do
   mode=$(adb shell settings get global airplane_mode_on 2>/dev/null | tr -d '\r')
   [ "$mode" = '1' ] && break
@@ -26,15 +27,37 @@ echo 'STAGE_AIRPLANE_MODE_ACTIVE=PROVEN'
 
 # Force process death while airplane mode is active, then require purely local
 # authenticated loopback recovery. adb forwarding is transport for the CI probe,
-# not a Companion runtime dependency.
+# not a Companion runtime dependency. Android can transiently delay process
+# visibility immediately after connectivity-mode changes, so readiness—not an
+# instantaneous pidof race—is the qualification criterion.
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-adb shell pidof "$PKG" >/dev/null
+
+i=0
+while [ "$i" -lt 15 ]; do
+  if adb shell pidof "$PKG" >/dev/null 2>&1; then break; fi
+  i=$((i + 1)); sleep 1
+done
+if [ "$i" -ge 15 ]; then
+  echo 'Companion process did not become visible after airplane-mode restart' >&2
+  adb shell dumpsys activity activities | grep -F "$PKG" >&2 || true
+  adb logcat -d -t 250 | grep -E "${PKG}|AndroidRuntime|FATAL EXCEPTION" >&2 || true
+  exit 1
+fi
+echo 'STAGE_AIRPLANE_PROCESS_VISIBLE=PROVEN'
+
+adb forward --remove "tcp:${PORT}" >/dev/null 2>&1 || true
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 
 i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-airplane-status.json 2>/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Local authenticated control plane did not recover in airplane mode' >&2; exit 1; }; sleep 1
+  i=$((i + 1))
+  if [ "$i" -ge 30 ]; then
+    echo 'Local authenticated control plane did not recover in airplane mode' >&2
+    adb logcat -d -t 250 | grep -E "${PKG}|AndroidRuntime|FATAL EXCEPTION" >&2 || true
+    exit 1
+  fi
+  sleep 1
 done
 status=$(cat /tmp/hakim-airplane-status.json)
 printf '%s' "$status" | grep -F '"loopback_only":true' >/dev/null
