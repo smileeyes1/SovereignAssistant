@@ -1,8 +1,10 @@
 from pathlib import Path
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "android" / "hakim-companion" / "app" / "src" / "main"
 JAVA = APP / "java" / "org" / "hakim" / "omega" / "companion"
+POLICY = ROOT / "governance" / "HAKIM_RUNTIME_POLICY_v2.json"
 
 
 def read(path: Path) -> str:
@@ -46,3 +48,17 @@ def test_accessibility_control_remains_available_without_adb():
     assert "dispatchGesture" in t
     assert "ACTION_SET_TEXT" in t
     assert "takeScreenshot" in t
+
+
+def test_runtime_policy_locks_no_developer_options_for_normal_phone_control():
+    p = json.loads(read(POLICY))
+    control = p["device_control"]
+    assert control["normal_phone_path"] == "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY"
+    assert control["developer_options_required_for_normal_operation"] is False
+    assert control["adb_policy"] == "MAINTENANCE_ONLY_TEMPORARY_THEN_OFF"
+    assert control["developer_options_policy"] == "OFF_BY_DEFAULT_AND_AFTER_MAINTENANCE"
+    assert control["financial_safe_mode"]["persistent_until_user_exit"] is True
+    assert control["financial_safe_mode"]["disable_accessibility_service"] is True
+    assert p["bridges"]["public_command_transport"] is False
+    assert "GITHUB_OWNER_RELAY" not in p["bridges"]["preferred"]
+    assert "MAKE_FALLBACK" not in p["bridges"]["preferred"]
