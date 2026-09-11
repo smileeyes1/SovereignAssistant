@@ -43,6 +43,10 @@ PY
   chmod 600 "$PASSFILE"
 fi
 PASS="$(cat "$PASSFILE")"
+if [ -z "$PASS" ]; then
+  echo 'ERROR: Android signing password file is empty' >&2
+  exit 4
+fi
 if [ ! -s "$KEYSTORE" ]; then
   keytool -genkeypair -noprompt \
     -keystore "$KEYSTORE" -storepass "$PASS" -keypass "$PASS" \
@@ -51,12 +55,22 @@ if [ ! -s "$KEYSTORE" ]; then
   chmod 600 "$KEYSTORE"
 fi
 
+# The key is created with the same password as the keystore. apksigner reuses
+# the keystore password for the key when --key-pass is omitted, so there is no
+# second password-file read that can reach EOF.
+KS_PASS_SOURCE="$(mktemp "$ROOT/.ks-pass.XXXXXX")"
+cleanup_password_source() {
+  rm -f "$KS_PASS_SOURCE"
+}
+trap cleanup_password_source EXIT INT TERM
+chmod 600 "$KS_PASS_SOURCE"
+printf '%s\n' "$PASS" > "$KS_PASS_SOURCE"
+
 rm -f "$SIGNED"
 apksigner sign \
   --ks "$KEYSTORE" \
   --ks-key-alias hakim-companion \
-  --ks-pass "file:$PASSFILE" \
-  --key-pass "file:$PASSFILE" \
+  --ks-pass "file:$KS_PASS_SOURCE" \
   --out "$SIGNED" "$UNSIGNED"
 apksigner verify --verbose --print-certs "$SIGNED" > "$ROOT/signature-verification.txt"
 chmod 600 "$SIGNED" "$ROOT/signature-verification.txt"
