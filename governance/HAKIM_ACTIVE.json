@@ -4,8 +4,9 @@
   "activation": "ACTIVE_AFTER_MERGE_WITH_GOVERNANCE_PASS",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
+  "bridge_policy": "governance/HAKIM_BRIDGE_POLICY_v2.json",
   "context_seed": "governance/HAKIM_CONTEXT_SEED_AR.txt",
   "legacy_reference": "governance/HAKIM_KING_CONSTITUTION_AR.md",
-  "restore_sequence": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_RUNTIME_POLICY","LOAD_ACTIVE_STATE","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"],
+  "restore_sequence": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"],
   "rule": "new environments remain UNQUALIFIED for critical functions until actual behavior is verified"
 }
