@@ -13,14 +13,18 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * Outbound-only remote transport for HAKIM Companion.
  *
  * Security invariants:
  * - never opens a non-loopback listener;
+ * - every remote command is authenticated with a separate HMAC key;
  * - remote state-changing operations require an explicit Android approval;
  * - request ids are claimed before execution to prevent replay;
  * - expired requests fail closed;
@@ -47,7 +51,8 @@ class HakimRemoteRelay(private val context: Context) {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val topic = prefs.getString(KEY_TOPIC, null)
             val resultUrl = prefs.getString(KEY_RESULT_URL, null)
-            if (topic.isNullOrBlank() || resultUrl.isNullOrBlank()) {
+            val relayKey = prefs.getString(KEY_RELAY_KEY, null)
+            if (topic.isNullOrBlank() || resultUrl.isNullOrBlank() || relayKey.isNullOrBlank()) {
                 sleep(10_000L)
                 continue
             }
@@ -63,7 +68,7 @@ class HakimRemoteRelay(private val context: Context) {
                         retryMs = 2_000L
                         while (running.get()) {
                             val line = reader.readLine() ?: break
-                            handleNtfyLine(line, resultUrl)
+                            handleNtfyLine(line, resultUrl, relayKey)
                         }
                     }
                 }
@@ -75,10 +80,11 @@ class HakimRemoteRelay(private val context: Context) {
         }
     }
 
-    private fun handleNtfyLine(line: String, resultUrl: String) {
+    private fun handleNtfyLine(line: String, resultUrl: String, relayKey: String) {
         val event = runCatching { JSONObject(line) }.getOrNull() ?: return
         if (event.optString("event") != "message") return
         val encoded = event.optString("message").trim()
+        if (encoded.length !in 8..65536) return
         val raw = runCatching {
             String(Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING), Charsets.UTF_8)
         }.getOrNull() ?: return
@@ -86,7 +92,12 @@ class HakimRemoteRelay(private val context: Context) {
         val requestId = envelope.optString("request_id")
         val op = envelope.optString("op")
         val expiresAt = envelope.optLong("expires_at_ms", 0L)
+        val payloadB64 = envelope.optString("payload_b64")
+        val signature = envelope.optString("signature")
+
         if (!REQUEST_ID.matches(requestId) || !ALLOWED_OPS.contains(op)) return
+        if (payloadB64.length > 32768 || !SIGNATURE.matches(signature)) return
+        if (!validSignature(relayKey, requestId, op, expiresAt, payloadB64, signature)) return
         if (expiresAt <= System.currentTimeMillis()) {
             sendResult(resultUrl, requestId, "expired", JSONObject().put("error", "request_expired"))
             return
@@ -112,21 +123,45 @@ class HakimRemoteRelay(private val context: Context) {
         const val PREFS = "hakim"
         const val KEY_TOPIC = "relay_topic"
         const val KEY_RESULT_URL = "relay_result_url"
+        const val KEY_RELAY_KEY = "relay_hmac_key"
         private const val APPROVAL_CHANNEL = "hakim_remote_approval"
         private const val ACTION_APPROVE = "org.hakim.omega.companion.REMOTE_APPROVE"
         private const val ACTION_REJECT = "org.hakim.omega.companion.REMOTE_REJECT"
         private const val EXTRA_REQUEST_ID = "request_id"
         private val REQUEST_ID = Regex("^[A-Za-z0-9._:-]{8,128}$")
+        private val SIGNATURE = Regex("^[0-9a-fA-F]{64}$")
+        private val RELAY_KEY = Regex("^[A-Za-z0-9_-]{40,100}$")
         private val READ_ONLY_OPS = setOf("status", "ui", "notifications", "screenshot")
         private val ALLOWED_OPS = READ_ONLY_OPS + setOf("action", "launch")
 
-        fun configure(context: Context, topic: String?, resultUrl: String?) {
+        fun configure(context: Context, topic: String?, resultUrl: String?, relayKey: String?) {
             if (topic.isNullOrBlank() || !Regex("^[A-Za-z0-9_-]{20,120}$").matches(topic)) return
             if (resultUrl.isNullOrBlank() || !resultUrl.startsWith("https://")) return
+            if (relayKey.isNullOrBlank() || !RELAY_KEY.matches(relayKey)) return
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString(KEY_TOPIC, topic)
                 .putString(KEY_RESULT_URL, resultUrl)
+                .putString(KEY_RELAY_KEY, relayKey)
                 .apply()
+        }
+
+        private fun validSignature(
+            relayKey: String,
+            requestId: String,
+            op: String,
+            expiresAt: Long,
+            payloadB64: String,
+            signature: String,
+        ): Boolean {
+            val canonical = "$requestId\n$op\n$expiresAt\n$payloadB64"
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(relayKey.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+            val expected = mac.doFinal(canonical.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            return MessageDigest.isEqual(
+                expected.toByteArray(Charsets.US_ASCII),
+                signature.lowercase().toByteArray(Charsets.US_ASCII),
+            )
         }
 
         private fun claimRemoteRequest(context: Context, requestId: String): Boolean {
@@ -156,12 +191,12 @@ class HakimRemoteRelay(private val context: Context) {
             val approve = PendingIntent.getBroadcast(
                 context, requestId.hashCode(),
                 Intent(context, RemoteApprovalReceiver::class.java).setAction(ACTION_APPROVE).putExtra(EXTRA_REQUEST_ID, requestId),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val reject = PendingIntent.getBroadcast(
                 context, requestId.hashCode() xor 0x55AA,
                 Intent(context, RemoteApprovalReceiver::class.java).setAction(ACTION_REJECT).putExtra(EXTRA_REQUEST_ID, requestId),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val notification = android.app.Notification.Builder(context, APPROVAL_CHANNEL)
                 .setContentTitle("حكيم — موافقة مطلوبة")
@@ -192,16 +227,29 @@ class HakimRemoteRelay(private val context: Context) {
             }
         }
 
+        private fun decodePayload(envelope: JSONObject): JSONObject {
+            val payloadB64 = envelope.optString("payload_b64")
+            if (payloadB64.isBlank()) return JSONObject()
+            return runCatching {
+                val raw = String(
+                    Base64.decode(payloadB64, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING),
+                    Charsets.UTF_8,
+                )
+                JSONObject(raw)
+            }.getOrElse { JSONObject() }
+        }
+
         private fun executeEnvelope(context: Context, envelope: JSONObject): JSONObject {
             val requestId = envelope.optString("request_id")
             val op = envelope.optString("op")
+            val payload = decodePayload(envelope)
             return when (op) {
                 "status" -> localRequest(context, "GET", "/v1/status", null, null)
                 "ui" -> localRequest(context, "GET", "/v1/ui", null, null)
                 "notifications" -> localRequest(context, "GET", "/v1/notifications", null, null)
                 "screenshot" -> localRequest(context, "GET", "/v1/screenshot", null, null)
-                "action" -> localRequest(context, "POST", "/v1/action", envelope.optJSONObject("payload") ?: JSONObject(), requestId)
-                "launch" -> localRequest(context, "POST", "/v1/launch", envelope.optJSONObject("payload") ?: JSONObject(), requestId)
+                "action" -> localRequest(context, "POST", "/v1/action", payload, requestId)
+                "launch" -> localRequest(context, "POST", "/v1/launch", payload, requestId)
                 else -> JSONObject().put("ok", false).put("error", "unsupported_operation")
             }
         }
