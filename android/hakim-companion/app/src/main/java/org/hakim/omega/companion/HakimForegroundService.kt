@@ -18,6 +18,11 @@ class HakimForegroundService : Service() {
 
     private val supervise = object : Runnable {
         override fun run() {
+            if (FinancialSafeMode.isEnabled(this@HakimForegroundService)) {
+                stopSelf()
+                return
+            }
+
             val prefs = getSharedPreferences("hakim", Context.MODE_PRIVATE)
             val paired = prefs.getString("pair_token", null) != null
             var healthy = paired && server?.isListening() == true
@@ -44,6 +49,10 @@ class HakimForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        if (FinancialSafeMode.isEnabled(this)) {
+            stopSelf()
+            return
+        }
         running = true
         createChannel()
         val notification = android.app.Notification.Builder(this, CHANNEL)
@@ -60,7 +69,13 @@ class HakimForegroundService : Service() {
         supervisor.postDelayed(supervise, INITIAL_SUPERVISOR_DELAY_MS)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (FinancialSafeMode.isEnabled(this)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        return START_STICKY
+    }
 
     override fun onDestroy() {
         supervisor.removeCallbacks(supervise)
@@ -87,6 +102,7 @@ class HakimForegroundService : Service() {
         const val SUPERVISOR_INTERVAL_MS = 30_000L
         @Volatile var running = false
         fun start(context: Context) {
+            if (FinancialSafeMode.isEnabled(context)) return
             val i = Intent(context, HakimForegroundService::class.java)
             try { context.startForegroundService(i) } catch (_: Exception) { try { context.startService(i) } catch (_: Exception) {} }
         }
