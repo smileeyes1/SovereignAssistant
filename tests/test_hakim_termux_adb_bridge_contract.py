@@ -65,6 +65,14 @@ def test_bootstrap_uses_official_wireless_adb_and_no_apk():
     assert "hakim-multibridge-supervisor" in t
 
 
+def test_bootstrap_pins_private_command_transport_and_disables_public_fallback():
+    t = read(BOOT)
+    assert "'upstream_bridges':['make-private-relay']" in t
+    assert "'fallback_bridges':[]" in t
+    assert "'public_command_transport':False" in t
+    assert "github-owner-relay" not in t
+
+
 def test_pairing_is_local_and_hands_lifecycle_to_supervisor():
     t = read(PAIR)
     assert "adb pair" in t
