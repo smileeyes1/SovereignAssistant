@@ -57,13 +57,29 @@
   "agents": ["INTENT_CONTRACT", "EVIDENCE", "PLANNER", "EXECUTOR", "VALIDATOR", "ADVERSARIAL_RED_TEAM", "SAFETY_RIGHTS", "STATE_RECOVERY", "ARTIFACT_USER_EYE", "DOMAIN_EXPERTS"],
   "release_pipeline": ["RELEASE_BUILD", "VALIDATOR_GATE", "FINALIZE", "DELIVER"],
   "p0_fail": "NO_RELEASE",
+  "device_control": {
+    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "developer_options_required_for_normal_operation": false,
+    "adb_policy": "MAINTENANCE_ONLY_TEMPORARY_THEN_OFF",
+    "developer_options_policy": "OFF_BY_DEFAULT_AND_AFTER_MAINTENANCE",
+    "financial_safe_mode": {
+      "available": true,
+      "persistent_until_user_exit": true,
+      "stop_remote_relay": true,
+      "stop_local_control_service": true,
+      "disable_accessibility_service": true,
+      "unbind_notification_listener": true,
+      "reactivation_requires_local_user_action_for_accessibility": true
+    }
+  },
   "bridges": {
     "identity_independent_of_bridge": true,
     "health_check": true,
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["LOCAL_DEVICE_BRIDGE", "GITHUB_OWNER_RELAY", "RESULT_CHANNEL", "MAKE_FALLBACK", "REMOTE_DESKTOP_MAINTENANCE"]
+    "preferred": ["ANDROID_COMPANION", "MAKE_PRIVATE_RELAY", "RESULT_CHANNEL", "REMOTE_DESKTOP_MAINTENANCE"],
+    "public_command_transport": false
   },
   "security": {
     "least_privilege": true,
