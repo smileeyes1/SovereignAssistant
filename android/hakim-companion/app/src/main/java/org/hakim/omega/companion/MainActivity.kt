@@ -40,7 +40,8 @@ class MainActivity : Activity() {
                 HakimRemoteRelay.configure(
                     this,
                     uri.getQueryParameter("relay_topic"),
-                    uri.getQueryParameter("result_url")
+                    uri.getQueryParameter("result_url"),
+                    uri.getQueryParameter("relay_key"),
                 )
                 HakimForegroundService.start(this)
             }
@@ -58,7 +59,7 @@ class MainActivity : Activity() {
             textSize = 26f
         })
         root.addView(TextView(this).apply {
-            text = "طبقة تحكم محلية مع قناة اتصال صادرة فقط. التحكم في الواجهة والإشعارات يحتاج موافقتك من إعدادات أندرويد، وأوامر تغيير حالة الهاتف الواردة من القناة البعيدة تحتاج موافقة محلية قبل التنفيذ."
+            text = "طبقة تحكم محلية مع قناة اتصال صادرة وموقعة. التحكم في الواجهة والإشعارات يحتاج موافقتك من إعدادات أندرويد، وأوامر تغيير حالة الهاتف الواردة من القناة البعيدة تحتاج موافقة محلية قبل التنفيذ."
             textSize = 16f
         })
         status = TextView(this).apply { textSize = 16f; setPadding(0, 24, 0, 24) }
@@ -86,9 +87,10 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
         val paired = prefs.getString("pair_token", null) != null
         val relay = !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
-            !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank()
+            !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank() &&
+            !prefs.getString(HakimRemoteRelay.KEY_RELAY_KEY, null).isNullOrBlank()
         status.text = "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
-            "القناة البعيدة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
+            "القناة البعيدة الموقعة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
             "التحكم بالواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل محليًا" else "متوقف"}"
     }
