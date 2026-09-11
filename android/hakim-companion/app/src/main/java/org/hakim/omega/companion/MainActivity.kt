@@ -21,7 +21,7 @@ class MainActivity : Activity() {
         handlePairIntent(intent)
         buildUi()
         ensureNotificationPermission()
-        HakimForegroundService.start(this)
+        if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -43,7 +43,7 @@ class MainActivity : Activity() {
                     uri.getQueryParameter("result_url"),
                     uri.getQueryParameter("relay_key"),
                 )
-                HakimForegroundService.start(this)
+                if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
             }
         }
     }
@@ -54,34 +54,37 @@ class MainActivity : Activity() {
             setPadding(32, 48, 32, 32)
             gravity = Gravity.CENTER_HORIZONTAL
         }
+        root.addView(TextView(this).apply { text = "HAKIM Ω Companion"; textSize = 26f })
         root.addView(TextView(this).apply {
-            text = "HAKIM Ω Companion"
-            textSize = 26f
-        })
-        root.addView(TextView(this).apply {
-            text = "طبقة تحكم محلية مع قناة اتصال صادرة وموقعة. التحكم في الواجهة والإشعارات يحتاج موافقتك من إعدادات أندرويد، وأوامر تغيير حالة الهاتف الواردة من القناة البعيدة تحتاج موافقة محلية قبل التنفيذ."
+            text = "طبقة تحكم محلية مع قناة اتصال صادرة وموقعة. لا تحتاج خيارات المطور للتشغيل المعتاد. قبل استخدام تطبيق مالي شغّل «الوضع المالي الآمن» لفصل قناة حكيم وخدمة الوصول ومستمع الإشعارات حتى تعيد التفعيل بنفسك."
             textSize = 16f
         })
         status = TextView(this).apply { textSize = 16f; setPadding(0, 24, 0, 24) }
         root.addView(status)
-        root.addView(button("تفعيل التحكم بالواجهة") {
+        root.addView(button("تشغيل الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
+        root.addView(button("استعادة حكيم بعد الانتهاء") {
+            FinancialSafeMode.exit(this)
+            refreshStatus()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
+        root.addView(button("تفعيل التحكم بالواجهة") {
+            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        })
         root.addView(button("تفعيل الوصول إلى الإشعارات") {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
         root.addView(button("فتح إعدادات بطارية حكيم") {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         })
-        root.addView(button("تشغيل خدمة حكيم") { HakimForegroundService.start(this); refreshStatus() })
+        root.addView(button("تشغيل خدمة حكيم") {
+            if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
+            refreshStatus()
+        })
         setContentView(root)
         refreshStatus()
     }
 
-    private fun button(label: String, block: () -> Unit) = Button(this).apply {
-        text = label
-        setOnClickListener { block() }
-    }
+    private fun button(label: String, block: () -> Unit) = Button(this).apply { text = label; setOnClickListener { block() } }
 
     private fun refreshStatus() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
@@ -89,9 +92,13 @@ class MainActivity : Activity() {
         val relay = !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
             !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank() &&
             !prefs.getString(HakimRemoteRelay.KEY_RELAY_KEY, null).isNullOrBlank()
-        status.text = "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
+        val financial = FinancialSafeMode.isEnabled(this)
+        status.text = "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
+            "خيارات المطور: غير مطلوبة للتشغيل المعتاد\n" +
+            "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
             "القناة البعيدة الموقعة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
             "التحكم بالواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
+            "الوصول إلى الإشعارات: ${if (HakimNotificationListener.isConnected()) "متصل" else "غير متصل"}\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل محليًا" else "متوقف"}"
     }
 
