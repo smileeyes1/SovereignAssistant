@@ -88,4 +88,23 @@ print(json.dumps({
 }, ensure_ascii=False, indent=2))
 PY
 
-termux-open --view --content-type application/vnd.android.package-archive "$SIGNED"
+# Some Android/Termux combinations can fail to let Package Installer read a
+# content URI backed by Termux private storage even when the APK is valid.
+# Prefer a public Downloads handoff when storage access has already been granted.
+PUBLIC_DOWNLOADS="$HOME_DIR/storage/downloads"
+PUBLIC_APK="$PUBLIC_DOWNLOADS/HAKIM-Companion.apk"
+if [ -d "$PUBLIC_DOWNLOADS" ] && [ -w "$PUBLIC_DOWNLOADS" ]; then
+  cp -f "$SIGNED" "$PUBLIC_APK"
+  PUBLIC_SHA="$(sha256sum "$PUBLIC_APK" | awk '{print $1}')"
+  SIGNED_SHA="$(sha256sum "$SIGNED" | awk '{print $1}')"
+  if [ "$PUBLIC_SHA" != "$SIGNED_SHA" ]; then
+    echo 'ERROR: public Downloads APK hash mismatch' >&2
+    rm -f "$PUBLIC_APK"
+    exit 5
+  fi
+  echo "INSTALL_FROM_PUBLIC_DOWNLOADS=$PUBLIC_APK"
+  echo "OPEN_FILES_APP_AND_TAP=HAKIM-Companion.apk"
+else
+  echo "PUBLIC_DOWNLOADS_UNAVAILABLE=1"
+  echo "Run termux-setup-storage once, allow storage access, then rerun this script." >&2
+fi
