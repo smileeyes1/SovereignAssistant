@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.2-companion-primary-pre-field",
+  "version": "2.2-companion-primary-conditional-bootstrap",
   "status": "ACTIVE_OVERRIDE",
   "priority": [
     "ANDROID_COMPANION_OUTBOUND_RELAY",
@@ -14,7 +14,10 @@
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
   "phone_execution": "ANDROID_COMPANION_PRIMARY",
   "developer_options_required_for_normal_operation": false,
+  "normal_operation_requires_adb": false,
   "adb_role": "TEMPORARY_MAINTENANCE_ONLY",
+  "bootstrap_when_direct_install_blocked": "TERMUX_WIRELESS_ADB_ONE_TIME_OR_ON_DEMAND",
+  "close_adb_after_companion_qualification": true,
   "self_healing_supervisor": true,
   "security": {
     "outbound_only_preferred": true,
@@ -28,15 +31,30 @@
     "mutating_actions_require_local_approval": true,
     "financial_safe_mode_available": true,
     "platform_protection_bypass": false,
-    "secrets_in_public_repository": false
+    "secrets_in_public_repository": false,
+    "developer_options_persistent": false
   },
+  "conditional_bootstrap_sequence": [
+    "ANDROID_LOCAL_WIRELESS_DEBUGGING_PAIR_ONCE_IF_NEEDED",
+    "DOWNLOAD_VERIFIED_MAIN_RELEASE",
+    "SIGN_WITH_DEVICE_OWNED_KEY",
+    "ADB_INSTALL_SIGNED_COMPANION_WITHOUT_PROTECTION_BYPASS",
+    "CONFIGURE_LOOPBACK_PAIR_TOKEN_AND_PRIVATE_RELAY",
+    "VERIFY_LOOPBACK_STATUS",
+    "LOCAL_ANDROID_APPROVE_ACCESSIBILITY",
+    "LOCAL_ANDROID_APPROVE_NOTIFICATION_ACCESS",
+    "PROVE_PRIVATE_SIGNED_ROUND_TRIP",
+    "CLOSE_ADB_MAINTENANCE",
+    "RUN_COMPANION_ONLY"
+  ],
   "qualification": {
     "cloud_send_path": "VERIFIED",
     "android15_pre_field_runtime": "VERIFIED",
     "installable_field_apk": "VERIFIED_PRE_FIELD",
     "physical_phone": "PENDING_LOCAL_COMPANION_ACTIVATION_AND_REAL_ROUND_TRIP",
-    "wireless_debugging_pairing": "NOT_REQUIRED_FOR_NORMAL_OPERATION",
+    "wireless_debugging_pairing": "CONDITIONAL_BOOTSTRAP_ONLY_NOT_NORMAL_RUNTIME",
     "field_verified_requires_real_round_trip": true,
+    "field_verified_requires_adb_closed_when_bootstrap_used": true,
     "required_field_evidence": [
       "deep_link_pair_config",
       "signed_status_round_trip",
@@ -48,8 +66,9 @@
       "local_approval_for_mutation",
       "screen_off_background",
       "reboot_recovery",
-      "offline_recovery"
+      "offline_recovery",
+      "companion_only_runtime_after_maintenance_closed"
     ]
   },
-  "rule": "Companion is the normal-operation phone path. ADB and Remote Desktop are maintenance fallbacks only. Never claim physical-phone FIELD_VERIFIED before real-device evidence passes the applicable matrix."
+  "rule": "Companion is the normal-operation phone path. Wireless ADB is conditional one-time bootstrap/maintenance only when direct installation is blocked, then it must be closed after Companion qualification. Remote Desktop is maintenance only. Never bypass platform protection or claim physical-phone FIELD_VERIFIED before real-device evidence passes the applicable matrix."
 }
