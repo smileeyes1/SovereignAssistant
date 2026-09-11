@@ -1,5 +1,6 @@
 package org.hakim.omega.companion
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -19,6 +20,7 @@ import android.service.notification.NotificationListenerService
  */
 object FinancialSafeMode {
     const val KEY = "financial_safe_mode"
+    const val ACTION_ENTER = "org.hakim.omega.companion.ENTER_FINANCIAL_SAFE_MODE"
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences("hakim", Context.MODE_PRIVATE).getBoolean(KEY, false)
@@ -50,5 +52,13 @@ object FinancialSafeMode {
             }
         }
         HakimForegroundService.start(context)
+    }
+}
+
+class FinancialSafeModeReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        if (intent?.action == FinancialSafeMode.ACTION_ENTER) {
+            FinancialSafeMode.enter(context)
+        }
     }
 }
