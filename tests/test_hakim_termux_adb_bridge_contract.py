@@ -7,6 +7,8 @@ BRIDGE = ROOT / "scripts" / "hakim-termux-adb-bridge.py"
 BOOT = ROOT / "scripts" / "bootstrap-hakim-termux-adb.sh"
 PAIR = ROOT / "scripts" / "hakim-adb-pair.sh"
 CONTROL = ROOT / "scripts" / "hakim-control-window.sh"
+SUPERVISOR = ROOT / "scripts" / "hakim-multibridge-supervisor.sh"
+STATUS = ROOT / "scripts" / "hakim-bridges-status.sh"
 
 
 def read(path: Path) -> str:
@@ -18,13 +20,13 @@ def test_bridge_python_parses():
 
 
 def test_shell_helpers_parse():
-    for path in (BOOT, PAIR, CONTROL):
+    for path in (BOOT, PAIR, CONTROL, SUPERVISOR, STATUS):
         subprocess.run(["bash", "-n", str(path)], check=True)
 
 
 def test_bridge_keeps_signed_replay_safe_protocol():
     t = read(BRIDGE)
-    assert "HmacSHA256" not in t  # Python uses stdlib hmac, not Android API text
+    assert "HmacSHA256" not in t
     assert "hmac.new" in t
     assert "compare_digest" in t
     assert "expires_at_ms" in t
@@ -53,18 +55,21 @@ def test_mutations_require_local_control_window():
 
 def test_bootstrap_uses_official_wireless_adb_and_no_apk():
     t = read(BOOT)
+    s = read(SUPERVISOR)
     assert "android-tools" in t
-    assert "adb mdns services" in t
+    assert "adb mdns services" in s
     assert "WIRELESS_DEBUGGING_SETTINGS" in t
     assert "apk_required':False" in t
     assert "install-android-companion-local.sh" not in t
     assert "Play Protect" in t
+    assert "hakim-multibridge-supervisor" in t
 
 
-def test_pairing_is_local_and_starts_signed_bridge():
+def test_pairing_is_local_and_hands_lifecycle_to_supervisor():
     t = read(PAIR)
     assert "adb pair" in t
     assert "adb connect" in t
-    assert "tmux new-session -d -s hakim-adb-bridge" in t
-    assert "hakim-control-window" in t
+    assert "tmux new-session -d -s hakim-multibridge-supervisor" in t
+    assert "hakim-control-on 15" in t
+    assert "hakim-control-window\" 60" not in t
     assert "PAIR_CODE" in t
