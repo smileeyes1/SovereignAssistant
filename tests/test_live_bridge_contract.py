@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,3 +35,14 @@ def test_remote_approval_receiver_not_exported():
     i = manifest.index(marker)
     window = manifest[i : i + 180]
     assert 'android:exported="false"' in window
+
+
+def test_live_bridge_shell_entrypoints_parse_and_chain_expected_scripts():
+    configure = ROOT / "scripts/configure-hakim-live-bridge.sh"
+    bootstrap = ROOT / "scripts/bootstrap-hakim-live-bridge.sh"
+    for script in (configure, bootstrap):
+        subprocess.run(["bash", "-n", str(script)], check=True)
+    text = bootstrap.read_text()
+    assert "install-android-companion-local.sh" in text
+    assert "configure-hakim-live-bridge.sh" in text
+    assert "git pull --ff-only" in text
