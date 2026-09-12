@@ -79,18 +79,15 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * ترحيل لمرة واحدة من الإصدارات القديمة دون الاحتفاظ بأسماء مفاتيح ناقل بعينه
+     * داخل ثنائي الإصدار السيادي. نحذف أي حالة قديمة تبدأ بالبادئة العامة relay_.
+     */
     private fun purgeLegacyTransport() {
-        getSharedPreferences("hakim", MODE_PRIVATE).edit()
-            .remove("relay_topic")
-            .remove("relay_result_topic")
-            .remove("relay_base_url")
-            .remove("relay_hmac_key")
-            .remove("relay_last_ntfy_id")
-            .remove("relay_last_poll_ms")
-            .remove("relay_last_error")
-            .remove("relay_last_result_error")
-            .remove("relay_last_result_send_ms")
-            .apply()
+        val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it.startsWith("relay_") }.forEach { editor.remove(it) }
+        editor.apply()
         getSharedPreferences("hakim_remote_pending", MODE_PRIVATE).edit().clear().apply()
     }
 
