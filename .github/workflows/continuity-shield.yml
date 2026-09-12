@@ -1,0 +1,29 @@
+name: HAKIM Continuity Shield
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  continuity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install mutation-test tooling
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run continuity shield
+        env:
+          HAKIM_SHIELD_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python scripts/hakim_continuity_shield.py
+      - name: Run continuity mutation tests
+        run: python -m pytest -q tests/test_hakim_continuity_shield.py
