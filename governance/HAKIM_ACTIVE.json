@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_ACTIVE_CANONICAL",
-  "version": "2.3",
+  "version": "2.4",
   "activation": "ACTIVE_ONLY_AFTER_GOVERNANCE_PASS_AND_MERGE",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
   "adaptive_intelligence_spec": "governance/HAKIM_NSTAR_SPEC_AR.md",
@@ -14,6 +14,7 @@
   "continuity_shield_policy": "governance/HAKIM_CONTINUITY_SHIELD.json",
   "capability_transitions": "governance/HAKIM_CAPABILITY_TRANSITIONS.json",
   "phone_sovereign_constraints": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
+  "phone_interface_identity": "governance/HAKIM_PHONE_INTERFACE_IDENTITY.json",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
   "bridge_policy": "governance/HAKIM_BRIDGE_POLICY_v2.json",
   "active_state": "governance/HAKIM_ACTIVE_STATE.json",
@@ -33,6 +34,7 @@
     "LOAD_CONTINUITY_SHIELD_POLICY",
     "LOAD_CAPABILITY_TRANSITIONS",
     "LOAD_PHONE_SOVEREIGN_CONSTRAINTS",
+    "LOAD_PHONE_INTERFACE_IDENTITY",
     "LOAD_RUNTIME_POLICY",
     "LOAD_BRIDGE_POLICY",
     "LOAD_ACTIVE_STATE",
@@ -43,6 +45,7 @@
   "rule": "new environments remain UNQUALIFIED for critical functions until actual behavior is verified",
   "promotion_gate": [
     "PHONE_SOVEREIGN_CONSTRAINTS_PASS",
+    "PHONE_INTERFACE_IDENTITY_CONTRACT_PASS",
     "INTELLIGENCE_FABRIC_CONTRACT_PASS",
     "MAX_VALUE_INTENT_RULE_CONTRACT_PASS",
     "VALUE_GATES_CONTRACT_PASS",
