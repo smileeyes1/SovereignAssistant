@@ -4,10 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
@@ -26,16 +24,22 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        purgeLegacyTransport()
         handlePairIntent(intent)
         buildUi()
+        handleTaskIntent(intent)
         ensureNotificationPermission()
-        if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
+        if (!FinancialSafeMode.isEnabled(this) && isPaired()) HakimForegroundService.start(this)
+        refreshStatus()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        purgeLegacyTransport()
         handlePairIntent(intent)
+        handleTaskIntent(intent)
+        if (!FinancialSafeMode.isEnabled(this) && isPaired()) HakimForegroundService.start(this)
         refreshStatus()
     }
 
@@ -62,77 +66,61 @@ class MainActivity : Activity() {
         if (uri.scheme != "hakim" || uri.host != "pair") return
         val token = uri.getQueryParameter("token").orEmpty()
         if (token.length !in 32..256) return
-
-        // Local pairing is a valid capability on its own. Remote transport is optional
-        // and must never make the loopback control plane unavailable.
-        getSharedPreferences("hakim", MODE_PRIVATE).edit().putString("pair_token", token).apply()
-
-        val relayTopic = uri.getQueryParameter("relay_topic")
-        val resultTopic = uri.getQueryParameter("result_topic")
-        val relayKey = uri.getQueryParameter("relay_key")
-        if (!relayTopic.isNullOrBlank() || !resultTopic.isNullOrBlank() || !relayKey.isNullOrBlank()) {
-            HakimDirectRelay.configure(
-                this,
-                relayTopic,
-                resultTopic,
-                relayKey,
-                uri.getQueryParameter("relay_base"),
-            )
-        }
-        if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.restart(this)
+        getSharedPreferences("hakim", MODE_PRIVATE).edit()
+            .putString("pair_token", token)
+            .putString("pair_mode", "SOVEREIGN_LOCAL")
+            .apply()
     }
+
+    private fun handleTaskIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "hakim" && uri.host == "task") {
+            HakimSignedTask.accept(this, uri)
+        }
+    }
+
+    private fun purgeLegacyTransport() {
+        val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it.startsWith("relay_") }.forEach { editor.remove(it) }
+        editor.apply()
+        getSharedPreferences("hakim_remote_pending", MODE_PRIVATE).edit().clear().apply()
+    }
+
+    private fun isPaired(): Boolean =
+        !getSharedPreferences("hakim", MODE_PRIVATE).getString("pair_token", null).isNullOrBlank()
 
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 30, 24, 20)
+            setPadding(24, 32, 24, 24)
             gravity = Gravity.CENTER_HORIZONTAL
         }
         root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "مستقل مجاني: لا Make ولا مفتاح API مدفوع. قناة مشفّرة مباشرة + متصفح حكيم + تحكم الجهاز المصرّح به."
-            textSize = 14f
+            text = "القلب السيادي المحلي: لا ناقل خارجي، لا قناة خلفية، لا رصيد عمليات. التحكم المحلي على الجهاز فقط، وأي مهمة قادمة من المحادثة تصل كرابط موقّع يفتحه المستخدم صراحة ثم ينفذها حكيم داخل متصفحه المملوك."
+            textSize = 15f
         })
 
-        status = TextView(this).apply { textSize = 13f; setPadding(0, 12, 0, 8) }
+        status = TextView(this).apply { textSize = 14f; setPadding(0, 16, 0, 12) }
         root.addView(status)
 
-        address = EditText(this).apply { hint = "اكتب عنوان الموقع"; isSingleLine = true }
+        address = EditText(this).apply {
+            hint = "اكتب عنوان الموقع"
+            isSingleLine = true
+        }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        nav.addView(button("فتح") { HakimBrowserController.openUrl(address.text.toString()); refreshStatus() })
+        nav.addView(button("فتح") { if (HakimBrowserController.openUrl(address.text.toString())) refreshStatus() })
         nav.addView(button("رجوع") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_back")) })
         nav.addView(button("تحديث") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_reload")) })
         root.addView(nav)
 
-        val safety = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        safety.addView(button("الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
-        safety.addView(button("استعادة حكيم") {
-            FinancialSafeMode.exit(this)
-            HakimForegroundService.start(this)
-            refreshStatus()
-        })
-        root.addView(safety)
-
-        val permissions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        permissions.addView(button("تحكم الواجهة") {
-            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        })
-        permissions.addView(button("وصول الإشعارات") {
-            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        })
-        root.addView(permissions)
-
-        val serviceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        serviceControls.addView(button("إعدادات البطارية") {
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-        })
-        serviceControls.addView(button("تشغيل حكيم") {
-            if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
-            refreshStatus()
-        })
-        root.addView(serviceControls)
+        val safe = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        safe.addView(button("الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
+        safe.addView(button("استعادة حكيم") { FinancialSafeMode.exit(this); refreshStatus() })
+        root.addView(safe)
 
         browser = WebView(this).apply {
             webChromeClient = WebChromeClient()
@@ -150,36 +138,26 @@ class MainActivity : Activity() {
         HakimBrowserController.attach(browser)
         root.addView(browser, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
-        refreshStatus()
     }
 
     private fun button(label: String, block: () -> Unit) = Button(this).apply {
         text = label
-        textSize = 12f
         setOnClickListener { block() }
     }
 
     private fun refreshStatus() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
-        val paired = prefs.getString("pair_token", null) != null
-        val configured = HakimDirectRelay.isConfigured(this)
+        val paired = isPaired()
         val financial = FinancialSafeMode.isEnabled(this)
-        val relayBase = prefs.getString(HakimDirectRelay.KEY_RELAY_BASE, "https://ntfy.sh") ?: "https://ntfy.sh"
-        val lastPoll = prefs.getLong(HakimDirectRelay.KEY_LAST_POLL_MS, 0L)
-        val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
-        val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: مستقل مجاني — بلا Make وبلا API مدفوع\n" +
+        val lastTask = prefs.getString("last_signed_task", "لا توجد مهمة بعد")
+        status.text = "النمط: سيادي محلي مستقل\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
-            "الاقتران: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
-            "القناة المشفّرة: ${if (configured) "مهيأة" else "غير مهيأة"}\n" +
-            "الناقل: $relayBase\n" +
+            "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
+            "اتصال خلفي خارجي: غير موجود\n" +
+            "ناقل خارجي: غير موجود\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
-            "تحكم الواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
-            "وصول الإشعارات: ${if (HakimNotificationListener.isConnected()) "متصل" else "غير متصل"}\n" +
-            "آخر اتصال بالقناة: ${if (lastPoll > 0L) "تم" else "لم يُثبت بعد"}\n" +
-            "خطأ القناة: ${lastError ?: "لا يوجد"}\n" +
-            "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}\n" +
+            "آخر مهمة موقعة: $lastTask\n" +
             "متصفح حكيم: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}" +
             if (url.isNotBlank()) "\nالموقع الحالي: $url" else ""
     }
