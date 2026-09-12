@@ -14,7 +14,7 @@ import android.os.Looper
 
 class HakimForegroundService : Service() {
     private var server: LocalControlServer? = null
-    private var remoteRelay: HakimRemoteRelay? = null
+    private var directRelay: HakimDirectRelay? = null
     private val supervisor = Handler(Looper.getMainLooper())
 
     private val supervise = object : Runnable {
@@ -28,7 +28,9 @@ class HakimForegroundService : Service() {
                 server = LocalControlServer(this@HakimForegroundService).also { it.start() }
                 healthy = server?.isListening() == true
             }
-            if (remoteRelay == null) remoteRelay = HakimRemoteRelay(this@HakimForegroundService).also { it.start() }
+            if (directRelay == null) {
+                directRelay = HakimDirectRelay(this@HakimForegroundService).also { it.start() }
+            }
             prefs.edit()
                 .putLong("companion_heartbeat_ms", System.currentTimeMillis())
                 .putString("companion_mode", if (healthy) "HEALTHY" else if (paired) "RECOVERING" else "UNPAIRED")
@@ -49,8 +51,8 @@ class HakimForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = android.app.Notification.Builder(this, CHANNEL)
-            .setContentTitle("HAKIM Ω")
-            .setContentText("التحكم المحلي والقناة الآمنة يعملان")
+            .setContentTitle("حكيم")
+            .setContentText("التحكم المحلي والقناة المستقلة المشفّرة يعملان")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_lock_power_off, "وضع مالي", financialMode)
@@ -58,7 +60,7 @@ class HakimForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= 34) startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         else startForeground(7, notification)
         server = LocalControlServer(this).also { it.start() }
-        remoteRelay = HakimRemoteRelay(this).also { it.start() }
+        directRelay = HakimDirectRelay(this).also { it.start() }
         supervisor.postDelayed(supervise, INITIAL_SUPERVISOR_DELAY_MS)
     }
 
@@ -69,7 +71,7 @@ class HakimForegroundService : Service() {
 
     override fun onDestroy() {
         supervisor.removeCallbacks(supervise)
-        remoteRelay?.stop(); remoteRelay = null
+        directRelay?.stop(); directRelay = null
         server?.close(); server = null
         running = false
         super.onDestroy()
@@ -80,7 +82,7 @@ class HakimForegroundService : Service() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(NotificationChannel(CHANNEL, "HAKIM Ω Local Control", NotificationManager.IMPORTANCE_LOW))
+                .createNotificationChannel(NotificationChannel(CHANNEL, "حكيم — التحكم المحلي", NotificationManager.IMPORTANCE_LOW))
         }
     }
 
@@ -89,10 +91,16 @@ class HakimForegroundService : Service() {
         const val INITIAL_SUPERVISOR_DELAY_MS = 5_000L
         const val SUPERVISOR_INTERVAL_MS = 30_000L
         @Volatile var running = false
+
         fun start(context: Context) {
             if (FinancialSafeMode.isEnabled(context)) return
             val i = Intent(context, HakimForegroundService::class.java)
             try { context.startForegroundService(i) } catch (_: Exception) { try { context.startService(i) } catch (_: Exception) {} }
+        }
+
+        fun restart(context: Context) {
+            runCatching { context.stopService(Intent(context, HakimForegroundService::class.java)) }
+            start(context)
         }
     }
 }
