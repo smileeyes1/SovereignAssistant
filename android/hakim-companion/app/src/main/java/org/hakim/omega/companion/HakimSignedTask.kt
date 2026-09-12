@@ -122,7 +122,7 @@ object HakimSignedTask {
 
     private val ALLOWED_ACTIONS = setOf(
         "browser_open", "open_url", "browser_back", "back", "browser_forward",
-        "browser_reload", "home", "click_text", "click_css", "set_text", "tap",
+        "browser_reload", "home", "local_proof", "click_text", "click_css", "set_text", "tap",
         "swipe", "scroll_by",
     )
 }
