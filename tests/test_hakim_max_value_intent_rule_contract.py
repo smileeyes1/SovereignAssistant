@@ -3,6 +3,8 @@ import json
 
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "governance"
+LEXICAL_PROMOTION = "82fb26cede5400d3491b92c89c11783454847143"
+FROZEN_PHONE_PROMOTION = "a6225e4118d68871ed00c8328f072fd8bd15bfc6"
 
 
 def test_max_value_rule_contract():
@@ -49,6 +51,26 @@ def test_user_lexical_intensifiers_are_explicitly_semantic_and_bounded():
     ]
     for token in required:
         assert token in text
+
+
+def test_lexical_intensifiers_are_durably_promoted_without_field_overclaim():
+    state = json.loads((GOV / "HAKIM_ACTIVE_STATE.json").read_text(encoding="utf-8"))
+    assert state["promotion_lineage"]["max_value_lexical_intensifiers_v1"] == LEXICAL_PROMOTION
+    assert "max_value_lexical_intensifiers_v1" in state["proven_success"]
+    for key in (
+        "max_value_lexical_intensifiers_contract_main",
+        "max_value_lexical_intensifiers_governance_main",
+        "max_value_lexical_intensifiers_continuity_main",
+        "max_value_lexical_intensifiers_reality_main",
+    ):
+        assert state["promotion_evidence"][key] == "PASS"
+    assert state["governance_verified_main"] == LEXICAL_PROMOTION
+    assert state["freshness_observed_main"] == LEXICAL_PROMOTION
+    assert state["freshness_state_refresh_source_main"] == LEXICAL_PROMOTION
+    assert state["last_verified_baseline"] == FROZEN_PHONE_PROMOTION
+    assert state["latest_observed_main"] == FROZEN_PHONE_PROMOTION
+    assert state["field_phone"]["field_verified"] is False
+    assert state["promotion_evidence"]["physical_phone_round_trip"] == "NOT_PROVEN"
 
 
 def test_active_pointer_names_rule_without_changing_frozen_restore_contract():

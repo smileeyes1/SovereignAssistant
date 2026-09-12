@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "governance"
 SHIELD_SOURCE_MAIN = "cfd894239c2c6be7e5a423311a96e60588da2db8"
-CURRENT_GOVERNANCE_MAIN = "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4"
+CURRENT_GOVERNANCE_MAIN = "82fb26cede5400d3491b92c89c11783454847143"
 
 
 def load(name: str):
