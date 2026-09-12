@@ -1,0 +1,30 @@
+{
+  "name": "HAKIM_PHONE_INTERFACE_PROMOTION",
+  "version": "1.0",
+  "status": "ACTIVE_VERIFIED",
+  "canonical_instance_id": "HAKIM_ORIGINAL_PHONE_APP",
+  "source_pr": 172,
+  "source_candidate_head": "6b242f067f1c527bbefdcc17143518d75101b553",
+  "verified_merged_main": "f054ee0900e8d907b0ce0166b71ab64c83e0d225",
+  "evidence": {
+    "continuity_shield_pr": "PASS",
+    "governance_gate_pr": "PASS",
+    "android_contracts_and_build_pr": "PASS",
+    "android15_runtime_and_airplane_recovery_pr": "PASS",
+    "continuity_shield_main": "PASS",
+    "governance_gate_main": "PASS",
+    "reality_gate_main": "PASS",
+    "android_release_provenance_main": "PASS"
+  },
+  "protected_outcomes": [
+    "ONE_HAKIM_ONLY",
+    "STABLE_ANDROID_APPLICATION_ID_FOR_IN_PLACE_UPGRADE",
+    "NATIVE_LOCAL_ADB_PRESERVED",
+    "NO_PARALLEL_HAKIM",
+    "NO_FIELD_VERIFIED_WITHOUT_REAL_PHONE_EVIDENCE",
+    "BOUNDED_DIAGNOSTIC_AIRPLANE_RECOVERY_FAIL_CLOSED"
+  ],
+  "field_verified": false,
+  "physical_phone_round_trip": "NOT_PROVEN",
+  "rule": "Promote the installed Android interface as the single canonical Hakim phone interface while preserving pre-field truthfulness. This promotion is software/governance evidence only and cannot promote physical-phone field status."
+}
