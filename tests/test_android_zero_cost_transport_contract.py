@@ -2,6 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "android/hakim-companion/app/src/main"
+LEGACY_RELAY = SRC / "java/org/hakim/omega/companion/HakimRemoteRelay.kt"
 
 
 def text(path):
@@ -11,7 +12,7 @@ def text(path):
 def all_runtime_text():
     chunks = []
     for p in SRC.rglob("*"):
-        if p.is_file() and p.suffix in {".kt", ".xml", ".java"} and p.name != "HakimRemoteRelay.kt":
+        if p.is_file() and p.suffix in {".kt", ".xml", ".java"}:
             chunks.append(p.read_text(encoding="utf-8"))
     return "\n".join(chunks)
 
@@ -23,9 +24,8 @@ def test_runtime_has_no_external_background_transport_dependency():
         assert marker not in runtime
 
 
-def test_legacy_relay_is_excluded_from_android_build():
-    gradle = text("android/hakim-companion/app/build.gradle.kts")
-    assert 'java.exclude("**/HakimRemoteRelay.kt")' in gradle
+def test_legacy_relay_source_is_physically_absent_from_release_tree():
+    assert not LEGACY_RELAY.exists()
     service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt")
     assert "HakimRemoteRelay" not in service
     assert "LocalControlServer" in service
