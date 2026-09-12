@@ -22,6 +22,7 @@ def test_intelligence_fabric_is_single_hakim_layer_not_parallel_identity():
 def test_active_pointer_loads_fabric_and_matrix_before_meta_method():
     active = _json("HAKIM_ACTIVE.json")
     seq = active["restore_sequence"]
+    assert active["version"] == "2.1"
     assert active["intelligence_fabric_spec"] == "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md"
     assert active["intelligence_matrix"] == "governance/HAKIM_INTELLIGENCE_MATRIX.json"
     assert seq.index("LOAD_NSTAR_GOVERNING_CONSTITUTION") < seq.index("LOAD_INTELLIGENCE_FABRIC_SPEC")
@@ -43,7 +44,7 @@ def test_machine_matrix_and_runtime_registry_are_in_lockstep():
 def test_runtime_routes_fabric_under_nstar_and_preserves_evidence_gate():
     runtime = _json("HAKIM_RUNTIME_POLICY_v2.json")
     fabric = runtime["intelligence_fabric"]
-    assert runtime["version"] == "2.2"
+    assert runtime["version"] == "2.0"
     assert fabric["enabled"] is True
     assert fabric["nstar_controls_depth"] is True
     assert fabric["method_claim_requires_execution_evidence"] is True
