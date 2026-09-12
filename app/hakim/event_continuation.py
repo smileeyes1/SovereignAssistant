@@ -80,7 +80,7 @@ class EventDrivenContinuation:
             self.decisions.append(decision)
             return decision
         self.processed_event_ids.add(event.event_id)
-        decision = ContinuationDecision(event.event_id, selected.name, "executed", "highest-value eligible action executed")
+        decision = ContinuationDecision(event.event_id, selected.name, "executed", "highest-ranked eligible action executed")
         self.decisions.append(decision)
         return decision
 

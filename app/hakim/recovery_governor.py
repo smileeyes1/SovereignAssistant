@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
+from .best_route_optimizer import RouteInput, RouteOptimizationContext, RouteProfile, optimize_routes
 from .core import Action, ActionRisk, Claim, Decision, Evidence, GovernanceKernel
 from .durable_state import DurableStateStore
 from .event_continuation import ActionCandidate, ContinuationEvent, EventDrivenContinuation, EventType
@@ -27,6 +28,7 @@ class RegisteredAction:
     claim_factory: ClaimFactory
     executor: ActionExecutor
     ready: ReadyPredicate = lambda event: True
+    route_profile: RouteProfile = RouteProfile()
 
     def governance_action(self) -> Action:
         return Action(self.name, self.risk, self.reversible, self.requires_human_approval)
@@ -77,7 +79,7 @@ _EVENT_INTELLIGENCE_SIGNALS = {
 
 
 class RecoveryGovernor:
-    """Selects the highest-value path allowed by governance and mission safety.
+    """Selects the best eligible path under governance, evidence and constraints.
 
     Authorization is deliberately evaluated twice: once while selecting a
     candidate and again immediately before the real executor is invoked. The
@@ -89,10 +91,17 @@ class RecoveryGovernor:
     execution-boundary route is recomputed immediately before authorization and
     side effects. Routing is evidence that the fabric was invoked, not evidence
     that every named reasoning method was actually executed.
+
+    Candidate ranking is multi-criteria: base outcome value is only one input.
+    The optimizer also weighs fit, evidence, expected success, safety, burden,
+    cost, dependency, independence, sustainability, speed, reversibility and
+    prior failures. The ranking is persisted for audit and must not be described
+    as proof that a route will succeed.
     """
 
     FAILURE_PREFIX = "omega.recovery.failures"
     INTELLIGENCE_PREFIX = "omega.intelligence_fabric.route"
+    BEST_ROUTE_PREFIX = "omega.best_route.assessment"
 
     def __init__(
         self,
@@ -122,6 +131,9 @@ class RecoveryGovernor:
 
     def _intelligence_key(self, event_id: str, stage: str) -> str:
         return f"{self.INTELLIGENCE_PREFIX}.{stage}.{event_id}"
+
+    def _best_route_key(self, event_id: str, stage: str) -> str:
+        return f"{self.BEST_ROUTE_PREFIX}.{stage}.{event_id}"
 
     def failure_count(self, event_id: str, action_name: str) -> int:
         return int(self.state.get_state(self._key(event_id, action_name), 0))
@@ -237,6 +249,61 @@ class RecoveryGovernor:
         raw = self.state.get_state(self._intelligence_key(event_id, stage))
         return dict(raw) if isinstance(raw, dict) else None
 
+    def _rank_routes(
+        self,
+        event: ContinuationEvent,
+        actions: Iterable[RegisteredAction],
+        *,
+        stage: str,
+    ) -> dict[str, float]:
+        items = tuple(actions)
+        assessments = optimize_routes(
+            (
+                RouteInput(
+                    name=item.name,
+                    base_value=item.value,
+                    risk=_RISK_SCORE[item.risk],
+                    reversible=item.reversible,
+                    requires_human_approval=item.requires_human_approval,
+                    failure_count=self.failure_count(event.event_id, item.name),
+                    profile=item.route_profile,
+                )
+                for item in items
+            ),
+            RouteOptimizationContext(
+                uncertainty=self._payload_uncertainty(event),
+                zero_paid_cost=bool(event.payload.get("zero_paid_cost", False)),
+            ),
+        )
+        audit: dict[str, object] = {
+            "status": "RANKED_NOT_OUTCOME_PROOF",
+            "stage": stage,
+            "event_id": event.event_id,
+            "criteria": [
+                "outcome_value", "context_fit", "evidence", "expected_success",
+                "safety", "burden", "cost", "external_dependency", "independence",
+                "sustainability", "speed", "reversibility", "prior_failures", "pareto_dominance",
+            ],
+            "winner": assessments[0].name if assessments else None,
+            "assessments": [
+                {
+                    "name": item.name,
+                    "score": item.score,
+                    "dominated": item.dominated,
+                    "components": item.components,
+                    "route": item.route,
+                    "reasons": list(item.reasons),
+                }
+                for item in assessments
+            ],
+        }
+        self.state.set_state(self._best_route_key(event.event_id, stage), audit)
+        return {item.name: item.score for item in assessments}
+
+    def best_route_assessment(self, event_id: str, stage: str = "selection") -> dict[str, object] | None:
+        raw = self.state.get_state(self._best_route_key(event_id, stage))
+        return dict(raw) if isinstance(raw, dict) else None
+
     def _mission_decision(self, registered: RegisteredAction, claim: Claim):
         authority = AuthorityLevel.CONSEQUENTIAL if registered.requires_human_approval else AuthorityLevel.MODERATE
         action = MissionAction(
@@ -264,8 +331,6 @@ class RecoveryGovernor:
         claim = registered.claim_factory(event)
         governance_decision = self.governance.evaluate(claim, registered.governance_action())
 
-        # Preserve independent MissionKernel enforcement and denial evidence even
-        # when governance already fails; execution still requires both to pass.
         mission_decision = self._mission_decision(registered, claim)
         if not mission_decision.allowed:
             self._record_mission_denial(registered, event, mission_decision)
@@ -279,6 +344,7 @@ class RecoveryGovernor:
     def candidates(self, event: ContinuationEvent) -> list[ActionCandidate]:
         registered_actions = tuple(self.registry.matching(event))
         self._route_intelligence(event, registered_actions, stage="selection")
+        route_scores = self._rank_routes(event, registered_actions, stage="selection")
         candidates: list[ActionCandidate] = []
         for registered in registered_actions:
             if self.failure_count(event.event_id, registered.name) >= self.max_failures_per_path:
@@ -287,7 +353,7 @@ class RecoveryGovernor:
             candidates.append(
                 ActionCandidate(
                     registered.name,
-                    registered.value,
+                    route_scores.get(registered.name, registered.value),
                     safe=allowed,
                     reversible=registered.reversible,
                     authorized=allowed,
@@ -299,17 +365,13 @@ class RecoveryGovernor:
     def execute(self, candidate: ActionCandidate, event: ContinuationEvent) -> None:
         action = self.registry.get(candidate.name)
 
-        # Re-route at the last possible boundary. Include every event-matching
-        # action so the execution route cannot silently lower the risk profile
-        # observed during selection; also include the direct action for forged or
-        # out-of-band executor entry.
         matching = list(self.registry.matching(event))
         if all(item.name != action.name for item in matching):
             matching.append(action)
-        self._route_intelligence(event, tuple(matching), stage="execution")
+        matching_tuple = tuple(matching)
+        self._route_intelligence(event, matching_tuple, stage="execution")
+        self._rank_routes(event, matching_tuple, stage="execution")
 
-        # Selection-time authorization is not a capability token. Re-evaluate
-        # both kernels at the last possible point before any real side effect.
         allowed, reason = self._authorize(action, event)
         if not allowed:
             raise PermissionError(f"execution-time authorization failed for {action.name}: {reason}")
