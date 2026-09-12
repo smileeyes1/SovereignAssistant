@@ -10,6 +10,12 @@ from .production import ProductionRuntime
 from .recovery_governor import RegisteredAction, strong_claim
 
 
+REQUIRED_AUTONOMOUS_MERGE_WORKFLOWS = frozenset({
+    "HAKIM Governance Gate",
+    "HAKIM Continuity Shield",
+})
+
+
 @dataclass
 class AutonomousDevelopmentActions:
     runtime: ProductionRuntime
@@ -30,19 +36,19 @@ class AutonomousDevelopmentActions:
                     method="verified_squash_merge",
                     style="transactional_fail_closed",
                     medium="github_api",
-                    technique="head_sha_and_workflow_revalidation",
+                    technique="head_sha_and_required_workflow_revalidation",
                     mechanism="governed_remote_mutation",
-                    timing="after_all_workflows_complete",
-                    fit=0.95,
-                    evidence=0.95,
+                    timing="after_required_governance_and_continuity_gates_complete",
+                    fit=0.98,
+                    evidence=0.99,
                     expected_success=0.90,
-                    safety_margin=0.86,
+                    safety_margin=0.95,
                     burden=0.10,
                     monetary_cost=0.0,
                     external_dependency=0.70,
                     independence=0.30,
-                    sustainability=0.82,
-                    speed=0.78,
+                    sustainability=0.92,
+                    speed=0.75,
                 ),
             )
         )
@@ -124,6 +130,24 @@ class AutonomousDevelopmentActions:
             raise RuntimeError(f"expected exactly one open PR for commit, found {len(open_prs)}")
         return int(open_prs[0]["number"])
 
+    def _verify_merge_workflow_evidence(self, runs: list[dict[str, object]]) -> None:
+        if not runs:
+            raise RuntimeError("no workflow evidence found for PR head")
+        incomplete = [r for r in runs if str(r.get("status")) != "completed"]
+        failed = [r for r in runs if str(r.get("conclusion")) not in {"success", "neutral", "skipped"}]
+        if incomplete or failed:
+            raise RuntimeError("not all workflow runs are complete and acceptable")
+
+        names = {str(run.get("name", "")) for run in runs}
+        missing = sorted(REQUIRED_AUTONOMOUS_MERGE_WORKFLOWS - names)
+        if missing:
+            raise RuntimeError(f"required merge workflows missing: {', '.join(missing)}")
+
+        for required_name in sorted(REQUIRED_AUTONOMOUS_MERGE_WORKFLOWS):
+            matching = [run for run in runs if str(run.get("name", "")) == required_name]
+            if not any(str(run.get("status")) == "completed" and str(run.get("conclusion")) == "success" for run in matching):
+                raise RuntimeError(f"required merge workflow did not succeed: {required_name}")
+
     def merge_verified_pr(self, event: ContinuationEvent) -> None:
         if not self.runtime.config.allow_merge:
             raise PermissionError("autonomous merge is disabled")
@@ -139,12 +163,7 @@ class AutonomousDevelopmentActions:
             raise RuntimeError("pull request is not mergeable")
 
         runs = self.runtime.github.workflow_runs_for_commit(head_sha)
-        if not runs:
-            raise RuntimeError("no workflow evidence found for PR head")
-        incomplete = [r for r in runs if str(r.get("status")) != "completed"]
-        failed = [r for r in runs if str(r.get("conclusion")) not in {"success", "neutral", "skipped"}]
-        if incomplete or failed:
-            raise RuntimeError("not all workflow runs are complete and acceptable")
+        self._verify_merge_workflow_evidence(runs)
 
         result = self.runtime.github.merge_pull_request(number, head_sha, "squash")
         if not bool(result.get("merged")):
