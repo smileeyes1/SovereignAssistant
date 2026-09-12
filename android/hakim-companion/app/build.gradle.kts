@@ -13,9 +13,6 @@ android {
         versionCode = 5
         versionName = "0.4.0-sovereign-local"
     }
-    sourceSets {
-        getByName("main").java.exclude("**/HakimRemoteRelay.kt")
-    }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
