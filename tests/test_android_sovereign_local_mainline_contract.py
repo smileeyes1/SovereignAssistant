@@ -55,9 +55,9 @@ def test_manifest_has_only_local_core_and_explicit_deep_links():
     assert "DirectApprovalReceiver" not in manifest
 
 
-def test_mainline_release_version_and_no_false_field_claim():
+def test_release_version_and_no_false_field_claim():
     gradle = text("android/hakim-companion/app/build.gradle.kts")
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
-    assert "versionCode = 6" in gradle
-    assert 'versionName = "0.5.0-sovereign-local-mainline"' in gradle
+    assert "versionCode = 7" in gradle
+    assert 'versionName = "0.4.2-sovereign-local"' in gradle
     assert '.put("evidence_state", "NOT_PROVEN")' in server
