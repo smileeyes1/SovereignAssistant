@@ -77,28 +77,28 @@
       "tier": "P0",
       "status": "PROTECTED_ACTIVE",
       "paths": ["governance/HAKIM_ACTIVE.json", "governance/HAKIM_CANONICAL_CORE_AR.md", "governance/HAKIM_RUNTIME_POLICY_v2.json"],
-      "tests": ["tests/test_hakim_active_pointer_contract.py", "tests/test_hakim_nstar_governance.py"]
+      "tests": ["tests/test_hakim_canonical_governance_contract.py", "tests/test_hakim_nstar_governance.py"]
     },
     {
       "id": "active_state_recovery",
       "tier": "P0",
       "status": "PROTECTED_ACTIVE",
       "paths": ["governance/HAKIM_ACTIVE_STATE.json", "governance/HAKIM_CONTEXT_SEED_AR.txt"],
-      "tests": ["tests/test_hakim_one_tap_field_qualification_promotion.py"]
+      "tests": ["tests/test_hakim_active_state_recovery_contract.py", "tests/test_hakim_one_tap_field_qualification_promotion.py"]
     },
     {
       "id": "intelligence_and_best_route",
       "tier": "P1",
       "status": "PROTECTED_ACTIVE",
       "paths": ["governance/HAKIM_INTELLIGENCE_FABRIC_AR.md", "governance/HAKIM_INTELLIGENCE_MATRIX.json", "app/hakim/best_route_optimizer.py"],
-      "tests": ["tests/test_hakim_best_route_promotion.py"]
+      "tests": ["tests/test_hakim_best_route_promotion.py", "tests/test_best_route_runtime_gate.py", "tests/test_intelligence_fabric_runtime_gate.py"]
     },
     {
       "id": "autonomy_runtime",
       "tier": "P1",
       "status": "PROTECTED_ACTIVE",
       "paths": ["app/hakim/autonomy_service.py", "app/hakim/core.py", ".github/workflows/reality-gate.yml"],
-      "tests": ["tests/test_hakim_intelligence_live_gate.py"]
+      "tests": ["tests/test_autonomy_service.py", "tests/test_recovery_governor.py"]
     },
     {
       "id": "runtime_capability_health",
@@ -112,7 +112,7 @@
       "tier": "P0",
       "status": "PROTECTED_ACTIVE",
       "paths": ["android/hakim-companion/app/src/main/AndroidManifest.xml", "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt", "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt"],
-      "tests": ["tests/test_android_companion_contract.py", "tests/test_android_financial_safe_mode_contract.py"]
+      "tests": ["tests/test_android_safe_core_contract.py", "tests/test_android_companion_contract.py", "tests/test_android_financial_safe_mode_contract.py"]
     },
     {
       "id": "android_release_provenance",
@@ -126,7 +126,7 @@
       "tier": "P0",
       "status": "PROTECTED_ACTIVE",
       "paths": ["governance/HAKIM_ACTIVE_STATE.json", "scripts/android-physical-field-gate.py"],
-      "tests": ["tests/test_android_field_next_contract.py"]
+      "tests": ["tests/test_android_field_next_contract.py", "tests/test_android_physical_field_gate.py", "tests/test_android_one_tap_field_qualification_contract.py"]
     },
     {
       "id": "financial_safety",
