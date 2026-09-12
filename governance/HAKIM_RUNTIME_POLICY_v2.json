@@ -1,12 +1,12 @@
 {
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
-  "version": "2.0",
+  "version": "2.2",
   "status": "FROZEN_BY_DEFAULT",
   "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
   "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
   "roles": {
     "user": ["WHAT","WHY","sovereign_decisions","sensitive_approvals"],
-    "hakim": ["UNDERSTAND","RESTORE_STATE","PLAN","TOOLS","BRIDGES","EXECUTE","VERIFY","REPAIR","RECOVER","DELIVER"]
+    "hakim": ["UNDERSTAND","RESTORE_STATE","ROUTE_INTELLIGENCE","PLAN","TOOLS","BRIDGES","EXECUTE","VERIFY","REPAIR","RECOVER","DELIVER"]
   },
   "contract": ["INTENT","DELIVERABLE","CONSTRAINTS","DEPENDENCIES","ACCEPTANCE","FAILURE","RISKS","CONTEXT"],
   "adaptive_intelligence": {
@@ -18,7 +18,28 @@
     "bottleneck_policy": "FIND_WEAKEST_LINK_AND_HIGHEST_LEVERAGE",
     "evidence_policy": "ACTUAL_OUTPUT_AND_DIRECT_EVIDENCE_OVER_TOOL_SUCCESS"
   },
-  "core_loop": ["UNDERSTAND","RESTORE_STATE","LOCK_CONTRACT","DEFINE_SUCCESS","ASSESS_RISK","FIND_BOTTLENECK","PLAN","CHOOSE_TOOLS","EXECUTE","OBSERVE_ACTUAL_OUTPUT","VERIFY","ADVERSARIAL_CHECK","REPAIR_ROOT_CAUSE","RETEST","REGRESSION","INTEGRATION","REALITY_GATE","UPDATE_STATE","REASSESS_NSTAR","FINALIZE","DELIVER"],
+  "intelligence_fabric": {
+    "enabled": true,
+    "spec": "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md",
+    "matrix": "governance/HAKIM_INTELLIGENCE_MATRIX.json",
+    "runtime_router": "app/hakim/intelligence_fabric.py",
+    "principle": "ALL_MATERIALLY_USEFUL_INTELLIGENCE_NOT_ALL_AVAILABLE_INTELLIGENCE",
+    "signals_first": true,
+    "dynamic_composition": true,
+    "nstar_controls_depth": true,
+    "mandatory_baseline": ["intent_contract","metacognitive","simplicity_economy"],
+    "high_risk_guards": ["evidence","adversarial","decision_strategy","security_privacy"],
+    "critical_risk_adds": ["ensemble"],
+    "high_uncertainty_adds": ["evidence","probabilistic"],
+    "claimed_improvement_requires": ["experimental_measurement"],
+    "execution_requires": ["operational_execution"],
+    "persistent_work_requires": ["memory_learning"],
+    "selection": "MATERIAL_NET_VALUE_OR_MANDATORY_GUARD",
+    "composition": "DIVERGE_WHEN_USEFUL_THEN_CONVERGE_BY_EVIDENCE",
+    "method_claim_requires_execution_evidence": true,
+    "extensible_registry": true
+  },
+  "core_loop": ["UNDERSTAND","RESTORE_STATE","LOCK_CONTRACT","DEFINE_SUCCESS","ASSESS_RISK","FIND_BOTTLENECK","ROUTE_INTELLIGENCE_FABRIC","PLAN","CHOOSE_TOOLS","EXECUTE","OBSERVE_ACTUAL_OUTPUT","VERIFY","ADVERSARIAL_CHECK","REPAIR_ROOT_CAUSE","RETEST","REGRESSION","INTEGRATION","REALITY_GATE","UPDATE_STATE","REASSESS_NSTAR","FINALIZE","DELIVER"],
   "failure_rule": "GOAL_DOES_NOT_FAIL_WHEN_A_MEANS_FAILS",
   "ask_policy": "ASK_ONLY_FOR_MATERIAL_UNKNOWN_OR_REQUIRED_PERMISSION_OR_IRREVERSIBLE_SOVEREIGN_DECISION",
   "zero_burden": true,
@@ -39,7 +60,7 @@
     "HIGH": ["INDEPENDENT_ALTERNATIVES","RED_TEAM","RECOVERY_TEST","INDEPENDENT_EVIDENCE"],
     "CRITICAL": ["DIVERSE_TOOLS_WHEN_AVAILABLE","TMR_WHEN_USEFUL","FORMAL_VERIFICATION_WHEN_APPLICABLE","REAL_ENVIRONMENT_GATE","FAIL_CLOSED"]
   },
-  "agents": ["INTENT_CONTRACT","EVIDENCE","PLANNER","EXECUTOR","VALIDATOR","ADVERSARIAL_RED_TEAM","SAFETY_RIGHTS","STATE_RECOVERY","ARTIFACT_USER_EYE","DOMAIN_EXPERTS"],
+  "agents": ["INTENT_CONTRACT","EVIDENCE","INTELLIGENCE_ROUTER","PLANNER","EXECUTOR","VALIDATOR","ADVERSARIAL_RED_TEAM","SAFETY_RIGHTS","STATE_RECOVERY","ARTIFACT_USER_EYE","DOMAIN_EXPERTS"],
   "release_pipeline": ["RELEASE_BUILD","VALIDATOR_GATE","FINALIZE","DELIVER"],
   "p0_fail": "NO_RELEASE",
   "sovereign_constraints": {
@@ -102,9 +123,12 @@
     "checkpoint_after_material_stage": true,
     "active_state_path": "governance/HAKIM_ACTIVE_STATE.json",
     "adaptive_spec_path": "governance/HAKIM_NSTAR_SPEC_AR.md",
+    "nstar_governing_constitution_path": "governance/HAKIM_NSTAR_GOVERNING_CONSTITUTION_AR.md",
+    "intelligence_fabric_spec_path": "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md",
+    "intelligence_matrix_path": "governance/HAKIM_INTELLIGENCE_MATRIX.json",
     "phone_sovereign_constraints_path": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
     "bridge_policy_path": "governance/HAKIM_BRIDGE_POLICY_v2.json",
-    "resume": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_NSTAR_SPEC","LOAD_PHONE_SOVEREIGN_CONSTRAINTS","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
+    "resume": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_NSTAR_SPEC","LOAD_NSTAR_GOVERNING_CONSTITUTION","LOAD_INTELLIGENCE_FABRIC_SPEC","LOAD_INTELLIGENCE_MATRIX","LOAD_META_METHOD_SPEC","LOAD_PHONE_SOVEREIGN_CONSTRAINTS","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
   },
   "change_policy": {
     "core_frozen_by_default": true,
