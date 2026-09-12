@@ -137,7 +137,8 @@ def _translate(delivery: str, event_name: str, payload: dict[str, object]) -> Co
 def main() -> None:
     event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
     payload = _event_file()
-    _sanitize_legacy_github_payloads(os.environ.get("OMEGA_DB_PATH", ".omega/omega.db"))
+    rewrites = _sanitize_legacy_github_payloads(os.environ.get("OMEGA_DB_PATH", ".omega/omega.db"))
+    print(f"OMEGA_GITHUB_PAYLOAD_PRIVACY_REWRITES={rewrites}")
     runtime = build_runtime_from_env()
 
     delivery = os.environ.get("GITHUB_RUN_ID", "github-action") + ":" + os.environ.get("GITHUB_RUN_ATTEMPT", "1")
