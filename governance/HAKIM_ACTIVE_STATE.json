@@ -3,8 +3,8 @@
   "schema_version": "1.3",
   "active_extension_version": "2.1",
   "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
-  "last_verified_baseline": "3d45f588ce82b5054ef2045fc7599d3b4b70839a",
-  "latest_observed_main": "3d45f588ce82b5054ef2045fc7599d3b4b70839a",
+  "last_verified_baseline": "fed7afae33281cc636f27db302fe412a4c875a28",
+  "latest_observed_main": "fed7afae33281cc636f27db302fe412a4c875a28",
   "candidate_branch": "hakim/hc1-over-sovereign-lock",
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -17,6 +17,8 @@
     "candidate_debug_apk_v2_signature_and_content": "PASS",
     "stable_release_signing_identity": "PASS",
     "stable_release_apk_v2_signature_and_content": "PASS",
+    "intelligence_fabric_v1_governance_main": "PASS",
+    "intelligence_fabric_v1_reality_gate_main": "PASS",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
     "physical_phone_round_trip": "NOT_PROVEN"
   },
@@ -26,6 +28,7 @@
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
+    "adaptive_intelligence_fabric_v1",
     "durable_active_state_recovery",
     "phone_sovereign_no_developer_options_lock",
     "financial_safe_android_companion_pre_field",

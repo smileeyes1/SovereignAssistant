@@ -1,0 +1,25 @@
+{
+  "name": "HAKIM_INTELLIGENCE_FABRIC_PROMOTION",
+  "version": "1.0",
+  "status": "ACTIVE_VERIFIED",
+  "promoted_main_sha": "fed7afae33281cc636f27db302fe412a4c875a28",
+  "conditions": {
+    "merged_to_main": "PASS",
+    "governance_regression_main": "PASS",
+    "omega_autonomy_certification_main": "PASS",
+    "production_container_build_main": "PASS",
+    "live_smoke_main": "PASS",
+    "omega_apex_reality_gate_main": "PASS"
+  },
+  "scope": "INTELLIGENCE_FABRIC_EXTENSION_ONLY",
+  "preserves": [
+    "HAKIM_ONE",
+    "CANONICAL_CORE_FROZEN",
+    "RUNTIME_POLICY_VERSION_2_0",
+    "ACTIVE_POINTER_VERSION_2_1",
+    "PHONE_FIELD_VERIFICATION_UNCHANGED"
+  ],
+  "phone_field_verified": false,
+  "physical_phone_round_trip": "NOT_PROVEN",
+  "rule": "Promotion proves the intelligence-fabric governance/runtime extension on main; it does not prove physical phone field activation or literal possession of every possible intelligence method."
+}
