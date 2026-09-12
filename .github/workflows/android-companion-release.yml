@@ -82,6 +82,7 @@ jobs:
             hakim-companion-build-manifest.json
           if-no-files-found: error
       - name: Publish immutable source-build release
+        if: github.ref_name == 'main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -91,7 +92,7 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "HAKIM Companion ${GITHUB_SHA::12}" \
-            --notes "Unsigned Android Companion built from verified source. Archive integrity and source provenance are recorded in the attached manifest. Sign locally with the owned HAKIM key; no repository signing key exists. Build success is not physical field verification." \
+            --notes "Unsigned Android Companion built from verified main. Archive integrity and source provenance are recorded in the attached manifest. Sign locally with the owned HAKIM key; no repository signing key exists. Build success is not physical field verification." \
             hakim-companion-unsigned.apk \
             hakim-companion-unsigned.apk.sha256 \
             hakim-companion-build-manifest.json
