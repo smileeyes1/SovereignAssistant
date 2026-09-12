@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_ACTIVE_CANONICAL",
-  "version": "2.2",
+  "version": "2.1",
   "activation": "ACTIVE_ONLY_AFTER_GOVERNANCE_PASS_AND_MERGE",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
   "adaptive_intelligence_spec": "governance/HAKIM_NSTAR_SPEC_AR.md",
