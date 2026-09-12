@@ -2,6 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "android" / "hakim-companion"
+JAVA = APP / "app/src/main/java/org/hakim/omega/companion"
 
 
 def text(p):
@@ -11,18 +12,21 @@ def text(p):
 def test_companion_is_loopback_and_token_gated():
     s = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
     assert "InetAddress.getLoopbackAddress()" in s
-    assert "Authorization" not in s or 'headers["authorization"]' in s
+    assert 'headers["authorization"]' in s
     assert "Bearer $token" in s
     assert "0.0.0.0" not in s
 
 
-def test_control_service_is_not_exported_and_accessibility_requires_system_binding():
+def test_control_service_is_private_and_sensitive_android_services_are_absent():
     m = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
     assert 'android:name=".HakimForegroundService"' in m
     service_block = m.split('android:name=".HakimForegroundService"', 1)[1].split("</service>", 1)[0]
     assert 'android:exported="false"' in service_block
-    assert "android.permission.BIND_ACCESSIBILITY_SERVICE" in m
-    assert "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" in m
+    assert "BIND_ACCESSIBILITY_SERVICE" not in m
+    assert "BIND_NOTIFICATION_LISTENER_SERVICE" not in m
+    assert not (JAVA / "HakimAccessibilityService.kt").exists()
+    assert not (JAVA / "HakimNotificationListener.kt").exists()
+    assert not (JAVA / "HakimRemoteRelay.kt").exists()
 
 
 def test_low_resource_model_policy_is_preserved():
@@ -31,58 +35,67 @@ def test_low_resource_model_policy_is_preserved():
     assert '"agent_planning_with_local_model": False' in low
 
 
-def test_pairing_token_is_local_and_private():
+def test_pairing_token_is_local_private_and_provider_independent():
     p = text("scripts/pair-android-companion.sh")
     assert "secrets.token_urlsafe" in p
     assert "chmod 600" in p
     assert "hakim://pair?token=" in p
+    assert "relay" not in p.lower()
+    assert "make" not in p.lower()
 
 
-def test_companion_self_heals_without_remote_bridge_dependency():
+def test_companion_self_heals_local_server_without_remote_bridge_dependency():
     service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt")
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
     manifest = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
     assert "START_STICKY" in service
     assert "companion_heartbeat_ms" in service
     assert 'putBoolean("persistent_model_allowed", false)' in service
+    assert 'putBoolean("external_transport_enabled", false)' in service
     assert "server?.isListening()" in service
+    assert "HakimRemoteRelay" not in service
     assert "fun isListening()" in server
     assert "android.intent.action.MY_PACKAGE_REPLACED" in manifest
 
 
-def test_status_separates_runtime_health_from_field_evidence():
+def test_status_separates_runtime_health_from_field_evidence_and_discloses_zero_transport():
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
     assert '.put("evidence_state", "NOT_PROVEN")' in server
     assert '.put("runtime_health", prefs.getString("companion_mode", "UNKNOWN"))' in server
     assert '.put("persistent_model", JSONObject.NULL)' in server
     assert '.put("persistent_model_evidence", "NOT_PROVEN")' in server
     assert '.put("persistent_model_allowed", false)' in server
+    assert '.put("external_transport_enabled", false)' in server
+    assert '.put("accessibility", false)' in server
+    assert '.put("notification_listener", false)' in server
     assert '.put("status", "PASS")' not in server
-    assert '.put("persistent_model", false)' not in server
 
 
-def test_ui_endpoint_fails_closed_without_accessibility_instead_of_returning_empty_success():
+def test_ui_endpoint_uses_owned_browser_and_fails_closed_before_browser_is_available():
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    browser = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimBrowserController.kt")
     assert 'path == "/v1/ui"' in server
-    assert 'JSONObject().put("error", "accessibility_unavailable")' in server
-    assert 'respond(c, 409' in server
-    assert 'JSONObject().put("nodes", service.uiSnapshot())' in server
+    assert 'JSONObject().put("error", "browser_unavailable")' in server
+    assert 'JSONObject().put("nodes", HakimBrowserController.uiSnapshot())' in server
+    assert '"mode", "browser_dom"' in server
+    assert "document.querySelectorAll" in browser
+    assert '.put("mode", "SOVEREIGN_LOCAL_BROWSER")' in browser
 
 
-def test_notification_endpoint_fails_closed_without_listener_and_status_exposes_availability():
+def test_notification_endpoint_is_intentionally_disabled_and_cannot_leak_notifications():
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
-    listener = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimNotificationListener.kt")
-    assert '.put("notification_listener", HakimNotificationListener.isConnected())' in server
-    assert 'JSONObject().put("error", "notification_listener_unavailable")' in server
-    assert 'if (!HakimNotificationListener.isConnected()) respond(c, 409' in server
-    assert "override fun onListenerConnected()" in listener
-    assert "override fun onListenerDisconnected()" in listener
-    assert "fun isConnected(): Boolean = instance != null" in listener
+    assert '.put("notification_listener", false)' in server
+    assert 'notification_listener_disabled_by_play_protect_safe_mode' in server
+    assert 'path == "/v1/notifications"' in server
 
 
-def test_ui_snapshot_exposes_package_identity_for_runtime_observation():
-    service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimAccessibilityService.kt")
-    assert '.put("package", n.packageName?.toString().orEmpty())' in service
+def test_owned_browser_supports_local_proof_and_browser_only_screenshot():
+    browser = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimBrowserController.kt")
+    assert '"local_proof" -> showLocalProof' in browser
+    assert 'loadDataWithBaseURL("https://hakim.local/"' in browser
+    assert "Bitmap.createBitmap" in browser
+    assert "w.draw(canvas)" in browser
+    assert "evaluateJavascript" in browser
 
 
 def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field_pass():
@@ -91,17 +104,15 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "script: sh scripts/android-companion-emulator-runtime-gate.sh" in workflow
     assert "set -eu" in gate
     assert "pipefail" not in gate
-    assert 'pm grant "$PKG" android.permission.POST_NOTIFICATIONS' in gate
-    assert "EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY" in gate
-    assert "EMULATOR_ACCESSIBILITY_PERMISSION=SCAFFOLD_ONLY" in gate
-    assert "EMULATOR_PAIRING=SCAFFOLD_ONLY" in gate
     assert "EMULATOR_RUNTIME=PROVEN" in gate
-    assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
-    assert "llama-server" in gate
-    assert "adb reboot" in gate
+    assert "PHYSICAL_PHONE_FIELD_QUALIFICATION=NOT_PROVEN" in gate
+    assert "EMULATOR_EXTERNAL_TRANSPORT_ABSENT=PROVEN" in gate
+    assert "EMULATOR_LOCAL_PROOF=PROVEN" in gate
+    assert "BIND_ACCESSIBILITY_SERVICE" not in gate
+    assert "enabled_accessibility_services" not in gate
 
 
-def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_semantics():
+def test_emulator_gate_exercises_authenticated_local_control_and_fail_closed_semantics():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
     assert 'adb forward "tcp:${PORT}" "tcp:${PORT}"' in gate
     assert "hakim://pair?token=${PAIR_TOKEN}" in gate
@@ -111,50 +122,35 @@ def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_sem
     assert '"evidence_state":"NOT_PROVEN"' in gate
     assert '"loopback_only":true' in gate
     assert '"control_server_listening":true' in gate
-    assert '"persistent_model":null' in gate
-    assert '"persistent_model_allowed":false' in gate
-    assert "accessibility_unavailable" in gate
-    assert "screenshot_unavailable" in gate
-    assert '-d \'{\"action\":\"back\"}\'' in gate
-    assert '"ok":false' in gate
-    assert '"ok":true' in gate
-    assert "EMULATOR_AUTH_FAIL_CLOSED=PROVEN" in gate
-    assert "EMULATOR_STATUS_SEMANTICS=PROVEN" in gate
-    assert "EMULATOR_CONTROL_PLANE=PROVEN" in gate
+    assert '"external_transport_enabled":false' in gate
+    assert 'notification_listener_disabled_by_play_protect_safe_mode' in gate
+    assert "STAGE_AUTH_FAIL_CLOSED=PROVEN" in gate
+    assert "STAGE_SOVEREIGN_STATUS=PROVEN" in gate
 
 
-def test_emulator_gate_proves_accessibility_ui_screenshot_and_navigation():
+def test_emulator_gate_proves_local_browser_dom_screenshot_and_replay_protection():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
-    assert 'settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"' in gate
-    assert "settings put secure accessibility_enabled 1" in gate
-    assert '"accessibility":true' in gate
+    assert '"action":"local_proof"' in gate
     assert '"${BASE_URL}/v1/ui"' in gate
-    assert "isinstance(nodes,list)" in gate
-    assert "nodes and any" in gate
+    assert '"mode":"browser_dom"' in gate
+    assert "hakim.local" in gate
     assert '"${BASE_URL}/v1/screenshot"' in gate
     assert "base64.b64decode" in gate
     assert "data.startswith(b'\\x89PNG\\r\\n\\x1a\\n')" in gate
-    assert "ui_has_package" in gate
-    assert "UI tree lacks package identity" in gate
-    assert '-d \'{\"action\":\"home\"}\'' in gate
-    assert "HOME action did not move active Accessibility tree away from Companion" in gate
-    assert "Bounded launch did not restore Companion Accessibility tree" in gate
-    assert "STAGE_BOUNDED_LAUNCH=PROVEN" in gate
-    assert "EMULATOR_UI_TREE=PROVEN" in gate
-    assert "EMULATOR_SCREENSHOT=PROVEN" in gate
-    assert "EMULATOR_NAVIGATION=PROVEN" in gate
+    assert "STAGE_BROWSER_DOM=PROVEN" in gate
+    assert "STAGE_BROWSER_SCREENSHOT=PROVEN" in gate
+    assert "STAGE_ACTION_REPLAY_PROTECTION=PROVEN" in gate
 
 
 def test_emulator_gate_proves_kernel_loopback_binding_and_pairing_recovery():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
     assert "adb shell ss -ltn" in gate
     assert "Companion control plane is wildcard-bound" in gate
-    assert "EMULATOR_LOOPBACK_BINDING=PROVEN" in gate
+    assert "STAGE_KERNEL_LOOPBACK=PROVEN" in gate
     assert "hakim-status-after-restart.json" in gate
     assert "hakim-status-after-reboot.json" in gate
     assert "Authenticated control plane did not recover after reboot" in gate
     assert "EMULATOR_PAIRING_RECOVERY=PROVEN" in gate
-    assert "EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN" in gate
 
 
 def test_launch_requires_durable_identity_and_runtime_gate_proves_replay_rejection():
@@ -168,8 +164,5 @@ def test_launch_requires_durable_identity_and_runtime_gate_proves_replay_rejecti
     assert 'context.startActivity(intent)' in launch_block
     assert 'LAUNCH_REQUEST_ID="emulator-launch-0001"' in gate
     assert 'X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}' in gate
-    assert "bounded launch missing request identity" in gate
     assert "bounded launch replay after process death" in gate
-    assert '"error":"duplicate_request"' in gate
-    assert "STAGE_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate
-    assert "EMULATOR_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate
+    assert "STAGE_PROCESS_RECOVERY_AND_DURABLE_REPLAY=PROVEN" in gate
