@@ -87,7 +87,11 @@ def test_phone_sovereign_constraints_are_p0_and_stronger_than_generic_autonomy()
     c = _json("HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json")
     assert c["priority"] == "P0"
     constraints = c["constraints"]
-    assert constraints["governing_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
+    assert constraints["governing_phone_path"] == "HAKIM_NATIVE_LOCAL_ADB"
+    assert constraints["bootstrap_owner"] == "HAKIM_ANDROID_APP"
+    assert constraints["adb_identity"] == "HAKIM_ANDROID_KEYSTORE_LOCAL_KEY"
+    assert constraints["third_party_bootstrap_required"] is False
+    assert constraints["termux_role"] == "OPTIONAL_LEGACY_MAINTENANCE_ONLY"
     assert constraints["cloud_command_relay"] == "MAKE_PRIVATE_ON_DEMAND_RELAY"
     assert constraints["result_path"] == "RESULT_MAILBOX"
     assert constraints["public_command_transport"] == "FORBIDDEN"
