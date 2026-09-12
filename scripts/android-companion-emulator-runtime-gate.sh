@@ -136,21 +136,49 @@ grep -F '"error":"duplicate_request"' /tmp/hakim-launch-replay.json >/dev/null
 echo 'STAGE_PROCESS_RECOVERY_AND_REPLAY_LEDGER=PROVEN'
 if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then echo 'Unexpected resident local-model process' >&2; exit 1; fi
 
+# Reboot recovery is readiness-driven: Android can report boot_completed before
+# ActivityManager/PackageManager is fully ready to launch a third-party activity.
 adb reboot
 adb wait-for-device
 boot=''; i=0
-while [ "$i" -lt 90 ]; do boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r'); [ "$boot" = '1' ] && break; i=$((i + 1)); sleep 2; done
-[ "$boot" = '1' ]
-adb shell pm path "$PKG" | grep '^package:'
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-adb shell pidof "$PKG" >/dev/null
+while [ "$i" -lt 90 ]; do
+  boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+  [ "$boot" = '1' ] && break
+  i=$((i + 1)); sleep 2
+done
+[ "$boot" = '1' ] || { echo 'Android did not report boot completion' >&2; exit 1; }
+
+package_ready=0; i=0
+while [ "$i" -lt 30 ]; do
+  if adb shell pm path "$PKG" >/tmp/hakim-package-after-reboot.txt 2>/dev/null && grep '^package:' /tmp/hakim-package-after-reboot.txt >/dev/null; then
+    package_ready=1; break
+  fi
+  i=$((i + 1)); sleep 1
+done
+[ "$package_ready" = '1' ] || { echo 'Hakim package did not become queryable after reboot' >&2; cat /tmp/hakim-package-after-reboot.txt >&2 || true; exit 1; }
+cat /tmp/hakim-package-after-reboot.txt
+
+process_ready=0; i=0
+while [ "$i" -lt 30 ]; do
+  adb shell am start -W -n "$PKG/.MainActivity" >/tmp/hakim-start-after-reboot.txt 2>&1 || true
+  if adb shell pidof "$PKG" >/tmp/hakim-pid-after-reboot.txt 2>/dev/null; then
+    process_ready=1; break
+  fi
+  i=$((i + 1)); sleep 1
+done
+[ "$process_ready" = '1' ] || { echo 'Hakim process did not become ready after reboot' >&2; cat /tmp/hakim-start-after-reboot.txt >&2 || true; exit 1; }
+echo 'STAGE_POST_REBOOT_PROCESS_READY=PROVEN'
+
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-reboot.json 2>/dev/null; do i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Authenticated safe core did not recover after reboot' >&2; exit 1; }; sleep 1; done
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-reboot.json 2>/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Authenticated safe core did not recover after reboot' >&2; cat /tmp/hakim-start-after-reboot.txt >&2 || true; exit 1; }; sleep 1
+done
 reboot_status=$(cat /tmp/hakim-status-after-reboot.json)
 require_json "$reboot_status" '"safe_core":true' 'post-reboot safe core'
 require_json "$reboot_status" '"control_scope":"OWNED_BROWSER_ONLY"' 'post-reboot safe core'
 require_json "$reboot_status" '"persistent_model_allowed":false' 'post-reboot model policy'
+echo 'STAGE_POST_REBOOT_AUTHENTICATED_CONTROL=PROVEN'
 
 echo 'EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY'
 echo 'EMULATOR_ACCESSIBILITY_PERMISSION=NOT_REGISTERED_SAFE_CORE'
