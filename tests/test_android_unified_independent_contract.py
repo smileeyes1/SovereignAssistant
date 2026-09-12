@@ -61,8 +61,8 @@ def test_pairing_survives_update_key_names_and_release_version_moves_forward():
     assert 'uri.getQueryParameter("relay_base")' in activity
     assert 'const val KEY_TOPIC = "relay_topic"' in relay
     assert 'const val KEY_RELAY_KEY = "relay_hmac_key"' in relay
-    assert 'versionCode = 6' in gradle
-    assert 'versionName = "0.4.1-safe-browser-core"' in gradle
+    assert 'versionCode = 7' in gradle
+    assert 'versionName = "0.4.2-native-local-adb-bootstrap"' in gradle
 
 
 def test_financial_safe_mode_remains_a_runtime_gate():
