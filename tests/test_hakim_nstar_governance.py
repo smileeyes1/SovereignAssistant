@@ -19,8 +19,12 @@ def test_nstar_is_active_and_machine_encoded():
     assert active["intelligence_matrix"] == "governance/HAKIM_INTELLIGENCE_MATRIX.json"
     assert active["meta_method_spec"] == "governance/HAKIM_META_METHOD_AR.md"
     assert active["value_gates_spec"] == "governance/HAKIM_VALUE_GATES_AR.md"
+    assert active["continuity_shield_spec"] == "governance/HAKIM_CONTINUITY_SHIELD_AR.md"
+    assert active["continuity_shield_policy"] == "governance/HAKIM_CONTINUITY_SHIELD.json"
+    assert active["capability_transitions"] == "governance/HAKIM_CAPABILITY_TRANSITIONS.json"
     assert active["phone_sovereign_constraints"] == "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json"
     assert active["active_state"] == "governance/HAKIM_ACTIVE_STATE.json"
+    assert "CONTINUITY_SHIELD_PASS" in active["promotion_gate"]
     nstar = policy["adaptive_intelligence"]
     assert nstar["name"] == "NSTAR"
     assert nstar["enabled"] is True
@@ -39,9 +43,10 @@ def test_restore_chain_is_complete_and_files_exist():
         "LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC",
         "LOAD_NSTAR_GOVERNING_CONSTITUTION", "LOAD_INTELLIGENCE_FABRIC_SPEC",
         "LOAD_INTELLIGENCE_MATRIX", "LOAD_META_METHOD_SPEC", "LOAD_VALUE_GATES_SPEC",
-        "LOAD_PHONE_SOVEREIGN_CONSTRAINTS", "LOAD_RUNTIME_POLICY",
-        "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE", "LOAD_BRIDGE_HEALTH",
-        "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT",
+        "LOAD_CONTINUITY_SHIELD_SPEC", "LOAD_CONTINUITY_SHIELD_POLICY",
+        "LOAD_CAPABILITY_TRANSITIONS", "LOAD_PHONE_SOVEREIGN_CONSTRAINTS",
+        "LOAD_RUNTIME_POLICY", "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE",
+        "LOAD_BRIDGE_HEALTH", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT",
     ]
     assert active["restore_sequence"] == expected
     assert expected.index("LOAD_NSTAR_SPEC") < expected.index("LOAD_NSTAR_GOVERNING_CONSTITUTION")
@@ -49,11 +54,15 @@ def test_restore_chain_is_complete_and_files_exist():
     assert expected.index("LOAD_INTELLIGENCE_FABRIC_SPEC") < expected.index("LOAD_INTELLIGENCE_MATRIX")
     assert expected.index("LOAD_INTELLIGENCE_MATRIX") < expected.index("LOAD_META_METHOD_SPEC")
     assert expected.index("LOAD_META_METHOD_SPEC") < expected.index("LOAD_VALUE_GATES_SPEC")
-    assert expected.index("LOAD_VALUE_GATES_SPEC") < expected.index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS")
+    assert expected.index("LOAD_VALUE_GATES_SPEC") < expected.index("LOAD_CONTINUITY_SHIELD_SPEC")
+    assert expected.index("LOAD_CONTINUITY_SHIELD_SPEC") < expected.index("LOAD_CONTINUITY_SHIELD_POLICY")
+    assert expected.index("LOAD_CONTINUITY_SHIELD_POLICY") < expected.index("LOAD_CAPABILITY_TRANSITIONS")
+    assert expected.index("LOAD_CAPABILITY_TRANSITIONS") < expected.index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS")
     for key in (
         "core", "adaptive_intelligence_spec", "nstar_governing_constitution",
         "intelligence_fabric_spec", "intelligence_matrix", "meta_method_spec",
-        "value_gates_spec", "phone_sovereign_constraints", "runtime_policy", "bridge_policy",
+        "value_gates_spec", "continuity_shield_spec", "continuity_shield_policy",
+        "capability_transitions", "phone_sovereign_constraints", "runtime_policy", "bridge_policy",
         "active_state", "context_seed",
     ):
         assert (ROOT / active[key]).is_file(), key
