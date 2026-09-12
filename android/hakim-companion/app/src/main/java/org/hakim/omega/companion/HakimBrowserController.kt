@@ -56,6 +56,7 @@ object HakimBrowserController {
             "browser_forward" -> onMain(false) { if (it.canGoForward()) { it.goForward(); true } else false }
             "browser_reload" -> onMain(false) { it.reload(); true }
             "home" -> openUrl("https://www.google.com/")
+            "local_proof" -> showLocalProof(obj.optString("message", "نجح اختبار حكيم السيادي المحلي"))
             "click_text" -> clickText(obj.optString("text"))
             "click_css" -> clickCss(obj.optString("selector"))
             "set_text" -> setText(obj.optString("id"), obj.optString("text"), obj.optString("value"))
@@ -85,7 +86,7 @@ object HakimBrowserController {
         .put("attached", isAttached())
         .put("url", currentUrl() ?: JSONObject.NULL)
         .put("title", currentTitle() ?: JSONObject.NULL)
-        .put("mode", "PLAY_PROTECT_SAFE_BROWSER")
+        .put("mode", "SOVEREIGN_LOCAL_BROWSER")
 
     fun screenshotBase64(): String? {
         return onMain<String?>(null, 4_000L) { w ->
@@ -98,6 +99,34 @@ object HakimBrowserController {
             bmp.recycle()
             Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
         }
+    }
+
+    private fun showLocalProof(message: String): Boolean {
+        val safe = escapeHtml(message.take(1000).ifBlank { "نجح اختبار حكيم السيادي المحلي" })
+        val html = """
+            <!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>إثبات حكيم المحلي</title>
+            <style>body{font-family:sans-serif;margin:0;padding:32px;background:#fafafa;color:#111}main{max-width:720px;margin:auto;border:2px solid #111;border-radius:18px;padding:28px;background:white}h1{font-size:30px}p{font-size:20px;line-height:1.8}.ok{font-weight:700}</style>
+            </head><body><main><h1>حكيم — إثبات محلي</h1><p class="ok">$safe</p><p>تم إنشاء هذه الصفحة داخل التطبيق نفسه دون ناقل خارجي أو طلب شبكة.</p></main></body></html>
+        """.trimIndent()
+        return onMain(false) {
+            it.loadDataWithBaseURL("https://hakim.local/", html, "text/html", "UTF-8", null)
+            true
+        }
+    }
+
+    private fun escapeHtml(value: String): String = buildString(value.length) {
+        for (c in value) append(
+            when (c) {
+                '&' -> "&amp;"
+                '<' -> "&lt;"
+                '>' -> "&gt;"
+                '"' -> "&quot;"
+                '\'' -> "&#39;"
+                else -> c
+            },
+        )
     }
 
     private fun clickText(text: String): Boolean {
