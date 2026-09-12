@@ -14,6 +14,7 @@
   "continuity_shield_policy": "governance/HAKIM_CONTINUITY_SHIELD.json",
   "capability_transitions": "governance/HAKIM_CAPABILITY_TRANSITIONS.json",
   "phone_sovereign_constraints": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
+  "phone_interface_identity": "governance/HAKIM_PHONE_INTERFACE_IDENTITY.json",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
   "bridge_policy": "governance/HAKIM_BRIDGE_POLICY_v2.json",
   "active_state": "governance/HAKIM_ACTIVE_STATE.json",
