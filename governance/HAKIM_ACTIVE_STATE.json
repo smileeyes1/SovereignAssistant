@@ -1,64 +1,69 @@
 {
   "name": "HAKIM_ACTIVE_STATE",
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "active_extension_version": "2.1",
-  "status": "ACTIVE_VERIFIED_BASELINE_PRESERVED__TERMUX_FIELD_POLICY_CANDIDATE_PENDING_GATES",
+  "status": "CANDIDATE_PHONE_SOVEREIGN_LOCK_PENDING_GATES",
   "last_verified_baseline": "423ac89a1721a6727556d196e247329ee8498b10",
-  "latest_observed_main": "fe45ed61237d0e872db077914164c7bab15c33ad",
-  "candidate_branch": "hakim/restore-termux-field-primary-20260912",
+  "latest_observed_main": "fb8c41a8c57e70698aa720bf264b79da8c790b93",
+  "candidate_branch": "hakim/lock-no-developer-options-20260912",
   "promotion_evidence": {
-    "previous_governance_gate": "PASS",
-    "previous_reality_gate": "PASS",
-    "make_private_send_path_previous_evidence": "PASS",
+    "previous_financial_safe_governance": "PASS",
+    "previous_financial_safe_reality_gate": "PASS",
+    "android_companion_release_build": "PASS",
+    "android15_pre_field_runtime_gate": "PASS",
+    "make_private_send_path": "PASS",
     "physical_phone_round_trip": "NOT_PROVEN",
     "candidate_governance_gate": "PENDING",
-    "candidate_regression": "PENDING"
+    "candidate_android_gate": "PENDING",
+    "candidate_reality_gate": "PENDING"
   },
-  "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
-  "intent": "تأهيل حي للهاتف عبر Termux Wireless ADB محلي، وقناة Make خاصة عند الطلب، وصندوق نتائج خاص، مع Remote Desktop للصيانة الاختيارية فقط ودون أي ناقل أوامر عام",
+  "trigger": "LATEST_EXPLICIT_USER_SOVEREIGN_CHANGE",
+  "intent": "تشغيل حكيم على الهاتف دون إبقاء خيارات المطور أو التصحيح اللاسلكي مفعّلين، مع أولوية توافق التطبيقات المالية ووضع مالي آمن مغلق الفشل",
+  "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
     "durable_active_state_recovery",
-    "private_bridge_policy",
+    "financial_safe_android_companion_pre_field",
+    "make_private_send_path",
     "public_command_transport_disabled",
-    "make_private_send_path_previous_evidence",
     "fail_closed_sensitive_mutations",
     "arabic_first",
     "goal_does_not_fail_when_a_means_fails"
   ],
   "known_failures": [
-    "make_sender_7368010_uses_public_ntfy_and_is_inactive",
-    "make_sender_7368153_public_transport_fallback_inactive",
-    "remote_desktop_commander_offline",
-    "no_current_compliant_private_command_path_confirmed_connected_to_physical_phone"
+    "REGRESSION_FB8C41A8_PROMOTED_TERMUX_WIRELESS_ADB_AGAINST_LATEST_USER_CONSTRAINT",
+    "REMOTE_DESKTOP_COMMANDER_OFFLINE_AT_LAST_DIRECT_CHECK",
+    "PHYSICAL_PHONE_ROUND_TRIP_NOT_YET_PROVEN"
   ],
   "field_phone": {
-    "primary_path": "TERMUX_WIRELESS_ADB_LOCAL",
-    "cloud_command_path": "MAKE_PRIVATE_ON_DEMAND_RELAY",
-    "result_path": "MAKE_RESULT_MAILBOX",
-    "maintenance_fallback": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
-    "current_blocker": "ANDROID_FIRST_WIRELESS_DEBUGGING_PAIRING_IF_NOT_ALREADY_PAIRED",
+    "primary_path": "ANDROID_COMPANION_ACCESSIBILITY_PRIVATE_RELAY",
+    "developer_options": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
+    "wireless_debugging": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
+    "developer_options_required_for_normal_operation": false,
+    "wireless_debugging_required_for_normal_operation": false,
+    "maintenance_fallback": "TERMUX_WIRELESS_ADB_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "current_blocker": "LOCAL_ANDROID_COMPANION_INSTALL_OR_UPDATE_AND_EXPLICIT_ACCESSIBILITY_ACTIVATION",
     "field_verified": false,
-    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP",
-    "matrix": [
-      "SIGNED_STATUS_ROUND_TRIP",
-      "BAD_SIGNATURE_REJECTION",
-      "REPLAY_REJECTION",
-      "EXPIRY_REJECTION",
-      "STATUS_UI_SCREENSHOT_NOTIFICATIONS",
-      "ALLOWED_NAVIGATION_ACTION_LAUNCH_LOCAL_GATE",
-      "SCREEN_OFF_BACKGROUND",
-      "RECONNECT",
-      "REBOOT_CONTINUITY",
-      "OFFLINE_RECOVERY",
-      "IDEMPOTENCY_LKG",
-      "BACKUP_RESTORE_CONTAINMENT"
-    ]
+    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP_AND_FINANCIAL_APP_COMPATIBILITY"
+  },
+  "financial_safety": {
+    "priority": "P0",
+    "one_tap_safe_mode": true,
+    "stop_remote_relay": true,
+    "stop_local_control": true,
+    "disable_accessibility": true,
+    "unbind_notification_listener": true,
+    "physical_financial_app_compatibility": "NOT_PROVEN"
+  },
+  "known_live_constraint": {
+    "remote_desktop_commander": "OFFLINE_AT_LAST_DIRECT_CHECK_2026-09-12",
+    "effect": "NOT_PRIMARY; DOES_NOT_BLOCK_COMPANION_ACTIVATION",
+    "goal_rule": "DO_NOT_TREAT_BRIDGE_FAILURE_AS_GOAL_FAILURE"
   },
   "secrets": {
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT; DO_NOT_PROMOTE_CANDIDATE_UNTIL_GOVERNANCE_AND_REGRESSION_PASS"
+  "resume_rule": "LOAD_PHONE_SOVEREIGN_CONSTRAINTS_BEFORE_RUNTIME_AND_BRIDGE_POLICY; NEVER_PROMOTE_ADB_TO_NORMAL_PATH_UNLESS_A_LATER_EXPLICIT_USER_INSTRUCTION_CHANGES_THE_P0_CONSTRAINT"
 }
