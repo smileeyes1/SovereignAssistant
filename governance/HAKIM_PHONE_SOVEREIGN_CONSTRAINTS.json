@@ -1,18 +1,24 @@
 {
   "name": "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS",
-  "version": "1.1",
+  "version": "1.2",
   "status": "ACTIVE_USER_SOVEREIGN_CONSTRAINT",
   "source": "LATEST_EXPLICIT_USER_INSTRUCTION",
   "effective_date": "2026-09-12",
   "priority": "P0",
   "constraints": {
-    "governing_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "governing_phone_path": "HAKIM_NATIVE_LOCAL_ADB",
+    "bootstrap_owner": "HAKIM_ANDROID_APP",
+    "adb_identity": "HAKIM_ANDROID_KEYSTORE_LOCAL_KEY",
+    "pairing_discovery": "ANDROID_MDNS_TLS_PAIRING_LOCAL",
+    "pairing_user_input": "SIX_DIGIT_ANDROID_PAIRING_CODE_ONLY",
+    "third_party_bootstrap_required": false,
+    "termux_role": "OPTIONAL_LEGACY_MAINTENANCE_ONLY",
     "cloud_command_relay": "MAKE_PRIVATE_ON_DEMAND_RELAY",
     "result_path": "RESULT_MAILBOX",
     "maintenance_bridge": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
     "wireless_debugging_role": "LOCAL_PAIRING_AND_GOVERNED_ADB_ONLY",
     "developer_options_role": "ONLY_AS_REQUIRED_BY_ANDROID_FOR_LOCAL_WIRELESS_ADB",
-    "android_companion_role": "NON_GOVERNING_OPTIONAL_FALLBACK_ONLY_IF_PRIVATE_OR_E2E_ENCRYPTED_AND_EXPLICITLY_COMPATIBLE",
+    "android_companion_role": "HAKIM_NATIVE_GOVERNING_LOCAL_CONTROL_COMPONENT",
     "public_command_transport": "FORBIDDEN",
     "public_github_command_relay": "FORBIDDEN",
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
@@ -22,7 +28,9 @@
     "platform_protection_bypass": false,
     "play_protect_disable": false,
     "secrets_in_public_repository": false,
-    "secrets_in_context_seed": false
+    "secrets_in_context_seed": false,
+    "field_verified": false,
+    "establishment": "PENDING_PHYSICAL"
   },
   "precedence": {
     "generic_autonomy_cannot_override": true,
@@ -31,7 +39,8 @@
     "only_later_explicit_user_instruction_may_change": true
   },
   "release_gate": {
-    "reject_if_governing_path_is_not_termux_wireless_adb_local": true,
+    "reject_if_governing_path_is_not_hakim_native_local_adb": true,
+    "reject_if_third_party_bootstrap_is_required": true,
     "reject_if_cloud_relay_is_not_private_on_demand": true,
     "reject_if_public_command_transport_exists": true,
     "reject_if_public_github_command_relay_exists": true,
