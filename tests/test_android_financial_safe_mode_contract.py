@@ -119,3 +119,17 @@ def test_latest_user_phone_constraint_is_p0_and_not_overridable_by_generic_auton
     assert c["precedence"]["generic_autonomy_cannot_override"] is True
     assert c["precedence"]["optimization_cannot_override"] is True
     assert c["precedence"]["only_later_explicit_user_instruction_may_change"] is True
+
+
+# أسماء العقود التاريخية تبقى موجودة لحماية الاستمرارية. أحدث توجيه صريح
+# غيّر مسار التنفيذ من Termux إلى ADB محلي أصيل داخل حكيم، لا متطلبات الأمان.
+def test_normal_companion_control_does_not_require_developer_options_or_adb():
+    test_native_governing_adb_bootstrap_is_owned_by_hakim_and_not_a_third_party_helper()
+
+
+def test_accessibility_control_remains_available_without_adb():
+    test_accessibility_implementation_remains_legacy_optional_and_is_not_registered_in_safe_core()
+
+
+def test_runtime_policy_uses_governing_local_adb_without_weakening_android_protection():
+    test_runtime_policy_uses_hakim_native_local_adb_without_weakening_android_protection()
