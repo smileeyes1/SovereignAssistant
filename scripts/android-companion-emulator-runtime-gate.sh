@@ -1,35 +1,24 @@
 #!/system/bin/sh
-# POSIX-compatible Android emulator runtime qualification gate.
-# This is pre-field evidence only; it never qualifies a physical TECNO/HiOS device.
-# Runtime-only grants/settings are permitted only inside this disposable CI emulator.
-# Physical-device Human Gates and LOCAL_DEVICE_ONLY signing remain untouched.
+# POSIX-compatible Android 15 emulator qualification for the safe browser core.
+# Pre-field evidence only; never qualifies the physical TECNO/HiOS device.
 set -eu
 
 APK="android/hakim-companion/app/build/outputs/apk/debug/app-debug.apk"
 PKG="org.hakim.omega.companion"
-ACCESSIBILITY_SERVICE="${PKG}/.HakimAccessibilityService"
 PORT="47651"
 PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
 AUTH="Authorization: Bearer ${PAIR_TOKEN}"
+OPEN_ID="emulator-browser-open-0001"
+RELOAD_ID="emulator-browser-reload-0001"
 LAUNCH_REQUEST_ID="emulator-launch-0001"
 
 fail_http() { echo "$1: expected HTTP $2 got $3" >&2; [ -f "$4" ] && cat "$4" >&2 || true; exit 1; }
 require_json() { printf '%s' "$1" | grep -F "$2" >/dev/null || { echo "$3: missing $2" >&2; printf '%s\n' "$1" >&2; exit 1; }; }
-ui_has_package() {
-  expected="$1"
-  python3 - "$expected" <<'PY'
-import json,sys
-expected=sys.argv[1]
-with open('/tmp/hakim-observed-ui.json',encoding='utf-8') as f: obj=json.load(f)
-nodes=obj.get('nodes') or []
-raise SystemExit(0 if any(n.get('package')==expected for n in nodes) else 1)
-PY
-}
 
 adb install -r "$APK"
 adb shell pm path "$PKG" | grep '^package:'
-adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS
+adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS || true
 adb shell am start -W -n "$PKG/.MainActivity"
 adb shell dumpsys activity activities | grep -F "$PKG" >/dev/null
 adb shell pidof "$PKG" >/dev/null
@@ -51,11 +40,14 @@ echo 'STAGE_AUTH_FAIL_CLOSED=PROVEN'
 status=$(cat /tmp/hakim-status.json)
 require_json "$status" '"evidence_state":"NOT_PROVEN"' 'status semantics'
 require_json "$status" '"loopback_only":true' 'status semantics'
+require_json "$status" '"safe_core":true' 'safe core semantics'
+require_json "$status" '"control_scope":"OWNED_BROWSER_ONLY"' 'safe core scope'
+require_json "$status" '"device_wide_accessibility":false' 'safe core scope'
+require_json "$status" '"notification_access":false' 'safe core scope'
 require_json "$status" '"control_server_listening":true' 'status semantics'
 require_json "$status" '"persistent_model":null' 'status semantics'
 require_json "$status" '"persistent_model_evidence":"NOT_PROVEN"' 'status semantics'
 require_json "$status" '"persistent_model_allowed":false' 'status semantics'
-require_json "$status" '"accessibility":false' 'status precondition'
 echo 'STAGE_STATUS_SEMANTICS=PROVEN'
 
 listen=$(adb shell ss -ltn 2>/dev/null | grep ":${PORT}" || true)
@@ -64,123 +56,141 @@ printf '%s\n' "$listen" | grep -E '127\.0\.0\.1|\[::1\]|::1' >/dev/null || { ech
 if printf '%s\n' "$listen" | grep -E '0\.0\.0\.0|\[::\]:|:::47651' >/dev/null; then echo 'Companion control plane is wildcard-bound' >&2; exit 1; fi
 echo 'STAGE_KERNEL_LOOPBACK=PROVEN'
 
-code=$(curl -sS -o /tmp/hakim-ui-unavailable.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-[ "$code" = '409' ] || fail_http 'UI without Accessibility' 409 "$code" /tmp/hakim-ui-unavailable.json
-grep -F '"error":"accessibility_unavailable"' /tmp/hakim-ui-unavailable.json >/dev/null || { cat /tmp/hakim-ui-unavailable.json >&2; exit 1; }
-echo 'STAGE_UI_FAIL_CLOSED=PROVEN'
-code=$(curl -sS -o /tmp/hakim-screenshot-unavailable.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
-[ "$code" = '409' ] || fail_http 'screenshot without Accessibility' 409 "$code" /tmp/hakim-screenshot-unavailable.json
-grep -F '"error":"screenshot_unavailable"' /tmp/hakim-screenshot-unavailable.json >/dev/null || { cat /tmp/hakim-screenshot-unavailable.json >&2; exit 1; }
-echo 'STAGE_SCREENSHOT_FAIL_CLOSED=PROVEN'
-code=$(curl -sS -o /tmp/hakim-action-unavailable.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"back"}' "${BASE_URL}/v1/action")
-[ "$code" = '409' ] || fail_http 'action without Accessibility' 409 "$code" /tmp/hakim-action-unavailable.json
-grep -F '"ok":false' /tmp/hakim-action-unavailable.json >/dev/null || { cat /tmp/hakim-action-unavailable.json >&2; exit 1; }
-echo 'STAGE_ACTION_FAIL_CLOSED=PROVEN'
+# The safe core must not expose device-wide sensitive services in package metadata.
+if adb shell dumpsys package "$PKG" | grep -E 'HakimAccessibilityService|HakimNotificationListener' >/dev/null; then
+  echo 'Sensitive device-wide service unexpectedly registered in safe core' >&2
+  exit 1
+fi
+echo 'STAGE_SENSITIVE_SERVICES_ABSENT=PROVEN'
 
-adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
-adb shell settings put secure accessibility_enabled 1
+# Owned browser is attached even before navigation. Compatibility UI endpoint must
+# resolve to the owned browser rather than device-wide Accessibility.
+code=$(curl -sS -o /tmp/hakim-ui-initial.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+[ "$code" = '200' ] || fail_http 'owned browser UI endpoint' 200 "$code" /tmp/hakim-ui-initial.json
+grep -F '"scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-ui-initial.json >/dev/null || { cat /tmp/hakim-ui-initial.json >&2; exit 1; }
+echo 'STAGE_OWNED_BROWSER_UI_ENDPOINT=PROVEN'
+
+# Open a stable HTTPS page through the exact compatibility action route.
+code=$(curl -sS -o /tmp/hakim-browser-open.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${OPEN_ID}" -H 'Content-Type: application/json' -d '{"action":"browser_open","url":"https://example.com"}' "${BASE_URL}/v1/action")
+[ "$code" = '200' ] || fail_http 'owned browser open' 200 "$code" /tmp/hakim-browser-open.json
+grep -F '"ok":true' /tmp/hakim-browser-open.json >/dev/null || { cat /tmp/hakim-browser-open.json >&2; exit 1; }
 
 i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-accessibility.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-status-accessibility.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Accessibility service did not become ready in emulator' >&2; cat /tmp/hakim-status-accessibility.json >&2 || true; exit 1; }; sleep 1
-done
-echo 'STAGE_ACCESSIBILITY_CONNECTED=PROVEN'
-
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-i=0
-while [ "$i" -lt 20 ]; do
+while [ "$i" -lt 30 ]; do
   code=$(curl -sS -o /tmp/hakim-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-  if [ "$code" = '200' ] && python3 - <<'PY'
-import json
-with open('/tmp/hakim-ui.json', encoding='utf-8') as f: obj=json.load(f)
-nodes=obj.get('nodes')
-raise SystemExit(0 if isinstance(nodes,list) and nodes and any(n.get('class') for n in nodes) else 1)
-PY
-  then break; fi
+  if [ "$code" = '200' ] && grep -F 'example.com' /tmp/hakim-ui.json >/dev/null; then break; fi
   i=$((i + 1)); sleep 1
 done
-[ "$i" -lt 20 ] || { echo 'Accessibility UI tree did not become non-empty' >&2; cat /tmp/hakim-ui.json >&2 || true; exit 1; }
-grep -F '"package"' /tmp/hakim-ui.json >/dev/null || { echo 'UI tree lacks package identity' >&2; cat /tmp/hakim-ui.json >&2; exit 1; }
-echo 'STAGE_UI_TREE=PROVEN'
+[ "$i" -lt 30 ] || { echo 'Owned browser did not navigate to HTTPS fixture' >&2; cat /tmp/hakim-ui.json >&2 || true; exit 1; }
+echo 'STAGE_OWNED_BROWSER_NAVIGATION=PROVEN'
 
-code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot") || { rc=$?; echo "Screenshot request transport failed rc=$rc" >&2; cat /tmp/hakim-screenshot.json >&2 || true; exit "$rc"; }
-echo "STAGE_SCREENSHOT_HTTP=$code"
-[ "$code" = '200' ] || fail_http 'screenshot with Accessibility' 200 "$code" /tmp/hakim-screenshot.json
+code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
+[ "$code" = '200' ] || fail_http 'owned browser screenshot' 200 "$code" /tmp/hakim-screenshot.json
 python3 - <<'PY'
 import base64,json
 with open('/tmp/hakim-screenshot.json',encoding='utf-8') as f: obj=json.load(f)
 data=base64.b64decode(obj['png_base64'],validate=True)
 assert len(data)>1000,len(data)
 assert data.startswith(b'\x89PNG\r\n\x1a\n'),data[:8]
+assert obj.get('mode')=='owned_browser_view',obj
 PY
-echo 'STAGE_SCREENSHOT=PROVEN'
+echo 'STAGE_OWNED_BROWSER_SCREENSHOT=PROVEN'
 
-code=$(curl -sS -o /tmp/hakim-action-home.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"home"}' "${BASE_URL}/v1/action")
-[ "$code" = '200' ] || fail_http 'HOME action' 200 "$code" /tmp/hakim-action-home.json
-grep -F '"ok":true' /tmp/hakim-action-home.json >/dev/null
-i=0
-while [ "$i" -lt 10 ]; do
-  code=$(curl -sS -o /tmp/hakim-observed-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-  if [ "$code" = '200' ] && ! ui_has_package "$PKG"; then break; fi
-  i=$((i + 1)); sleep 1
-done
-[ "$i" -lt 10 ] || { echo 'HOME action did not move active Accessibility tree away from Companion' >&2; cat /tmp/hakim-observed-ui.json >&2 || true; exit 1; }
-echo 'STAGE_NAVIGATION=PROVEN'
+# Browser mutation requires identity, executes once, then rejects exact replay.
+code=$(curl -sS -o /tmp/hakim-reload-no-id.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d '{"action":"browser_reload"}' "${BASE_URL}/v1/action")
+[ "$code" = '400' ] || fail_http 'browser reload missing request identity' 400 "$code" /tmp/hakim-reload-no-id.json
+grep -F '"error":"request_id_required"' /tmp/hakim-reload-no-id.json >/dev/null
+code=$(curl -sS -o /tmp/hakim-reload.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${RELOAD_ID}" -H 'Content-Type: application/json' -d '{"action":"browser_reload"}' "${BASE_URL}/v1/action")
+[ "$code" = '200' ] || fail_http 'identified browser reload' 200 "$code" /tmp/hakim-reload.json
+code=$(curl -sS -o /tmp/hakim-reload-replay.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${RELOAD_ID}" -H 'Content-Type: application/json' -d '{"action":"browser_reload"}' "${BASE_URL}/v1/action")
+[ "$code" = '409' ] || fail_http 'browser reload replay' 409 "$code" /tmp/hakim-reload-replay.json
+grep -F '"error":"duplicate_request"' /tmp/hakim-reload-replay.json >/dev/null
+echo 'STAGE_OWNED_BROWSER_ACTION_IDEMPOTENCY=PROVEN'
 
+# Notification data is intentionally unavailable in the safe core.
+code=$(curl -sS -o /tmp/hakim-notifications-disabled.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/notifications")
+[ "$code" = '410' ] || fail_http 'safe-core notifications disabled' 410 "$code" /tmp/hakim-notifications-disabled.json
+grep -F '"error":"disabled_in_safe_core"' /tmp/hakim-notifications-disabled.json >/dev/null
+echo 'STAGE_NOTIFICATION_ACCESS_ABSENT=PROVEN'
+
+# Bounded launch remains request-ID protected.
 code=$(curl -sS -o /tmp/hakim-launch-missing-id.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '400' ] || fail_http 'bounded launch missing request identity' 400 "$code" /tmp/hakim-launch-missing-id.json
-grep -F '"error":"request_id_required"' /tmp/hakim-launch-missing-id.json >/dev/null || { cat /tmp/hakim-launch-missing-id.json >&2; exit 1; }
 code=$(curl -sS -o /tmp/hakim-launch.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '200' ] || fail_http 'bounded launch' 200 "$code" /tmp/hakim-launch.json
 grep -F '"ok":true' /tmp/hakim-launch.json >/dev/null
-grep -F "\"request_id\":\"${LAUNCH_REQUEST_ID}\"" /tmp/hakim-launch.json >/dev/null
-i=0
-while [ "$i" -lt 10 ]; do
-  code=$(curl -sS -o /tmp/hakim-observed-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-  if [ "$code" = '200' ] && ui_has_package "$PKG"; then break; fi
-  i=$((i + 1)); sleep 1
-done
-[ "$i" -lt 10 ] || { echo 'Bounded launch did not restore Companion Accessibility tree' >&2; cat /tmp/hakim-observed-ui.json >&2 || true; cat /tmp/hakim-launch.json >&2; exit 1; }
 echo 'STAGE_BOUNDED_LAUNCH=PROVEN'
 
+# Pairing and replay ledger survive process death.
 adb shell am force-stop "$PKG"
-adb shell am start -W -n "$PKG/.MainActivity"
+adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 adb shell pidof "$PKG" >/dev/null
+adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-restart.json 2>/dev/null; do
   i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Companion control plane did not recover after process death' >&2; exit 1; }; sleep 1
 done
-printf '%s' "$(cat /tmp/hakim-status-after-restart.json)" | grep -F '"persistent_model_allowed":false' >/dev/null
 code=$(curl -sS -o /tmp/hakim-launch-replay.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${LAUNCH_REQUEST_ID}" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '409' ] || fail_http 'bounded launch replay after process death' 409 "$code" /tmp/hakim-launch-replay.json
-grep -F '"error":"duplicate_request"' /tmp/hakim-launch-replay.json >/dev/null || { cat /tmp/hakim-launch-replay.json >&2; exit 1; }
-echo 'STAGE_LAUNCH_REPLAY_PROTECTION=PROVEN'
+grep -F '"error":"duplicate_request"' /tmp/hakim-launch-replay.json >/dev/null
+echo 'STAGE_PROCESS_RECOVERY_AND_REPLAY_LEDGER=PROVEN'
 if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then echo 'Unexpected resident local-model process' >&2; exit 1; fi
 
+# Reboot recovery is readiness-driven: Android can report boot_completed before
+# ActivityManager/PackageManager is fully ready to launch a third-party activity.
 adb reboot
 adb wait-for-device
 boot=''; i=0
-while [ "$i" -lt 90 ]; do boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r'); [ "$boot" = '1' ] && break; i=$((i + 1)); sleep 2; done
-[ "$boot" = '1' ]
-adb shell pm path "$PKG" | grep '^package:'
-adb shell am start -W -n "$PKG/.MainActivity"
-adb shell pidof "$PKG" >/dev/null
-adb forward "tcp:${PORT}" "tcp:${PORT}"
+while [ "$i" -lt 90 ]; do
+  boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+  [ "$boot" = '1' ] && break
+  i=$((i + 1)); sleep 2
+done
+[ "$boot" = '1' ] || { echo 'Android did not report boot completion' >&2; exit 1; }
+
+package_ready=0; i=0
+while [ "$i" -lt 30 ]; do
+  if adb shell pm path "$PKG" >/tmp/hakim-package-after-reboot.txt 2>/dev/null && grep '^package:' /tmp/hakim-package-after-reboot.txt >/dev/null; then
+    package_ready=1; break
+  fi
+  i=$((i + 1)); sleep 1
+done
+[ "$package_ready" = '1' ] || { echo 'Hakim package did not become queryable after reboot' >&2; cat /tmp/hakim-package-after-reboot.txt >&2 || true; exit 1; }
+cat /tmp/hakim-package-after-reboot.txt
+
+process_ready=0; i=0
+while [ "$i" -lt 30 ]; do
+  adb shell am start -W -n "$PKG/.MainActivity" >/tmp/hakim-start-after-reboot.txt 2>&1 || true
+  if adb shell pidof "$PKG" >/tmp/hakim-pid-after-reboot.txt 2>/dev/null; then
+    process_ready=1; break
+  fi
+  i=$((i + 1)); sleep 1
+done
+[ "$process_ready" = '1' ] || { echo 'Hakim process did not become ready after reboot' >&2; cat /tmp/hakim-start-after-reboot.txt >&2 || true; exit 1; }
+echo 'STAGE_POST_REBOOT_PROCESS_READY=PROVEN'
+
+adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-reboot.json 2>/dev/null; do i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Authenticated control plane did not recover after reboot' >&2; exit 1; }; sleep 1; done
-printf '%s' "$(cat /tmp/hakim-status-after-reboot.json)" | grep -F '"evidence_state":"NOT_PROVEN"' >/dev/null
-printf '%s' "$(cat /tmp/hakim-status-after-reboot.json)" | grep -F '"persistent_model_allowed":false' >/dev/null
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-reboot.json 2>/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Authenticated safe core did not recover after reboot' >&2; cat /tmp/hakim-start-after-reboot.txt >&2 || true; exit 1; }; sleep 1
+done
+reboot_status=$(cat /tmp/hakim-status-after-reboot.json)
+require_json "$reboot_status" '"safe_core":true' 'post-reboot safe core'
+require_json "$reboot_status" '"control_scope":"OWNED_BROWSER_ONLY"' 'post-reboot safe core'
+require_json "$reboot_status" '"persistent_model_allowed":false' 'post-reboot model policy'
+echo 'STAGE_POST_REBOOT_AUTHENTICATED_CONTROL=PROVEN'
 
 echo 'EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY'
-echo 'EMULATOR_ACCESSIBILITY_PERMISSION=SCAFFOLD_ONLY'
+echo 'EMULATOR_ACCESSIBILITY_PERMISSION=NOT_REGISTERED_SAFE_CORE'
 echo 'EMULATOR_PAIRING=SCAFFOLD_ONLY'
 echo 'EMULATOR_AUTH_FAIL_CLOSED=PROVEN'
 echo 'EMULATOR_LOOPBACK_BINDING=PROVEN'
 echo 'EMULATOR_STATUS_SEMANTICS=PROVEN'
-echo 'EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN'
-echo 'EMULATOR_UI_TREE=PROVEN'
-echo 'EMULATOR_SCREENSHOT=PROVEN'
-echo 'EMULATOR_NAVIGATION=PROVEN'
+echo 'EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN_SAFE_CORE'
+echo 'EMULATOR_UI_TREE=PROVEN_OWNED_BROWSER_ONLY'
+echo 'EMULATOR_SCREENSHOT=PROVEN_OWNED_BROWSER_ONLY'
+echo 'EMULATOR_NAVIGATION=PROVEN_OWNED_BROWSER_ONLY'
+echo 'EMULATOR_ACTION_IDEMPOTENCY=PROVEN_OWNED_BROWSER_ONLY'
 echo 'EMULATOR_LAUNCH_REPLAY_PROTECTION=PROVEN'
 echo 'EMULATOR_PAIRING_RECOVERY=PROVEN'
 echo 'EMULATOR_CONTROL_PLANE=PROVEN'

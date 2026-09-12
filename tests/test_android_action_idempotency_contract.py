@@ -8,10 +8,9 @@ def source():
     return SERVER.read_text(encoding="utf-8")
 
 
-def test_non_idempotent_actions_require_request_identity_and_durable_claim():
+def test_browser_actions_require_request_identity_and_durable_claim():
     s = source()
     assert 'headers["x-hakim-request-id"]' in s
-    assert 'action != "home"' in s
     assert 'request_id_required' in s
     assert 'duplicate_request' in s
     assert 'getSharedPreferences("hakim_idempotency", Context.MODE_PRIVATE)' in s
@@ -20,15 +19,14 @@ def test_non_idempotent_actions_require_request_identity_and_durable_claim():
     assert '@Synchronized' in s
 
 
-def test_missing_accessibility_still_fails_closed_before_idempotency_claim():
+def test_missing_owned_browser_fails_closed():
     s = source()
-    service_check = s.index('if (service == null)')
-    request_check = s.index('val requestId = headers["x-hakim-request-id"]')
-    assert service_check < request_check
-    assert 'accessibility_unavailable' in s
+    assert '!HakimBrowserController.isAttached()' in s
+    assert 'browser_unavailable' in s
+    assert 'HakimBrowserController.action(JSONObject(body))' in s
 
 
-def test_home_remains_compatible_because_repeating_home_is_idempotent():
+def test_device_wide_home_exception_is_not_present_in_safe_core():
     s = source()
-    assert 'action != "home"' in s
-    assert 'requestId ?: JSONObject.NULL' in s
+    assert 'action != "home"' not in s
+    assert 'HakimAccessibilityService' not in s

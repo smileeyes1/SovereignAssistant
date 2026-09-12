@@ -22,18 +22,10 @@
         </activity>
 
         <service android:name=".HakimForegroundService" android:exported="false" android:foregroundServiceType="specialUse">
-            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized device and owned-browser control bridge" />
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized encrypted relay and owned-browser control" />
         </service>
 
-        <service android:name=".HakimAccessibilityService" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
-            <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
-        </service>
-
-        <service android:name=".HakimNotificationListener" android:exported="true" android:label="HAKIM Ω Notification Access" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
-        </service>
-
+        <!-- Safe core intentionally does not register AccessibilityService or NotificationListenerService. -->
         <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".DirectApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".FinancialSafeModeReceiver" android:enabled="true" android:exported="false" />

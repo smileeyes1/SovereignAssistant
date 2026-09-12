@@ -68,8 +68,6 @@ class MainActivity : Activity() {
         val token = uri.getQueryParameter("token").orEmpty()
         if (token.length !in 32..256) return
 
-        // Local pairing is a valid capability on its own. Remote transport is optional
-        // and must never make the loopback control plane unavailable.
         getSharedPreferences("hakim", MODE_PRIVATE).edit().putString("pair_token", token).apply()
 
         val relayTopic = uri.getQueryParameter("relay_topic")
@@ -95,7 +93,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "مستقل مجاني: لا Make ولا مفتاح API مدفوع. قناة مشفّرة مباشرة + متصفح حكيم + تحكم الجهاز المصرّح به."
+            text = "النواة الآمنة ٠٫٤٫١: قناة مشفّرة مباشرة + متصفح حكيم المملوك، بلا وصول عام لشاشة الهاتف أو إشعارات التطبيقات."
             textSize = 14f
         })
 
@@ -122,15 +120,6 @@ class MainActivity : Activity() {
             refreshStatus()
         })
         root.addView(safety)
-
-        val permissions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        permissions.addView(button("تحكم الواجهة") {
-            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        })
-        permissions.addView(button("وصول الإشعارات") {
-            if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        })
-        root.addView(permissions)
 
         val serviceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         serviceControls.addView(button("إعدادات البطارية") {
@@ -199,14 +188,15 @@ class MainActivity : Activity() {
         val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: مستقل مجاني — بلا Make وبلا API مدفوع\n" +
+        status.text = "النمط: نواة آمنة مستقلة — بلا Make وبلا API مدفوع\n" +
+            "نطاق التحكم: متصفح حكيم المملوك فقط\n" +
+            "وصول عام لشاشة الهاتف: غير موجود في هذه النسخة\n" +
+            "وصول لإشعارات التطبيقات: غير موجود في هذه النسخة\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
             "الاقتران: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
             "القناة المشفّرة: ${if (configured) "مهيأة" else "غير مهيأة"}\n" +
             "الناقل: $relayBase\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
-            "تحكم الواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
-            "وصول الإشعارات: ${if (HakimNotificationListener.isConnected()) "متصل" else "غير متصل"}\n" +
             "آخر اتصال بالقناة: ${if (lastPoll > 0L) "تم" else "لم يُثبت بعد"}\n" +
             "خطأ القناة: ${lastError ?: "لا يوجد"}\n" +
             "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}\n" +

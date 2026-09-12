@@ -33,21 +33,24 @@ def test_foreground_runtime_uses_direct_transport_not_legacy_transport():
     assert 'START_STICKY' in service
 
 
-def test_unified_build_keeps_device_services_and_owned_browser():
+def test_safe_unified_build_keeps_owned_browser_without_sensitive_device_services():
     manifest = text(MANIFEST)
     activity = text(APP / "MainActivity.kt")
     local = text(APP / "LocalControlServer.kt")
-    assert '.HakimAccessibilityService' in manifest
-    assert '.HakimNotificationListener' in manifest
+    assert '.HakimAccessibilityService' not in manifest
+    assert '.HakimNotificationListener' not in manifest
+    assert 'BIND_ACCESSIBILITY_SERVICE' not in manifest
+    assert 'BIND_NOTIFICATION_LISTENER_SERVICE' not in manifest
     assert '.DirectApprovalReceiver' in manifest
     assert 'HakimBrowserController.attach(browser)' in activity
-    assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' in activity
-    assert 'Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS' in activity
+    assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' not in activity
+    assert 'Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS' not in activity
     assert 'HakimDirectRelay.configure' in activity
-    assert 'HakimAccessibilityService.instance' in local
-    assert 'HakimNotificationListener.isConnected()' in local
+    assert 'HakimAccessibilityService.instance' not in local
+    assert 'HakimNotificationListener.isConnected()' not in local
     assert 'HakimBrowserController.uiSnapshot()' in local
     assert 'HakimBrowserController.screenshotBase64()' in local
+    assert '"control_scope", "OWNED_BROWSER_ONLY"' in local
 
 
 def test_pairing_survives_update_key_names_and_release_version_moves_forward():
@@ -58,8 +61,8 @@ def test_pairing_survives_update_key_names_and_release_version_moves_forward():
     assert 'uri.getQueryParameter("relay_base")' in activity
     assert 'const val KEY_TOPIC = "relay_topic"' in relay
     assert 'const val KEY_RELAY_KEY = "relay_hmac_key"' in relay
-    assert 'versionCode = 5' in gradle
-    assert 'versionName = "0.4.0-unified-independent"' in gradle
+    assert 'versionCode = 6' in gradle
+    assert 'versionName = "0.4.1-safe-browser-core"' in gradle
 
 
 def test_financial_safe_mode_remains_a_runtime_gate():

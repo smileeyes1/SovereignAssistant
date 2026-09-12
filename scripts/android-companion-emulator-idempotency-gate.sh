@@ -1,76 +1,68 @@
 #!/system/bin/sh
-# Disposable Android 15 proof that non-idempotent Companion UI actions cannot replay.
+# Android 15 proof that owned-browser mutations cannot replay in the safe core.
 # Pre-field evidence only; never qualifies physical TECNO/HiOS behavior.
 set -eu
 
 PKG="org.hakim.omega.companion"
-ACCESSIBILITY_SERVICE="${PKG}/.HakimAccessibilityService"
 PORT="47651"
 PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
 AUTH="Authorization: Bearer ${PAIR_TOKEN}"
 RID="emulator-replay-proof-0001"
-ACTION='{"action":"tap","x":540,"y":1200}'
+ACTION='{"action":"browser_reload"}'
 
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
-
-# Earlier gates intentionally exercise reboot/revocation and may leave
-# Accessibility disconnected. Establish this gate's own explicit precondition
-# instead of depending on mutable state from another test.
-adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
-adb shell settings put secure accessibility_enabled 1
-i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-idempotency-status.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Accessibility did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
-done
-echo 'STAGE_IDEMPOTENCY_ACCESSIBILITY_PRECONDITION=PROVEN'
-
-# Accessibility connection alone does not prove that a stable active window
-# exists for gesture dispatch. Earlier gates may leave HOME/system UI active.
-# Make this gate own that mutable precondition as well: launch Companion and
-# observe its package in the Accessibility tree before issuing the first tap.
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-i=0
-until code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui") && [ "$code" = '200' ] && grep -F "\"package\":\"${PKG}\"" /tmp/hakim-idempotency-ui.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 20 ] || { echo 'Stable Companion active window not observed for replay proof' >&2; cat /tmp/hakim-idempotency-ui.json >&2 || true; exit 1; }; sleep 1
-done
-echo 'STAGE_IDEMPOTENCY_ACTIVE_WINDOW_PRECONDITION=PROVEN'
 
-# Use a bounded gesture rather than BACK: BACK success depends on whatever
-# screen a previous gate happened to leave active, while dispatching a tap is
-# itself the non-idempotent side effect whose replay protection we need to prove.
-# Without a durable identity it must fail closed before dispatch.
+# Runtime status and WebView attachment are distinct readiness conditions.
+i=0
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"control_scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-idempotency-status.json >/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Safe-core control plane did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
+done
+
+i=0
+while [ "$i" -lt 30 ]; do
+  code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+  if [ "$code" = '200' ] && grep -F '"scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-idempotency-ui.json >/dev/null; then break; fi
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 30 ] || { echo 'Owned browser did not attach for replay proof' >&2; cat /tmp/hakim-idempotency-ui.json >&2 || true; exit 1; }
+echo 'STAGE_IDEMPOTENCY_OWNED_BROWSER_PRECONDITION=PROVEN'
+
+# Without a durable identity the mutation must fail closed before dispatch.
 code=$(curl -sS -o /tmp/hakim-no-rid.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
 [ "$code" = '400' ] || { echo "missing request identity expected 400 got $code" >&2; cat /tmp/hakim-no-rid.json >&2; exit 1; }
-grep -F '"error":"request_id_required"' /tmp/hakim-no-rid.json >/dev/null || { echo 'missing request identity response lacked request_id_required' >&2; cat /tmp/hakim-no-rid.json >&2; exit 1; }
+grep -F '"error":"request_id_required"' /tmp/hakim-no-rid.json >/dev/null || { cat /tmp/hakim-no-rid.json >&2; exit 1; }
 echo 'STAGE_IDEMPOTENCY_MISSING_ID_FAIL_CLOSED=PROVEN'
 
-# Execute once with an explicit durable request identity.
+# Execute exactly once with a durable request identity.
 code=$(curl -sS -o /tmp/hakim-rid-first.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${RID}" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
-[ "$code" = '200' ] || { echo "first identified action expected 200 got $code" >&2; cat /tmp/hakim-rid-first.json >&2; exit 1; }
+[ "$code" = '200' ] || { echo "first identified browser action expected 200 got $code" >&2; cat /tmp/hakim-rid-first.json >&2; exit 1; }
 grep -F '"ok":true' /tmp/hakim-rid-first.json >/dev/null || { cat /tmp/hakim-rid-first.json >&2; exit 1; }
 echo 'STAGE_IDEMPOTENCY_FIRST_EXECUTION=PROVEN'
 
-# Kill the process to prove the replay ledger survives process death.
+# Process death must not erase the replay ledger.
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 adb shell pidof "$PKG" >/dev/null
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
-
-# A replay proof must not depend on a race between process restart and
-# Accessibility service rebinding. Re-establish and observe the same authority
-# precondition before asserting that duplicate rejection wins before execution.
-adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
-adb shell settings put secure accessibility_enabled 1
 i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-idempotency-after-restart.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Companion/Accessibility did not recover for replay proof' >&2; cat /tmp/hakim-idempotency-after-restart.json >&2 || true; exit 1; }; sleep 1
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Safe core did not recover for replay proof' >&2; exit 1; }; sleep 1
 done
-echo 'STAGE_IDEMPOTENCY_POST_RESTART_PRECONDITION=PROVEN'
 
-# Replay of the same request identity must be rejected before execution.
+# Duplicate rejection must remain durable. Wait for the owned browser so a 409 can
+# only mean replay protection, not a transient browser-unavailable race.
+i=0
+while [ "$i" -lt 30 ]; do
+  code=$(curl -sS -o /tmp/hakim-idempotency-ui-after-restart.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+  [ "$code" = '200' ] && break
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 30 ] || { echo 'Owned browser did not recover after process death' >&2; cat /tmp/hakim-idempotency-ui-after-restart.json >&2 || true; exit 1; }
+
 code=$(curl -sS -o /tmp/hakim-rid-replay.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${RID}" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
-[ "$code" = '409' ] || { echo "duplicate request expected 409 got $code" >&2; cat /tmp/hakim-rid-replay.json >&2; exit 1; }
+[ "$code" = '409' ] || { echo "duplicate browser request expected 409 got $code" >&2; cat /tmp/hakim-rid-replay.json >&2; exit 1; }
 grep -F '"error":"duplicate_request"' /tmp/hakim-rid-replay.json >/dev/null || { cat /tmp/hakim-rid-replay.json >&2; exit 1; }
 grep -F "\"request_id\":\"${RID}\"" /tmp/hakim-rid-replay.json >/dev/null || { cat /tmp/hakim-rid-replay.json >&2; exit 1; }
 
@@ -79,6 +71,6 @@ if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then
   exit 1
 fi
 
-echo 'EMULATOR_ACTION_IDEMPOTENCY=PROVEN'
+echo 'EMULATOR_ACTION_IDEMPOTENCY=PROVEN_OWNED_BROWSER_ONLY'
 echo 'EMULATOR_ACTION_REPLAY_AFTER_PROCESS_DEATH=PROVEN'
 echo 'PHYSICAL_TECNO_IDEMPOTENCY_QUALIFICATION=NOT_PROVEN'

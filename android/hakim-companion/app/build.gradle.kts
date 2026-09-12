@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.0-unified-independent"
+        versionCode = 6
+        versionName = "0.4.1-safe-browser-core"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
