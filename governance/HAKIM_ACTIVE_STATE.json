@@ -1,21 +1,22 @@
 {
   "name": "HAKIM_ACTIVE_STATE",
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "active_extension_version": "2.1",
-  "status": "ACTIVE_VERIFIED_BASELINE_PRESERVED__TERMUX_FIELD_POLICY_CANDIDATE_PENDING_GATES",
+  "status": "ACTIVE_VERIFIED_BASELINE_PRESERVED__UNIFIED_FIELD_CANDIDATE_PENDING_GATES",
   "last_verified_baseline": "423ac89a1721a6727556d196e247329ee8498b10",
-  "latest_observed_main": "fe45ed61237d0e872db077914164c7bab15c33ad",
-  "candidate_branch": "hakim/restore-termux-field-primary-20260912",
+  "latest_observed_main": "fb8c41a8c57e70698aa720bf264b79da8c790b93",
+  "candidate_branch": "hakim/unified-field-companion-20260912",
   "promotion_evidence": {
     "previous_governance_gate": "PASS",
     "previous_reality_gate": "PASS",
     "make_private_send_path_previous_evidence": "PASS",
     "physical_phone_round_trip": "NOT_PROVEN",
     "candidate_governance_gate": "PENDING",
-    "candidate_regression": "PENDING"
+    "candidate_android15_companion_gate": "PENDING",
+    "candidate_real_phone_gate": "PENDING"
   },
-  "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
-  "intent": "تأهيل حي للهاتف عبر Termux Wireless ADB محلي، وقناة Make خاصة عند الطلب، وصندوق نتائج خاص، مع Remote Desktop للصيانة الاختيارية فقط ودون أي ناقل أوامر عام",
+  "trigger": "RECONCILE_LATEST_SOVEREIGN_FIELD_POLICY_WITH_DURABLE_COMPANION_TARGET",
+  "intent": "إنهاء التأهيل الحي الحالي للهاتف عبر Termux Wireless ADB المحلي والقناة الخاصة، ثم تأهيل Android Companion كمرشح تشغيل دائم بلا ADB، دون ترقية أو إغلاق للمسار الحاكم قبل الدليل الحقيقي.",
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
@@ -28,19 +29,21 @@
     "goal_does_not_fail_when_a_means_fails"
   ],
   "known_failures": [
-    "make_sender_7368010_uses_public_ntfy_and_is_inactive",
-    "make_sender_7368153_public_transport_fallback_inactive",
     "remote_desktop_commander_offline",
-    "no_current_compliant_private_command_path_confirmed_connected_to_physical_phone"
+    "physical_phone_round_trip_not_yet_proven",
+    "first_android_wireless_debugging_pairing_requires_local_android_human_gate_if_not_already_paired"
   ],
   "field_phone": {
-    "primary_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "current_primary_path": "TERMUX_WIRELESS_ADB_LOCAL",
     "cloud_command_path": "MAKE_PRIVATE_ON_DEMAND_RELAY",
     "result_path": "MAKE_RESULT_MAILBOX",
+    "post_field_candidate": "ANDROID_COMPANION_NO_ADB_RUNTIME",
     "maintenance_fallback": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
     "current_blocker": "ANDROID_FIRST_WIRELESS_DEBUGGING_PAIRING_IF_NOT_ALREADY_PAIRED",
     "field_verified": false,
-    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP",
+    "companion_promoted": false,
+    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP_AFTER_LOCAL_PAIRING",
+    "promotion_rule": "KEEP_TERMUX_ADB_PRIMARY_UNTIL_REAL_FIELD_MATRIX_PASSES; THEN_QUALIFY_COMPANION; PROMOTE_COMPANION_AND_RETIRE_ADB_ONLY_AFTER_REAL_COMPANION_ONLY_ROUND_TRIP",
     "matrix": [
       "SIGNED_STATUS_ROUND_TRIP",
       "BAD_SIGNATURE_REJECTION",
@@ -53,12 +56,13 @@
       "REBOOT_CONTINUITY",
       "OFFLINE_RECOVERY",
       "IDEMPOTENCY_LKG",
-      "BACKUP_RESTORE_CONTAINMENT"
+      "BACKUP_RESTORE_CONTAINMENT",
+      "COMPANION_ONLY_ROUND_TRIP_BEFORE_PROMOTION"
     ]
   },
   "secrets": {
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT; DO_NOT_PROMOTE_CANDIDATE_UNTIL_GOVERNANCE_AND_REGRESSION_PASS"
+  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT; NEVER_PROMOTE_FIELD_OR_COMPANION_FROM_CI_ONLY_EVIDENCE"
 }
