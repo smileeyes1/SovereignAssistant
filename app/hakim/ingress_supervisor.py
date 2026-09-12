@@ -78,6 +78,28 @@ class GitHubEventAdapter:
             minimal["merge_commit_sha"] = merge_commit_sha.strip()
         return {"action": "closed", "pull_request": minimal}
 
+    @classmethod
+    def minimize_durable_payload(
+        cls, event_type: EventType, payload: dict[str, object]
+    ) -> dict[str, object]:
+        """Return the complete allow-listed durable payload for one GitHub event.
+
+        This method is deliberately strict so historical-state migrations and
+        live ingress share exactly one privacy contract. Unknown event types are
+        rejected rather than silently persisting an unreviewed envelope.
+        """
+        if event_type in {EventType.CI_SUCCEEDED, EventType.CI_FAILED}:
+            run = payload.get("workflow_run", {})
+            if not isinstance(run, dict):
+                run = {}
+            return cls._workflow_run_payload(run)
+        if event_type == EventType.PR_MERGED:
+            pr = payload.get("pull_request", {})
+            if not isinstance(pr, dict):
+                pr = {}
+            return cls._pull_request_payload(pr)
+        raise ValueError(f"unsupported GitHub durable event type: {event_type.value}")
+
     def translate(self, delivery_id: str, event_name: str, payload: dict[str, object]) -> IngressEvent | None:
         if not delivery_id.strip():
             raise ValueError("delivery_id is required")
@@ -93,7 +115,7 @@ class GitHubEventAdapter:
                 delivery_id,
                 event_type,
                 subject,
-                self._workflow_run_payload(run),
+                self.minimize_durable_payload(event_type, payload),
             )
         if event_name == "pull_request" and action == "closed":
             pr = payload.get("pull_request", {})
@@ -103,7 +125,7 @@ class GitHubEventAdapter:
                     delivery_id,
                     EventType.PR_MERGED,
                     subject,
-                    self._pull_request_payload(pr),
+                    self.minimize_durable_payload(EventType.PR_MERGED, payload),
                 )
         return None
 
