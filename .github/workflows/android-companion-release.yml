@@ -6,7 +6,13 @@ on:
     paths:
       - 'android/hakim-companion/**'
       - 'scripts/install-android-companion-local.sh'
-      - 'tests/test_android_zero_cost_transport_contract.py'
+      - 'scripts/android-companion-emulator-*.sh'
+      - 'tests/test_android_*.py'
+      - 'tests/test_hakim_*bridge*.py'
+      - 'tests/test_hakim_encrypted_carrier_contract.py'
+      - 'governance/HAKIM_*POLICY*.json'
+      - 'governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json'
+      - 'governance/HAKIM_ACTIVE_STATE.json'
       - '.github/workflows/android-companion-release.yml'
   workflow_dispatch:
 
@@ -23,8 +29,18 @@ jobs:
           python-version: '3.12'
       - name: Install contract test tooling
         run: python -m pip install --disable-pip-version-check pytest
-      - name: Zero-cost independence source contract
-        run: python -m pytest -q tests/test_android_zero_cost_transport_contract.py
+      - name: Sovereign-local release contract suite
+        run: >-
+          python -m pytest -q
+          tests/test_android_zero_cost_transport_contract.py
+          tests/test_android_action_idempotency_contract.py
+          tests/test_android_companion_contract.py
+          tests/test_android_financial_safe_mode_contract.py
+          tests/test_android_notification_emulator_gate_contract.py
+          tests/test_android_airplane_emulator_gate_contract.py
+          tests/test_hakim_encrypted_carrier_contract.py
+          tests/test_hakim_secure_bridge_policy_contract.py
+          tests/test_live_bridge_contract.py
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -95,6 +111,6 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "HAKIM Companion ${GITHUB_SHA::12}" \
-            --notes "Unsigned Android Companion built from a clean verified source tree. Source and built-binary gates reject stale external relay runtime. Sign locally with the owned HAKIM key; no repository signing key exists." \
+            --notes "Unsigned Android Companion built from a clean verified source tree. Sovereign-local source tests plus built-binary gates reject stale external relay runtime. Sign locally with the owned HAKIM key; no repository signing key exists." \
             hakim-companion-unsigned.apk \
             hakim-companion-unsigned.apk.sha256
