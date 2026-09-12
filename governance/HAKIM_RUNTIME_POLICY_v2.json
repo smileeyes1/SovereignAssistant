@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
-  "version": "2.0",
+  "version": "2.1",
   "status": "FROZEN_BY_DEFAULT",
   "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
   "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
@@ -49,49 +49,51 @@
     "only_later_explicit_user_instruction_may_change": true
   },
   "device_control": {
-    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "normal_phone_path": "SOVEREIGN_LOCAL_ANDROID_COMPANION_WITH_LOOPBACK_BROWSER_AND_USER_OPENED_SIGNED_TASK_LINK",
     "developer_options_required_for_normal_operation": false,
     "wireless_debugging_required_for_normal_operation": false,
     "adb_policy": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
     "developer_options_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
     "wireless_debugging_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
+    "background_external_transport": "DISABLED_BY_DEFAULT",
+    "local_server_bind": "LOOPBACK_ONLY",
+    "chat_to_phone_handoff": "SIGNED_EXPIRING_REPLAY_PROTECTED_DEEP_LINK_OPENED_BY_USER",
     "financial_safe_mode": {
       "available": true,
       "persistent_until_user_exit": true,
-      "stop_remote_relay": true,
       "stop_local_control_service": true,
-      "disable_accessibility_service": true,
-      "unbind_notification_listener": true,
-      "reactivation_requires_local_user_action_for_accessibility": true
+      "external_relay_to_stop": "NONE_IN_SOVEREIGN_LOCAL_RELEASE",
+      "accessibility_service": false,
+      "notification_listener": false,
+      "platform_protection_bypass": false
     }
   },
   "bridges": {
     "identity_independent_of_bridge": true,
-    "health_check": true,
-    "failover": true,
-    "self_heal": true,
-    "round_trip_verify": true,
-    "preferred": ["ANDROID_COMPANION_OUTBOUND_RELAY","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
-    "maintenance_only": ["TERMUX_WIRELESS_ADB"],
+    "core_requires_bridge": false,
+    "local_core_first": true,
+    "runtime_default": ["LOCAL_LOOPBACK_CONTROL","USER_OPENED_SIGNED_TASK_LINK"],
+    "optional_non_core_only": ["REMOTE_DESKTOP_MAINTENANCE","TERMUX_WIRELESS_ADB_EXPLICIT_TEMPORARY_MAINTENANCE_ONLY","FUTURE_SELF_HOSTED_USER_CONTROLLED_BRIDGE"],
+    "forbidden_as_hidden_runtime_core": ["MAKE","TINYFISH","NTFY","PAID_API","PAID_OPERATION_CREDITS"],
     "public_command_transport": false,
     "public_github_command_relay": false,
-    "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
+    "fallback_command_transport": "NONE_UNLESS_EXPLICITLY_ENABLED_AS_OPTIONAL_NON_CORE_BRIDGE"
   },
   "security": {
     "least_privilege": true,
-    "outbound_only_preferred": true,
+    "loopback_only_local_server": true,
     "no_general_remote_shell": true,
     "allowlist_commands": true,
     "signed_commands": true,
     "expiry_required": true,
     "anti_replay": true,
-    "local_approval_for_sensitive_actions": true,
+    "user_open_required_for_chat_task_handoff": true,
     "do_not_disable_platform_protection": true,
     "secrets_not_in_public_repo": true,
     "secrets_not_in_context_seed": true,
     "sensitive_data_not_promoted_to_general_rule": true
   },
-  "cost_policy": {"free_first": true, "no_paid_service_purchase_or_upgrade_without_explicit_user_request": true},
+  "cost_policy": {"free_first": true, "zero_additional_cost_default": true, "no_paid_service_purchase_or_upgrade_without_explicit_user_request": true},
   "instruction_precedence": {
     "newer_explicit_user_instruction_over_older_user_rule_when_conflicting": true,
     "correction_over_superseded_text": true,
