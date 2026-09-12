@@ -23,6 +23,11 @@
     "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md",
     "governance/HAKIM_INTELLIGENCE_MATRIX.json",
     "governance/HAKIM_BEST_ROUTE_POLICY_AR.md",
+    "governance/HAKIM_CAPABILITY_TRANSITIONS.json",
+    "governance/HAKIM_CONTINUITY_SHIELD_AR.md",
+    "governance/HAKIM_CONTINUITY_SHIELD.json",
+    "scripts/hakim_continuity_shield.py",
+    "tests/test_hakim_continuity_shield.py",
     "app/hakim/core.py",
     "app/hakim/autonomy_service.py",
     "app/hakim/capability_registry.py",
@@ -32,6 +37,7 @@
     "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt",
     "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt",
     ".github/workflows/governance.yml",
+    ".github/workflows/continuity-shield.yml",
     ".github/workflows/android-companion.yml",
     ".github/workflows/android-companion-release.yml",
     ".github/workflows/reality-gate.yml"
@@ -146,7 +152,7 @@
       "id": "continuity_shield",
       "tier": "P0",
       "status": "PROTECTED_ACTIVE",
-      "paths": ["governance/HAKIM_CONTINUITY_SHIELD_AR.md", "governance/HAKIM_CONTINUITY_SHIELD.json", "scripts/hakim_continuity_shield.py"],
+      "paths": ["governance/HAKIM_CONTINUITY_SHIELD_AR.md", "governance/HAKIM_CONTINUITY_SHIELD.json", "governance/HAKIM_CAPABILITY_TRANSITIONS.json", "scripts/hakim_continuity_shield.py", ".github/workflows/continuity-shield.yml"],
       "tests": ["tests/test_hakim_continuity_shield.py"]
     }
   ],
