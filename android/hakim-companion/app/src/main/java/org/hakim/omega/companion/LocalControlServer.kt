@@ -21,7 +21,13 @@ class LocalControlServer(private val context: Context) {
             try {
                 val s = ServerSocket()
                 s.reuseAddress = true
-                s.bind(InetSocketAddress(InetAddress.getLoopbackAddress(), PORT))
+                // Keep the local control plane on the exact address family used by
+                // HakimRemoteRelay and the field/CI probes. getLoopbackAddress()
+                // may resolve to ::1 on some Android/network states (including
+                // connectivity transitions), while callers use 127.0.0.1.
+                // A fixed IPv4 loopback bind is deterministic, remains local-only,
+                // and avoids a false outage when airplane mode changes address order.
+                s.bind(InetSocketAddress(InetAddress.getByName(LOOPBACK_HOST), PORT))
                 socket = s
                 while (!s.isClosed) runCatching { s.accept() }.getOrNull()?.let { client -> pool.execute { handle(client) } }
             } catch (_: Exception) { socket = null }
@@ -145,6 +151,7 @@ class LocalControlServer(private val context: Context) {
     }
 
     companion object {
+        const val LOOPBACK_HOST = "127.0.0.1"
         const val PORT = 47651
         private val REQUEST_ID = Regex("^[A-Za-z0-9._:-]{8,128}$")
     }
