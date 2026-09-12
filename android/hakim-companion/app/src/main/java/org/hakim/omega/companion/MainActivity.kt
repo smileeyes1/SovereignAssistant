@@ -24,16 +24,22 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        purgeLegacyTransport()
         handlePairIntent(intent)
         buildUi()
+        handleTaskIntent(intent)
         ensureNotificationPermission()
-        if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
+        if (!FinancialSafeMode.isEnabled(this) && isPaired()) HakimForegroundService.start(this)
+        refreshStatus()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        purgeLegacyTransport()
         handlePairIntent(intent)
+        handleTaskIntent(intent)
+        if (!FinancialSafeMode.isEnabled(this) && isPaired()) HakimForegroundService.start(this)
         refreshStatus()
     }
 
@@ -57,23 +63,39 @@ class MainActivity : Activity() {
 
     private fun handlePairIntent(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme == "hakim" && uri.host == "pair") {
-            val token = uri.getQueryParameter("token").orEmpty()
-            if (token.length >= 32 && token.length <= 256) {
-                getSharedPreferences("hakim", MODE_PRIVATE).edit()
-                    .putString("pair_token", token)
-                    .apply()
-                HakimRemoteRelay.configure(
-                    this,
-                    uri.getQueryParameter("relay_topic"),
-                    uri.getQueryParameter("result_topic"),
-                    uri.getQueryParameter("relay_key"),
-                    uri.getQueryParameter("relay_base"),
-                )
-                if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
-            }
+        if (uri.scheme != "hakim" || uri.host != "pair") return
+        val token = uri.getQueryParameter("token").orEmpty()
+        if (token.length !in 32..256) return
+        getSharedPreferences("hakim", MODE_PRIVATE).edit()
+            .putString("pair_token", token)
+            .putString("pair_mode", "SOVEREIGN_LOCAL")
+            .apply()
+    }
+
+    private fun handleTaskIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "hakim" && uri.host == "task") {
+            HakimSignedTask.accept(this, uri)
         }
     }
+
+    private fun purgeLegacyTransport() {
+        getSharedPreferences("hakim", MODE_PRIVATE).edit()
+            .remove("relay_topic")
+            .remove("relay_result_topic")
+            .remove("relay_base_url")
+            .remove("relay_hmac_key")
+            .remove("relay_last_ntfy_id")
+            .remove("relay_last_poll_ms")
+            .remove("relay_last_error")
+            .remove("relay_last_result_error")
+            .remove("relay_last_result_send_ms")
+            .apply()
+        getSharedPreferences("hakim_remote_pending", MODE_PRIVATE).edit().clear().apply()
+    }
+
+    private fun isPaired(): Boolean =
+        !getSharedPreferences("hakim", MODE_PRIVATE).getString("pair_token", null).isNullOrBlank()
 
     private fun buildUi() {
         val root = LinearLayout(this).apply {
@@ -83,7 +105,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "الوضع المستقل المجاني: لا Make، لا مفتاح API، لا رصيد عمليات. الأوامر والنتائج مشفّرة طرفيًا عبر ناقل قابل للاستبدال، والتحكم يبقى داخل متصفح حكيم المملوك."
+            text = "القلب السيادي المحلي: لا ناقل خارجي، لا قناة خلفية، لا رصيد عمليات. التحكم المحلي على الجهاز فقط، وأي مهمة قادمة من المحادثة تصل كرابط موقّع يفتحه المستخدم صراحة ثم ينفذها حكيم داخل متصفحه المملوك."
             textSize = 15f
         })
 
@@ -149,7 +171,6 @@ class MainActivity : Activity() {
         )
 
         setContentView(root)
-        refreshStatus()
     }
 
     private fun button(label: String, block: () -> Unit) = Button(this).apply {
@@ -159,25 +180,17 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
-        val paired = prefs.getString("pair_token", null) != null
-        val relay = !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
-            !prefs.getString(HakimRemoteRelay.KEY_RESULT_TOPIC, null).isNullOrBlank() &&
-            !prefs.getString(HakimRemoteRelay.KEY_RELAY_KEY, null).isNullOrBlank()
-        val relayBase = prefs.getString(HakimRemoteRelay.KEY_RELAY_BASE, "https://ntfy.sh") ?: "https://ntfy.sh"
-        val lastPoll = prefs.getLong(HakimRemoteRelay.KEY_LAST_POLL_MS, 0L)
-        val lastError = prefs.getString(HakimRemoteRelay.KEY_LAST_ERROR, null)
-        val lastResultError = prefs.getString(HakimRemoteRelay.KEY_LAST_RESULT_ERROR, null)
+        val paired = isPaired()
         val financial = FinancialSafeMode.isEnabled(this)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: مستقل مجاني — بلا Make وبلا API مدفوع\n" +
+        val lastTask = prefs.getString("last_signed_task", "لا توجد مهمة بعد")
+        status.text = "النمط: سيادي محلي مستقل\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
-            "الاقتران: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
-            "القناة المشفّرة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
-            "الناقل: $relayBase\n" +
+            "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
+            "اتصال خلفي خارجي: غير موجود\n" +
+            "ناقل خارجي: غير موجود\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
-            "آخر اتصال بالقناة: ${if (lastPoll > 0L) "تم" else "لم يُثبت بعد"}\n" +
-            "خطأ القناة: ${lastError ?: "لا يوجد"}\n" +
-            "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}\n" +
+            "آخر مهمة موقعة: $lastTask\n" +
             "متصفح حكيم: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}" +
             if (url.isNotBlank()) "\nالموقع الحالي: $url" else ""
     }
