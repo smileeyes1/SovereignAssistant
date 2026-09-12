@@ -2,7 +2,7 @@ name: HAKIM Android Companion Release
 
 on:
   push:
-    branches: [main, hakim-playprotect-safe]
+    branches: [main, hakim-playprotect-safe, hakim-zero-cost-independent]
     paths:
       - 'android/hakim-companion/**'
       - 'scripts/install-android-companion-local.sh'
