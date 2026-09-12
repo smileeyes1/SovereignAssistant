@@ -7,13 +7,27 @@ def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_supervisor_reconnects_and_restarts_worker():
+def test_supervisor_reconnects_local_adb_without_starting_public_worker():
     s = text("scripts/hakim-multibridge-supervisor.sh")
     assert "adb mdns services" in s
     assert "adb connect" in s
-    assert "hakim-relay-worker" in s
-    assert "tmux new-session -d" in s
     assert "hakim-multibridge-state.json" in s
+    assert "LEGACY_PUBLIC_WORKER_SESSION=\"hakim-relay-worker\"" in s
+    assert "legacy_public_relay_worker_stopped_by_policy" in s
+    assert "tmux kill-session -t \"$LEGACY_PUBLIC_WORKER_SESSION\"" in s
+    assert "tmux new-session -d" not in s
+
+
+def test_supervisor_state_matches_sovereign_bridge_policy():
+    s = text("scripts/hakim-multibridge-supervisor.sh")
+    assert "'public_command_transport':'disabled_by_sovereign_policy'" in s
+    assert "'public_github_command_relay':'disabled'" in s
+    assert "'legacy_public_relay_worker':'stopped'" in s
+    assert "'make_private_command_relay':'required_unproven'" in s
+    assert "'remote_desktop_commander':'optional_maintenance_only'" in s
+    assert "'result_mailbox':'configured_result_path'" in s
+    assert "'github_relay':'configured'" not in s
+    assert "'make_relay':'fallback-configured'" not in s
 
 
 def test_bootstrap_installs_supervisor_status_and_private_transport_only():
