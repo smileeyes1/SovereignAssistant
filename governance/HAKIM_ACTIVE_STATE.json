@@ -3,10 +3,10 @@
   "schema_version": "1.4",
   "active_extension_version": "2.2",
   "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
-  "last_verified_baseline": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
-  "latest_observed_main": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
+  "last_verified_baseline": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
+  "latest_observed_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
-  "state_refresh_source_main": "e5a951badf66ca7294ebefc89f64324c522cc798",
+  "state_refresh_source_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__THE_STATE_REFRESH_COMMIT_ITSELF_WILL_HAVE_A_DIFFERENT_SHA",
   "candidate_branch": "main",
   "promotion_evidence": {
@@ -37,6 +37,14 @@
     "android_release_archive_and_digest_verification": "PASS",
     "physical_field_preflight_gate_v1_main": "PASS",
     "physical_field_preflight_fail_closed_contract": "PASS",
+    "one_tap_field_qualification_v1_governance_main": "PASS",
+    "one_tap_field_qualification_v1_reality_gate_main": "PASS",
+    "one_tap_field_qualification_android_contracts": "PASS",
+    "one_tap_field_qualification_android15_emulator": "PASS",
+    "one_tap_field_qualification_debug_and_release_build": "PASS",
+    "one_tap_field_qualification_release_provenance": "PASS",
+    "one_tap_field_qualification_sanitized_remote_summary": "PASS",
+    "one_tap_field_qualification_financial_fail_closed": "PASS",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
     "physical_phone_round_trip": "NOT_PROVEN"
   },
@@ -45,6 +53,7 @@
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "value_gates_spec": "governance/HAKIM_VALUE_GATES_AR.md",
   "physical_field_preflight_gate": "scripts/android-physical-field-gate.py",
+  "one_tap_field_qualification_promotion": "governance/HAKIM_ONE_TAP_FIELD_QUALIFICATION_PROMOTION.json",
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
@@ -62,6 +71,8 @@
     "stable_android_release_signing_identity_private",
     "auditable_android_release_provenance_v1",
     "fail_closed_physical_field_preflight_v1",
+    "one_tap_field_qualification_v1",
+    "sanitized_remote_field_qualification_status_v1",
     "public_command_transport_disabled",
     "fail_closed_sensitive_mutations",
     "arabic_first",
@@ -87,7 +98,10 @@
     "preflight_gate": "scripts/android-physical-field-gate.py",
     "preflight_evidence_local": "$HOME/.omega/physical-field-preflight.json",
     "preflight_can_self_promote": false,
-    "next_gate": "REAL_ENCRYPTED_SIGNED_STATUS_ROUND_TRIP_AND_FINANCIAL_APP_COMPATIBILITY"
+    "one_tap_self_qualification": "ACTIVE_VERIFIED_PRE_FIELD",
+    "one_tap_self_qualification_ui": "تأهيل حكيم",
+    "remote_qualification_summary": "SANITIZED_STATUS_AVAILABLE_OVER_ENCRYPTED_STATUS_ROUTE",
+    "next_gate": "INSTALL_OR_UPDATE_CURRENT_RELEASE_ON_PHYSICAL_PHONE__PRIVATE_PAIR__RUN_ONE_TAP_CORE_ROUND_TRIP__THEN_SCREEN_OFF_REBOOT_FINANCIAL_MATRIX"
   },
   "financial_safety": {
     "priority": "P0",
@@ -121,5 +135,5 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "LOAD_VALUE_GATES_AND_PHONE_SOVEREIGN_CONSTRAINTS_BEFORE_RUNTIME_AND_BRIDGE_POLICY; RUN_PHYSICAL_FIELD_PREFLIGHT_WHEN_PHONE_IS_AVAILABLE; PRE_FIELD_VERIFIED DOES NOT MEAN PHYSICAL FIELD_VERIFIED; NEVER PROMOTE ADB TO NORMAL PATH UNLESS A LATER EXPLICIT USER INSTRUCTION CHANGES THE P0 CONSTRAINT"
+  "resume_rule": "LOAD_VALUE_GATES_AND_PHONE_SOVEREIGN_CONSTRAINTS_BEFORE_RUNTIME_AND_BRIDGE_POLICY; RUN_PHYSICAL_FIELD_PREFLIGHT_AND_ONE_TAP_SELF_QUALIFICATION_WHEN_PHONE_IS_AVAILABLE; READ_ONLY_SANITIZED_QUALIFICATION_SUMMARY_MAY_BE_READ_OVER_ENCRYPTED_STATUS; PRE_FIELD_VERIFIED DOES_NOT_MEAN_PHYSICAL_FIELD_VERIFIED; NEVER_PROMOTE_ADB_TO_NORMAL_PATH_UNLESS_A_LATER_EXPLICIT_USER_INSTRUCTION_CHANGES_THE_P0_CONSTRAINT"
 }
