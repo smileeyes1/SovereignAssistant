@@ -3,7 +3,7 @@
   "schema_version": "1.4",
   "active_extension_version": "2.2",
   "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
-  "last_verified_baseline": "e5a951badf66ca7294ebefc89f64324c522cc798",
+  "last_verified_baseline": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
   "latest_observed_main": "e5a951badf66ca7294ebefc89f64324c522cc798",
   "latest_observed_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__THE_STATE_REFRESH_COMMIT_ITSELF_WILL_HAVE_A_DIFFERENT_SHA",
   "candidate_branch": "main",
@@ -45,6 +45,7 @@
   "physical_field_preflight_gate": "scripts/android-physical-field-gate.py",
   "proven_success": [
     "canonical_governance_v2_frozen",
+    "nstar_adaptive_intelligence_extension_v2_1",
     "nstar_adaptive_intelligence_extension_v2_2",
     "adaptive_intelligence_fabric_v1",
     "intelligence_fabric_live_execution_gate_v1",
