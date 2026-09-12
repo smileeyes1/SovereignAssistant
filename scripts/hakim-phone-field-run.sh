@@ -85,6 +85,22 @@ ln -sfn "$REPO/scripts/hakim-phone-field-run.sh" "$PREFIX/bin/hakim-phone-field"
 chmod 700 "$REPO/scripts/hakim-phone-field-run.sh"
 
 phase="$(read_phase)"
+PUBLIC_DOWNLOADS="$HOME_DIR/storage/downloads"
+if [[ "$phase" == "NEW" || "$phase" == "REPO_REFRESHED" || "$phase" == "WAITING_STORAGE_PERMISSION" ]]; then
+  if [[ ! -d "$PUBLIC_DOWNLOADS" || ! -w "$PUBLIC_DOWNLOADS" ]]; then
+    termux-setup-storage >/dev/null 2>&1 || true
+    write_state "WAITING_STORAGE_PERMISSION" "Android storage access is required only to hand the locally signed APK to Package Installer; approve the Termux storage prompt, then rerun hakim-phone-field."
+    cat <<'EOF'
+HAKIM_PHONE_FIELD=WAITING_STORAGE_PERMISSION
+وافق فقط على صلاحية التخزين التي يطلبها Android، ثم شغّل الأمر نفسه مرة أخرى:
+hakim-phone-field
+EOF
+    exit 9
+  fi
+  if [[ "$phase" == "WAITING_STORAGE_PERMISSION" ]]; then
+    phase="NEW"
+  fi
+fi
 
 case "$phase" in
   NEW|REPO_REFRESHED)
