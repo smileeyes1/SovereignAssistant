@@ -9,17 +9,19 @@ BOOTSTRAP = ROOT / "scripts" / "hakim-complete-phone-bootstrap.sh"
 CLOSE = ROOT / "scripts" / "hakim-close-adb-maintenance.sh"
 
 
-def test_companion_is_normal_runtime_and_adb_is_temporary_maintenance():
+def test_companion_is_normal_runtime_and_adb_is_conditional_temporary_maintenance():
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    assert policy["phone_execution"] == "ANDROID_COMPANION"
-    assert policy["normal_operation_requires_developer_options"] is False
+    assert policy["phone_execution"] == "ANDROID_COMPANION_PRIMARY"
+    assert policy["developer_options_required_for_normal_operation"] is False
     assert policy["normal_operation_requires_adb"] is False
-    assert policy["maintenance_bootstrap"] == "TERMUX_WIRELESS_ADB_ONE_TIME_OR_ON_DEMAND"
-    assert policy["maintenance_close_after_companion_qualification"] is True
+    assert policy["adb_role"] == "TEMPORARY_MAINTENANCE_ONLY"
+    assert policy["bootstrap_when_direct_install_blocked"] == "TERMUX_WIRELESS_ADB_ONE_TIME_OR_ON_DEMAND"
+    assert policy["close_adb_after_companion_qualification"] is True
     assert policy["public_command_transport"] is False
     assert policy["public_github_command_relay"] == "DISABLED"
     assert policy["security"]["general_remote_shell"] is False
     assert policy["security"]["platform_protection_bypass"] is False
+    assert policy["qualification"]["wireless_debugging_pairing"] == "CONDITIONAL_BOOTSTRAP_ONLY_NOT_NORMAL_RUNTIME"
 
 
 def test_android_ui_has_single_next_step_orchestrator_without_bypassing_sensitive_approvals():
