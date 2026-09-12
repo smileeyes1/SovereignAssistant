@@ -40,9 +40,24 @@ def test_bootstrap_installs_supervisor_status_and_private_transport_only():
     assert "make-private-relay" in s
     assert "fallback_bridges':[]" in s
     assert "public_command_transport':False" in s
+    assert "public_github_command_relay':False" in s
+    assert "make_private_command_relay':'required_unproven'" in s
     assert "github-owner-relay" not in s
     assert "make-fallback" not in s
     assert "remote-desktop-commander" in s
+
+
+def test_bootstrap_retires_legacy_public_worker_instead_of_installing_it():
+    boot = text("scripts/bootstrap-hakim-termux-adb.sh")
+    status = text("scripts/hakim-bridges-status.sh")
+    assert 'cp -f "$ROOT/scripts/hakim-termux-adb-bridge.py"' not in boot
+    assert 'rm -f "$OMEGA/bin/hakim-termux-adb-bridge.py"' in boot
+    assert 'tmux kill-session -t hakim-relay-worker' in boot
+    assert "HAKIM_RELAY_TOPIC" not in boot
+    assert "HAKIM_RELAY_KEY" not in boot
+    assert "'legacy_public_relay_installed':False" in boot
+    assert "legacy_public_relay_worker=" in status
+    assert "POLICY_VIOLATION_RUNNING" in status
 
 
 def test_mutating_control_is_fail_closed_by_default():
