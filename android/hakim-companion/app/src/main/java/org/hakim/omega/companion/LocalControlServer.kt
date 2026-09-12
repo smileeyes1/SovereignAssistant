@@ -54,6 +54,22 @@ class LocalControlServer(private val context: Context) {
         }
     }
 
+    private fun qualificationSummary(prefs: android.content.SharedPreferences): JSONObject {
+        val raw = prefs.getString("field_qualification_last_report", null)
+            ?: return JSONObject().put("status", "NOT_RUN").put("field_verified", false)
+        val report = runCatching { JSONObject(raw) }.getOrNull()
+            ?: return JSONObject().put("status", "INVALID_REPORT").put("field_verified", false)
+        val roundTrip = report.optJSONObject("checks")
+            ?.optJSONObject("encrypted_status_round_trip")
+            ?.optString("status", "NOT_TESTED") ?: "NOT_TESTED"
+        return JSONObject()
+            .put("status", report.optString("status", "UNKNOWN"))
+            .put("field_verified", false)
+            .put("completed_at_ms", report.optLong("completed_at_ms", 0L))
+            .put("next_gate", report.optString("next_gate", "UNKNOWN"))
+            .put("encrypted_status_round_trip", roundTrip)
+    }
+
     private fun route(c: Socket, method: String, path: String, body: String, headers: Map<String, String>) {
         try {
             when {
@@ -73,6 +89,7 @@ class LocalControlServer(private val context: Context) {
                         .put("accessibility", HakimAccessibilityService.instance != null)
                         .put("notification_listener", HakimNotificationListener.isConnected())
                         .put("notifications_buffered", HakimNotificationListener.snapshot().length())
+                        .put("field_qualification", qualificationSummary(prefs))
                         .put("browser", HakimBrowserController.status()))
                 }
                 method == "GET" && path == "/v1/ui" -> {
