@@ -55,16 +55,35 @@ object HakimSignedTask {
         executor.execute {
             var result = "completed:$requestId"
             for (i in 0 until steps.length()) {
-                if (System.currentTimeMillis() >= expiresAt) { result = "expired_during_run:$requestId:$i"; break }
-                val step = steps.optJSONObject(i) ?: run { result = "bad_step:$requestId:$i"; break }
+                if (System.currentTimeMillis() >= expiresAt) {
+                    result = "expired_during_run:$requestId:$i"
+                    break
+                }
+                val step = steps.optJSONObject(i)
+                if (step == null) {
+                    result = "bad_step:$requestId:$i"
+                    break
+                }
                 val action = step.optString("action")
                 if (action == "wait") {
                     val ms = step.optLong("ms", 0L).coerceIn(0L, MAX_WAIT_MS)
-                    try { Thread.sleep(ms) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); result = "interrupted:$requestId:$i"; break }
+                    try {
+                        Thread.sleep(ms)
+                    } catch (_: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        result = "interrupted:$requestId:$i"
+                        break
+                    }
                     continue
                 }
-                if (action !in ALLOWED_ACTIONS) { result = "action_denied:$requestId:$i:$action"; break }
-                if (!HakimBrowserController.action(step)) { result = "step_failed:$requestId:$i:$action"; break }
+                if (action !in ALLOWED_ACTIONS) {
+                    result = "action_denied:$requestId:$i:$action"
+                    break
+                }
+                if (!HakimBrowserController.action(step)) {
+                    result = "step_failed:$requestId:$i:$action"
+                    break
+                }
             }
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("last_signed_task", result)
