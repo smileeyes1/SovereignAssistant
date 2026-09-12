@@ -12,7 +12,7 @@ def test_canonical_assets_exist_and_parse():
     assert POLICY.is_file()
     assert SEED.is_file()
     data = json.loads(POLICY.read_text(encoding="utf-8"))
-    assert data["version"] == "2.0"
+    assert data["version"] == "2.1"
     assert data["status"] == "FROZEN_BY_DEFAULT"
 
 
@@ -64,7 +64,9 @@ def test_bridge_security_and_failover_are_locked():
     s = p["security"]
     assert b["identity_independent_of_bridge"] is True
     assert b["health_check"] and b["failover"] and b["self_heal"] and b["round_trip_verify"]
+    assert b["external_background_command_transport"] is False
     assert s["least_privilege"] and s["signed_commands"] and s["anti_replay"]
+    assert s["loopback_only_control_plane"] is True
     assert s["no_general_remote_shell"] and s["do_not_disable_platform_protection"]
 
 
