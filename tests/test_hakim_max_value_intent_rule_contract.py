@@ -30,6 +30,27 @@ def test_max_value_rule_contract():
         assert token in text
 
 
+def test_user_lexical_intensifiers_are_explicitly_semantic_and_bounded():
+    text = (GOV / "HAKIM_MAX_VALUE_INTENT_RULE_AR.md").read_text(encoding="utf-8")
+    required = [
+        "المكثفات اللفظية الحاكمة",
+        "«كمال/بكمال»",
+        "«علو/أعلى»",
+        "«حكمة/أحكم»",
+        "«خبرة/أخبر»",
+        "«شمول/أشمل»",
+        "«اكتمال/أكمل»",
+        "رفع سقف الجودة والدقة والموثوقية إلى أعلى مستوى مثبت ومتاح داخل العقد",
+        "ترجيح الفعل الأنسب بالقدر والوقت والوسيلة مع تقدير العواقب وقابلية الرجوع",
+        "استحضار أنسب معرفة وأدوات ومصادر واختبارات وتخصصات منطقية ذات صلة بقدر أثرها",
+        "إغلاق الفجوات المادية الآمنة القابلة للإغلاق",
+        "تغطية جميع الجوانب والمحاور المؤثرة ماديًا",
+        "لا يمنح صلاحيات إضافية",
+    ]
+    for token in required:
+        assert token in text
+
+
 def test_active_pointer_names_rule_without_changing_frozen_restore_contract():
     """Stable contract id retained; 2.3 intentionally promotes the rule into the restore contract."""
     active = json.loads((GOV / "HAKIM_ACTIVE.json").read_text(encoding="utf-8"))
