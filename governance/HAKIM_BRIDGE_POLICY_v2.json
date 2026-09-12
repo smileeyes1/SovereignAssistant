@@ -1,20 +1,24 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.6-termux-wireless-adb-primary-private-make",
+  "version": "2.7-hakim-native-local-adb-primary-private-make",
   "status": "ACTIVE_OVERRIDE",
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "priority": [
-    "TERMUX_WIRELESS_ADB_LOCAL",
+    "HAKIM_NATIVE_LOCAL_ADB",
     "MAKE_PRIVATE_ON_DEMAND_RELAY",
     "RESULT_MAILBOX",
-    "REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE"
+    "REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE",
+    "TERMUX_OPTIONAL_LEGACY_MAINTENANCE"
   ],
   "public_command_transport": false,
   "public_ciphertext_carrier_allowed": true,
   "public_github_command_relay": "DISABLED",
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
-  "phone_execution": "TERMUX_WIRELESS_ADB_LOCAL_GOVERNED",
-  "adb_role": "GOVERNING_LOCAL_FIELD_PATH_WITH_ANDROID_REQUIRED_LOCAL_PAIRING",
+  "phone_execution": "HAKIM_NATIVE_LOCAL_ADB_GOVERNED",
+  "adb_role": "GOVERNING_LOCAL_FIELD_PATH_OWNED_BY_HAKIM_WITH_ANDROID_REQUIRED_LOCAL_PAIRING",
+  "bootstrap_owner": "HAKIM_ANDROID_APP",
+  "third_party_bootstrap_required": false,
+  "termux_role": "OPTIONAL_LEGACY_MAINTENANCE_ONLY",
   "remote_desktop_role": "OPTIONAL_MAINTENANCE_ONLY",
   "self_healing_supervisor": true,
   "security": {
@@ -40,10 +44,12 @@
   },
   "qualification": {
     "legacy_hc1_encrypted_carrier_contract": "PRESERVED_PROVEN_PRE_FIELD_NOT_GOVERNING_PRIMARY_PATH",
+    "hakim_native_local_adb": "IMPLEMENTED_PRE_FIELD_PENDING_REAL_PHONE_PAIRING",
     "make_private_on_demand_relay": "REQUIRED_NOT_YET_FIELD_PROVEN",
     "result_mailbox": "ACTIVE_VERIFIED_AVAILABLE",
     "remote_desktop_commander": "OPTIONAL_NOT_BLOCKING",
-    "physical_phone": "PENDING_ANDROID_LOCAL_WIRELESS_ADB_PAIRING_OR_EXISTING_TRUSTED_CONNECTION",
+    "termux_wireless_adb": "PRESERVED_OPTIONAL_LEGACY_MAINTENANCE_NOT_GOVERNING",
+    "physical_phone": "PENDING_HAKIM_NATIVE_ANDROID_LOCAL_WIRELESS_ADB_PAIRING_OR_EXISTING_TRUSTED_CONNECTION",
     "field_verified_requires_real_round_trip": true,
     "required_field_evidence": [
       "signed_status_round_trip",
@@ -60,5 +66,5 @@
       "backup_restore_containment"
     ]
   },
-  "rule": "Latest explicit user instruction governs: Termux Wireless ADB local is the governing phone FIELD path; Make private on-demand relay is the cloud command channel; result mailbox is the result channel; Remote Desktop Commander is optional maintenance only. Public command transport and public GitHub relay are forbidden. Any fallback must be private or encrypted. The previously proven HC1 ciphertext carrier contract remains preserved as historical PRE_FIELD success but is not the governing primary phone path. Do not expose a general remote shell, do not disable Play Protect or Android protections, do not place secrets in a public repository or context seed, and never claim FIELD_VERIFIED without direct evidence from the real phone."
+  "rule": "Latest explicit user instruction governs: HAKIM itself owns the governing local ADB phone path and its bootstrap; no third-party bootstrap app is required. Android's own Wireless Debugging pairing remains required where the platform requires it, but the ADB identity and pairing flow are owned by HAKIM. Make private on-demand relay remains the cloud command channel; result mailbox remains the result channel; Remote Desktop Commander and Termux are optional maintenance paths only. Public command transport and public GitHub relay are forbidden. Any fallback must be private or encrypted. Do not expose a general remote shell, do not disable Play Protect or Android protections, do not place secrets in a public repository or context seed, and never claim FIELD_VERIFIED without direct evidence from the real phone."
 }

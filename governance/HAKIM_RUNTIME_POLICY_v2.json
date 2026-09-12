@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
-  "version": "2.0",
+  "version": "2.1",
   "status": "FROZEN_BY_DEFAULT",
   "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
   "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
@@ -70,7 +70,13 @@
     "only_later_explicit_user_instruction_may_change": true
   },
   "device_control": {
-    "governing_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "governing_phone_path": "HAKIM_NATIVE_LOCAL_ADB",
+    "bootstrap_owner": "HAKIM_ANDROID_APP",
+    "adb_identity": "HAKIM_ANDROID_KEYSTORE_LOCAL_KEY",
+    "pairing_discovery": "ANDROID_MDNS_TLS_PAIRING_LOCAL",
+    "pairing_user_input": "SIX_DIGIT_ANDROID_PAIRING_CODE_ONLY",
+    "third_party_bootstrap_required": false,
+    "termux_role": "OPTIONAL_LEGACY_MAINTENANCE_ONLY",
     "wireless_debugging_required_for_governing_local_path": true,
     "wireless_debugging_pairing": "ANDROID_LOCAL_PAIRING_REQUIRED_IF_NOT_ALREADY_TRUSTED",
     "developer_options_policy": "ENABLE_ONLY_AS_REQUIRED_FOR_LOCAL_WIRELESS_ADB_AND_DO_NOT_WEAKEN_OTHER_ANDROID_PROTECTIONS",
@@ -94,7 +100,7 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["TERMUX_WIRELESS_ADB_LOCAL","MAKE_PRIVATE_ON_DEMAND_RELAY","RESULT_MAILBOX","REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE"],
+    "preferred": ["HAKIM_NATIVE_LOCAL_ADB","MAKE_PRIVATE_ON_DEMAND_RELAY","RESULT_MAILBOX","REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE","TERMUX_OPTIONAL_LEGACY_MAINTENANCE"],
     "public_command_transport": false,
     "public_github_command_relay": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"

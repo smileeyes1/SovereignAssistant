@@ -12,7 +12,7 @@ def test_canonical_assets_exist_and_parse():
     assert POLICY.is_file()
     assert SEED.is_file()
     data = json.loads(POLICY.read_text(encoding="utf-8"))
-    assert data["version"] == "2.0"
+    assert data["version"] == "2.1"
     assert data["status"] == "FROZEN_BY_DEFAULT"
 
 

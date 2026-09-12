@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "النواة الآمنة ٠٫٤٫١: قناة مشفّرة مباشرة + متصفح حكيم المملوك، بلا وصول عام لشاشة الهاتف أو إشعارات التطبيقات."
+            text = "النواة الآمنة ٠٫٤٫٢: اقتران ADB محلي أصيل داخل حكيم + متصفح حكيم المملوك، بلا تطبيقات وسيطة."
             textSize = 14f
         })
 
@@ -102,6 +102,16 @@ class MainActivity : Activity() {
 
         qualification = TextView(this).apply { textSize = 13f; setPadding(0, 4, 0, 8) }
         root.addView(qualification)
+
+        val localAdbControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        localAdbControls.addView(button("تأسيس ADB المحلي") {
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+            }
+            HakimLocalPairing.openWirelessDebuggingSettings(this)
+            refreshStatus()
+        })
+        root.addView(localAdbControls)
 
         address = EditText(this).apply { hint = "اكتب عنوان الموقع"; isSingleLine = true }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -180,20 +190,21 @@ class MainActivity : Activity() {
 
     private fun refreshStatus() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
-        val paired = prefs.getString("pair_token", null) != null
+        val cloudPairToken = prefs.getString("pair_token", null) != null
         val configured = HakimDirectRelay.isConfigured(this)
         val financial = FinancialSafeMode.isEnabled(this)
         val relayBase = prefs.getString(HakimDirectRelay.KEY_RELAY_BASE, "https://ntfy.sh") ?: "https://ntfy.sh"
         val lastPoll = prefs.getLong(HakimDirectRelay.KEY_LAST_POLL_MS, 0L)
         val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
+        val localAdb = HakimLocalPairing.currentSummary(this)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: نواة آمنة مستقلة — بلا Make وبلا API مدفوع\n" +
-            "نطاق التحكم: متصفح حكيم المملوك فقط\n" +
-            "وصول عام لشاشة الهاتف: غير موجود في هذه النسخة\n" +
+        status.text = "النمط: نواة آمنة مستقلة — بلا API مدفوع وبلا تطبيق وسيط للاقتران\n" +
+            "$localAdb\n" +
+            "نطاق التحكم الحالي المثبت: متصفح حكيم المملوك؛ التحكم الأوسع لا يُدّعى قبل التأهيل الميداني\n" +
             "وصول لإشعارات التطبيقات: غير موجود في هذه النسخة\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
-            "الاقتران: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
+            "اقتران القناة القديمة: ${if (cloudPairToken) "مفعّل" else "غير مفعّل"}\n" +
             "القناة المشفّرة: ${if (configured) "مهيأة" else "غير مهيأة"}\n" +
             "الناقل: $relayBase\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
