@@ -10,7 +10,7 @@ def load_json(path: str):
 
 def test_active_pointer_loads_phone_constraints_before_runtime_and_bridge_policy():
     active = load_json("governance/HAKIM_ACTIVE.json")
-    assert active["version"] == "2.2"
+    assert active["version"] == "2.3"
     assert active["phone_sovereign_constraints"] == "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json"
     seq = active["restore_sequence"]
     assert "LOAD_PHONE_SOVEREIGN_CONSTRAINTS" in seq
