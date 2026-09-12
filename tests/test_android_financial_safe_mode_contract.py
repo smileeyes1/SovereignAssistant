@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "android" / "hakim-companion" / "app" / "src" / "main"
 JAVA = APP / "java" / "org" / "hakim" / "omega" / "companion"
 POLICY = ROOT / "governance" / "HAKIM_RUNTIME_POLICY_v2.json"
+PHONE_CONSTRAINTS = ROOT / "governance" / "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json"
 MANIFEST = APP / "AndroidManifest.xml"
 
 
@@ -42,7 +43,7 @@ def test_notification_has_one_tap_financial_safe_mode_action():
     assert "FinancialSafeMode.ACTION_ENTER" in service
 
 
-def test_companion_path_itself_does_not_silently_enable_adb():
+def test_normal_companion_control_does_not_require_developer_options_or_adb():
     all_text = "\n".join(read(path) for path in APP.rglob("*") if path.is_file() and path.suffix in {".kt", ".xml"})
     assert "WIRELESS_DEBUGGING_SETTINGS" not in all_text
     assert "APPLICATION_DEVELOPMENT_SETTINGS" not in all_text
@@ -50,7 +51,7 @@ def test_companion_path_itself_does_not_silently_enable_adb():
     assert "adb connect" not in all_text.lower()
 
 
-def test_accessibility_component_remains_available_as_non_governing_component():
+def test_accessibility_control_remains_available_without_adb():
     t = read(JAVA / "HakimAccessibilityService.kt")
     assert "performGlobalAction" in t
     assert "dispatchGesture" in t
@@ -58,16 +59,28 @@ def test_accessibility_component_remains_available_as_non_governing_component():
     assert "takeScreenshot" in t
 
 
-def test_runtime_policy_locks_termux_wireless_adb_as_governing_field_path():
+def test_runtime_policy_locks_no_developer_options_for_normal_phone_control():
     p = json.loads(read(POLICY))
     control = p["device_control"]
-    assert control["normal_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
-    assert control["developer_options_required_for_normal_operation"] is True
-    assert control["adb_policy"] == "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL"
-    assert control["developer_options_policy"] == "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH"
+    assert control["normal_phone_path"] == "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY"
+    assert control["developer_options_required_for_normal_operation"] is False
+    assert control["wireless_debugging_required_for_normal_operation"] is False
+    assert control["adb_policy"] == "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF"
+    assert control["developer_options_policy"] == "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION"
+    assert control["wireless_debugging_policy"] == "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION"
     assert control["financial_safe_mode"]["persistent_until_user_exit"] is True
     assert control["financial_safe_mode"]["disable_accessibility_service"] is True
     assert p["bridges"]["public_command_transport"] is False
-    assert p["bridges"]["public_github_command_relay"] is False
-    assert p["security"]["no_general_remote_shell"] is True
-    assert p["security"]["do_not_disable_platform_protection"] is True
+    assert "TERMUX_WIRELESS_ADB" not in p["bridges"]["preferred"]
+    assert "TERMUX_WIRELESS_ADB" in p["bridges"]["maintenance_only"]
+
+
+def test_latest_user_phone_constraint_is_p0_and_not_overridable_by_generic_autonomy():
+    c = json.loads(read(PHONE_CONSTRAINTS))
+    assert c["priority"] == "P0"
+    assert c["constraints"]["developer_options_normal_operation"] == "MUST_REMAIN_OFF"
+    assert c["constraints"]["wireless_debugging_normal_operation"] == "MUST_REMAIN_OFF"
+    assert c["constraints"]["normal_phone_path"] == "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY"
+    assert c["precedence"]["generic_autonomy_cannot_override"] is True
+    assert c["precedence"]["optimization_cannot_override"] is True
+    assert c["precedence"]["only_later_explicit_user_instruction_may_change"] is True
