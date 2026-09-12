@@ -19,19 +19,29 @@ def test_max_value_rule_exists_and_is_single_hakim_extension():
         "لا تنشئ حكيمًا ثانيًا",
         "FREEZE_BASELINE",
         "FIELD_VERIFIED",
+        "كل شيء مفيد",
     ]
     for token in required:
         assert token in text
 
 
-def test_active_pointer_loads_max_value_rule():
+def test_active_pointer_loads_max_value_rule_before_value_gates():
     active = json.loads((GOV / "HAKIM_ACTIVE.json").read_text(encoding="utf-8"))
     assert active["max_value_intent_rule"] == "governance/HAKIM_MAX_VALUE_INTENT_RULE_AR.md"
-    assert "LOAD_MAX_VALUE_INTENT_RULE" in active["restore_sequence"]
+    seq = active["restore_sequence"]
+    assert "LOAD_MAX_VALUE_INTENT_RULE" in seq
+    assert seq.index("LOAD_MAX_VALUE_INTENT_RULE") < seq.index("LOAD_VALUE_GATES_SPEC")
+    assert "MAX_VALUE_INTENT_RULE_CONTRACT_PASS" in active["promotion_gate"]
 
 
-def test_nstar_and_meta_method_reference_rule():
-    nstar = (GOV / "HAKIM_NSTAR_SPEC_AR.md").read_text(encoding="utf-8")
-    meta = (GOV / "HAKIM_META_METHOD_AR.md").read_text(encoding="utf-8")
-    assert "HAKIM_MAX_VALUE_INTENT_RULE_AR.md" in nstar
-    assert "HAKIM_MAX_VALUE_INTENT_RULE_AR.md" in meta
+def test_rule_preserves_existing_governors_and_prevents_infinite_expansion():
+    text = (GOV / "HAKIM_MAX_VALUE_INTENT_RULE_AR.md").read_text(encoding="utf-8")
+    for invariant in [
+        "ن★",
+        "المنهج الأعلى",
+        "LAST_VERIFIED_BASELINE",
+        "PROVEN_SUCCESS",
+        "لا تعني «كل شيء» الاستمرار بلا نهاية",
+        "ACTUAL_OUTPUT هو الحكم",
+    ]:
+        assert invariant in text
