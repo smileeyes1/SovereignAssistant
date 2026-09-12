@@ -9,10 +9,9 @@ import android.content.Intent
 import android.os.Build
 import android.util.Base64
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,6 +31,12 @@ import javax.crypto.spec.SecretKeySpec
  * - request ids are claimed before execution to prevent replay;
  * - expired requests fail closed;
  * - the existing pair token remains local and is only used against 127.0.0.1.
+ *
+ * Reliability:
+ * - uses ntfy cached polling with a persisted message-id cursor;
+ * - replays a short cache window on first start so transient mobile disconnects
+ *   cannot silently lose commands;
+ * - exposes last successful poll / last transport error in app preferences.
  */
 class HakimRemoteRelay(private val context: Context) {
     private val executor = Executors.newSingleThreadExecutor()
@@ -56,36 +61,68 @@ class HakimRemoteRelay(private val context: Context) {
             val resultUrl = prefs.getString(KEY_RESULT_URL, null)
             val relayKey = prefs.getString(KEY_RELAY_KEY, null)
             if (topic.isNullOrBlank() || resultUrl.isNullOrBlank() || relayKey.isNullOrBlank()) {
-                sleep(10_000L)
+                prefs.edit().putString(KEY_LAST_ERROR, "relay_not_configured").apply()
+                sleep(5_000L)
                 continue
             }
+
+            val cursor = prefs.getString(KEY_LAST_NTFY_ID, null)
+            val since = if (cursor.isNullOrBlank()) {
+                INITIAL_REPLAY_WINDOW
+            } else {
+                URLEncoder.encode(cursor, Charsets.UTF_8.name())
+            }
+
             try {
-                val url = URL("https://ntfy.sh/$topic/json")
+                val url = URL("https://ntfy.sh/$topic/json?poll=1&since=$since")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.connectTimeout = 15_000
-                conn.readTimeout = 75_000
+                conn.readTimeout = 25_000
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Accept", "application/x-ndjson")
-                conn.inputStream.use { input ->
-                    BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { reader ->
-                        retryMs = 2_000L
-                        while (running.get()) {
-                            val line = reader.readLine() ?: break
-                            handleNtfyLine(line, resultUrl, relayKey)
-                        }
-                    }
+
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    val body = conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                    conn.disconnect()
+                    throw IllegalStateException("ntfy_http_$code:${body.take(120)}")
                 }
+
+                val lines = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readLines() }
                 conn.disconnect()
-            } catch (_: Exception) {
+
+                var newestMessageId = cursor
+                for (line in lines) {
+                    if (!running.get()) break
+                    val event = runCatching { JSONObject(line) }.getOrNull() ?: continue
+                    if (event.optString("event") != "message") continue
+                    val id = event.optString("id").trim()
+                    if (!cursor.isNullOrBlank() && id == cursor) continue
+                    handleNtfyEvent(event, resultUrl, relayKey)
+                    if (id.isNotBlank()) newestMessageId = id
+                }
+
+                val editor = prefs.edit()
+                    .putLong(KEY_LAST_POLL_MS, System.currentTimeMillis())
+                    .remove(KEY_LAST_ERROR)
+                if (!newestMessageId.isNullOrBlank() && newestMessageId != cursor) {
+                    editor.putString(KEY_LAST_NTFY_ID, newestMessageId)
+                }
+                editor.apply()
+
+                retryMs = 2_000L
+                sleep(POLL_INTERVAL_MS)
+            } catch (e: Exception) {
+                prefs.edit()
+                    .putString(KEY_LAST_ERROR, e.javaClass.simpleName + ":" + (e.message ?: ""))
+                    .apply()
                 sleep(retryMs)
                 retryMs = (retryMs * 2).coerceAtMost(60_000L)
             }
         }
     }
 
-    private fun handleNtfyLine(line: String, resultUrl: String, relayKey: String) {
-        val event = runCatching { JSONObject(line) }.getOrNull() ?: return
-        if (event.optString("event") != "message") return
+    private fun handleNtfyEvent(event: JSONObject, resultUrl: String, relayKey: String) {
         val carrier = event.optString("message").trim()
         if (carrier.length !in 32..65536) return
         val raw = decryptCarrier(carrier, relayKey) ?: return
@@ -117,7 +154,11 @@ class HakimRemoteRelay(private val context: Context) {
     }
 
     private fun sleep(ms: Long) {
-        try { Thread.sleep(ms) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+        try {
+            Thread.sleep(ms)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
     }
 
     companion object {
@@ -125,6 +166,11 @@ class HakimRemoteRelay(private val context: Context) {
         const val KEY_TOPIC = "relay_topic"
         const val KEY_RESULT_URL = "relay_result_url"
         const val KEY_RELAY_KEY = "relay_hmac_key"
+        const val KEY_LAST_NTFY_ID = "relay_last_ntfy_id"
+        const val KEY_LAST_POLL_MS = "relay_last_poll_ms"
+        const val KEY_LAST_ERROR = "relay_last_error"
+        private const val POLL_INTERVAL_MS = 2_500L
+        private const val INITIAL_REPLAY_WINDOW = "10m"
         private const val APPROVAL_CHANNEL = "hakim_remote_approval"
         private const val ACTION_APPROVE = "org.hakim.omega.companion.REMOTE_APPROVE"
         private const val ACTION_REJECT = "org.hakim.omega.companion.REMOTE_REJECT"
@@ -147,6 +193,7 @@ class HakimRemoteRelay(private val context: Context) {
                 .putString(KEY_TOPIC, topic)
                 .putString(KEY_RESULT_URL, resultUrl)
                 .putString(KEY_RELAY_KEY, relayKey)
+                .remove(KEY_LAST_ERROR)
                 .apply()
         }
 
@@ -219,13 +266,19 @@ class HakimRemoteRelay(private val context: Context) {
         private fun showApproval(context: Context, requestId: String, op: String) {
             ensureApprovalChannel(context)
             val approve = PendingIntent.getBroadcast(
-                context, requestId.hashCode(),
-                Intent(context, RemoteApprovalReceiver::class.java).setAction(ACTION_APPROVE).putExtra(EXTRA_REQUEST_ID, requestId),
+                context,
+                requestId.hashCode(),
+                Intent(context, RemoteApprovalReceiver::class.java)
+                    .setAction(ACTION_APPROVE)
+                    .putExtra(EXTRA_REQUEST_ID, requestId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val reject = PendingIntent.getBroadcast(
-                context, requestId.hashCode() xor 0x55AA,
-                Intent(context, RemoteApprovalReceiver::class.java).setAction(ACTION_REJECT).putExtra(EXTRA_REQUEST_ID, requestId),
+                context,
+                requestId.hashCode() xor 0x55AA,
+                Intent(context, RemoteApprovalReceiver::class.java)
+                    .setAction(ACTION_REJECT)
+                    .putExtra(EXTRA_REQUEST_ID, requestId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val notification = android.app.Notification.Builder(context, APPROVAL_CHANNEL)
@@ -236,19 +289,30 @@ class HakimRemoteRelay(private val context: Context) {
                 .addAction(android.R.drawable.ic_input_add, "موافقة", approve)
                 .addAction(android.R.drawable.ic_delete, "رفض", reject)
                 .build()
-            context.getSystemService(NotificationManager::class.java).notify(requestId.hashCode(), notification)
+            context.getSystemService(NotificationManager::class.java)
+                .notify(requestId.hashCode(), notification)
         }
 
         fun handleApproval(context: Context, requestId: String, approved: Boolean) {
             val pending = takePending(context, requestId) ?: return
             val (envelope, resultUrl) = pending
             if (!approved) {
-                sendResult(resultUrl, requestId, "rejected", JSONObject().put("ok", false).put("error", "rejected_by_user"))
+                sendResult(
+                    resultUrl,
+                    requestId,
+                    "rejected",
+                    JSONObject().put("ok", false).put("error", "rejected_by_user"),
+                )
                 return
             }
             val expiresAt = envelope.optLong("expires_at_ms", 0L)
             if (expiresAt <= System.currentTimeMillis()) {
-                sendResult(resultUrl, requestId, "expired", JSONObject().put("ok", false).put("error", "request_expired"))
+                sendResult(
+                    resultUrl,
+                    requestId,
+                    "expired",
+                    JSONObject().put("ok", false).put("error", "request_expired"),
+                )
                 return
             }
             Executors.newSingleThreadExecutor().execute {
@@ -262,7 +326,10 @@ class HakimRemoteRelay(private val context: Context) {
             if (payloadB64.isBlank()) return JSONObject()
             return runCatching {
                 val raw = String(
-                    Base64.decode(payloadB64, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING),
+                    Base64.decode(
+                        payloadB64,
+                        Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+                    ),
                     Charsets.UTF_8,
                 )
                 JSONObject(raw)
@@ -284,11 +351,19 @@ class HakimRemoteRelay(private val context: Context) {
             }
         }
 
-        private fun localRequest(context: Context, method: String, path: String, body: JSONObject?, requestId: String?): JSONObject {
-            val token = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("pair_token", null)
+        private fun localRequest(
+            context: Context,
+            method: String,
+            path: String,
+            body: JSONObject?,
+            requestId: String?,
+        ): JSONObject {
+            val token = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("pair_token", null)
                 ?: return JSONObject().put("ok", false).put("error", "not_paired")
             return try {
-                val conn = URL("http://127.0.0.1:${LocalControlServer.PORT}$path").openConnection() as HttpURLConnection
+                val conn = URL("http://127.0.0.1:${LocalControlServer.PORT}$path")
+                    .openConnection() as HttpURLConnection
                 conn.connectTimeout = 4_000
                 conn.readTimeout = 20_000
                 conn.requestMethod = method
@@ -303,14 +378,20 @@ class HakimRemoteRelay(private val context: Context) {
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
                 conn.disconnect()
-                val result = runCatching { JSONObject(text) }.getOrElse { JSONObject().put("raw", text) }
+                val result = runCatching { JSONObject(text) }
+                    .getOrElse { JSONObject().put("raw", text) }
                 result.put("ok", code in 200..299)
             } catch (e: Exception) {
                 JSONObject().put("ok", false).put("error", e.javaClass.simpleName)
             }
         }
 
-        private fun sendResult(resultUrl: String, requestId: String, status: String, result: JSONObject) {
+        private fun sendResult(
+            resultUrl: String,
+            requestId: String,
+            status: String,
+            result: JSONObject,
+        ) {
             try {
                 val payload = JSONObject()
                     .put("request_id", requestId)
@@ -326,13 +407,20 @@ class HakimRemoteRelay(private val context: Context) {
                 conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
                 runCatching { conn.inputStream.close() }
                 conn.disconnect()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
 
         private fun ensureApprovalChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= 26) {
                 val nm = context.getSystemService(NotificationManager::class.java)
-                nm.createNotificationChannel(NotificationChannel(APPROVAL_CHANNEL, "موافقات حكيم البعيدة", NotificationManager.IMPORTANCE_HIGH))
+                nm.createNotificationChannel(
+                    NotificationChannel(
+                        APPROVAL_CHANNEL,
+                        "موافقات حكيم البعيدة",
+                        NotificationManager.IMPORTANCE_HIGH,
+                    ),
+                )
             }
         }
     }
@@ -342,8 +430,10 @@ class RemoteApprovalReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val requestId = intent.getStringExtra("request_id") ?: return
         when (intent.action) {
-            "org.hakim.omega.companion.REMOTE_APPROVE" -> HakimRemoteRelay.handleApproval(context, requestId, true)
-            "org.hakim.omega.companion.REMOTE_REJECT" -> HakimRemoteRelay.handleApproval(context, requestId, false)
+            "org.hakim.omega.companion.REMOTE_APPROVE" ->
+                HakimRemoteRelay.handleApproval(context, requestId, true)
+            "org.hakim.omega.companion.REMOTE_REJECT" ->
+                HakimRemoteRelay.handleApproval(context, requestId, false)
         }
     }
 }
