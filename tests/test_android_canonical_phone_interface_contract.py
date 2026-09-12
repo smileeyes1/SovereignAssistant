@@ -11,7 +11,7 @@ def text(path: str) -> str:
 def test_android_update_preserves_single_installed_package_identity():
     gradle = text("android/hakim-companion/app/build.gradle.kts")
     assert 'applicationId = "org.hakim.omega.companion"' in gradle
-    assert "versionCode = 8" in gradle
+    assert "versionCode = 20018" in gradle
     assert 'versionName = "0.5.0-canonical-phone-interface-native-adb"' in gradle
 
 
