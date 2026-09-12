@@ -26,7 +26,8 @@
     "public_relay_bootstrap_retirement_v1": "40e5fca4f25f9879b62881280bcfad7cfa56500c",
     "one_command_interactive_pairing_v1": "54caf62acee179f3ad6e00f3bbe2b9525b6b31d6",
     "max_value_intent_rule_restore_contract_v2_3": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4",
-    "max_value_lexical_intensifiers_v1": "82fb26cede5400d3491b92c89c11783454847143"
+    "max_value_lexical_intensifiers_v1": "82fb26cede5400d3491b92c89c11783454847143",
+    "autonomous_mutation_guard_v1": "2149d6dcb60339625fb27551dcc6b670ffbc59bc"
   },
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -100,7 +101,12 @@
     "latest_main_signature_verified": "PASS",
     "public_ntfy_plain_sender": "REJECTED_AND_INACTIVE",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
-    "physical_phone_round_trip": "NOT_PROVEN"
+    "physical_phone_round_trip": "NOT_PROVEN",
+    "autonomous_mutation_guard_governance_main": "PASS",
+    "autonomous_mutation_guard_continuity_main": "PASS",
+    "autonomous_mutation_guard_reality_main": "PASS",
+    "autonomous_mutation_guard_no_direct_protected_branch_write": "PASS",
+    "autonomous_mutation_guard_required_merge_workflows": "PASS"
   },
   "trigger": "LATEST_EXPLICIT_USER_SOVEREIGN_CHANGE_AND_VERIFIED_POLICY_DRIFT",
   "intent": "تأهيل حكيم الحي على الهاتف عبر Termux Wireless ADB المحلي كمسار FIELD الحاكم، وMake private on-demand relay كقناة أوامر سحابية، وصندوق النتائج، مع Remote Desktop Commander للصيانة الاختيارية فقط، ومنع النقل العام وGitHub relay العام وأي remote shell عام، دون إضعاف حماية أندرويد أو Play Protect",
@@ -145,7 +151,8 @@
     "public_relay_bootstrap_retired_v1",
     "one_command_interactive_pairing_v1",
     "max_value_intent_rule_v1_1_restored_governing_contract",
-    "max_value_lexical_intensifiers_v1"
+    "max_value_lexical_intensifiers_v1",
+    "autonomous_mutation_guard_v1"
   ],
   "protected_prior_success_not_reinterpreted_as_current_field_path": [
     "phone_sovereign_no_developer_options_lock",
@@ -217,5 +224,6 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_MAX_VALUE_INTENT_RULE; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; USE_ONE_COMMAND_INTERACTIVE_LOCAL_PAIRING_FOR_FIRST_ADB_TRUST_IF_REQUIRED; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; LEGACY_PUBLIC_RELAY_RETIRED_FAIL_CLOSED; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
+  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_MAX_VALUE_INTENT_RULE; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; USE_ONE_COMMAND_INTERACTIVE_LOCAL_PAIRING_FOR_FIRST_ADB_TRUST_IF_REQUIRED; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; LEGACY_PUBLIC_RELAY_RETIRED_FAIL_CLOSED; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT",
+  "autonomous_mutation_guard_promotion": "governance/HAKIM_AUTONOMOUS_MUTATION_GUARD_PROMOTION.json"
 }
