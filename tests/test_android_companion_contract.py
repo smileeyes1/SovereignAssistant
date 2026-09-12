@@ -10,7 +10,9 @@ def text(p):
 
 def test_companion_is_loopback_and_token_gated():
     s = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
-    assert "InetAddress.getLoopbackAddress()" in s
+    assert 'const val LOOPBACK_HOST = "127.0.0.1"' in s
+    assert "InetAddress.getByName(LOOPBACK_HOST)" in s
+    assert "InetAddress.getLoopbackAddress()" not in s
     assert "Authorization" not in s or 'headers["authorization"]' in s
     assert "Bearer $token" in s
     assert "0.0.0.0" not in s
