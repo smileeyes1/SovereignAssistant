@@ -29,6 +29,8 @@ def test_local_installer_verifies_release_provenance_before_signing() -> None:
         assert required in text
     assert "termux-open --view" in text
     assert "USER_ACTION_REQUIRED=approve Android package installation if prompted" in text
+    assert 'echo "PUBLIC_DOWNLOADS_UNAVAILABLE=1" >&2' in text
+    assert "exit 6" in text
 
 
 def test_one_command_flow_is_resumable_and_fail_closed() -> None:
@@ -41,6 +43,8 @@ def test_one_command_flow_is_resumable_and_fail_closed() -> None:
     assert "'field_verified': False" in text
     assert "'promotion_allowed': False" in text
     assert "'secrets_recorded': False" in text
+    assert "WAITING_STORAGE_PERMISSION" in text
+    assert "termux-setup-storage" in text
     assert "WAITING_ANDROID_INSTALL_APPROVAL" in text
     assert "PAIR_RETRY_REQUIRED" in text
     assert "PRE_FIELD_PASS" in text
