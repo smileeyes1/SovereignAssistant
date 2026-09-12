@@ -7,7 +7,8 @@ def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_supervisor_reconnects_local_adb_without_starting_public_worker():
+def test_supervisor_reconnects_and_restarts_worker():
+    """هوية العقد محفوظة؛ العامل العام القديم أصبح واجب الإيقاف لا التشغيل."""
     s = text("scripts/hakim-multibridge-supervisor.sh")
     assert "adb mdns services" in s
     assert "adb connect" in s
