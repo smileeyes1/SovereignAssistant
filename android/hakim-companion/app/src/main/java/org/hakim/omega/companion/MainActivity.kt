@@ -91,9 +91,12 @@ class MainActivity : Activity() {
             setPadding(24, 30, 24, 20)
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "النواة الآمنة ٠٫٤٫١: قناة مشفّرة مباشرة + متصفح حكيم المملوك، بلا وصول عام لشاشة الهاتف أو إشعارات التطبيقات."
+            text = CanonicalHakimIdentity.DISPLAY_NAME_AR
+            textSize = 27f
+        })
+        root.addView(TextView(this).apply {
+            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة، حالة واحدة، ومصدر حقيقة واحد."
             textSize = 14f
         })
 
@@ -188,7 +191,10 @@ class MainActivity : Activity() {
         val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: نواة آمنة مستقلة — بلا Make وبلا API مدفوع\n" +
+        status.text = "الهوية: ${CanonicalHakimIdentity.INSTANCE_ID}\n" +
+            "الدور: الواجهة المثبتة لحكيم الأصلي — ليست حكيمًا ثانيًا\n" +
+            "مصدر الحقيقة: ${CanonicalHakimIdentity.RUNTIME_REPOSITORY} / ${CanonicalHakimIdentity.ACTIVE_POINTER}\n" +
+            "النمط: نواة آمنة مستقلة — بلا Make وبلا API مدفوع\n" +
             "نطاق التحكم: متصفح حكيم المملوك فقط\n" +
             "وصول عام لشاشة الهاتف: غير موجود في هذه النسخة\n" +
             "وصول لإشعارات التطبيقات: غير موجود في هذه النسخة\n" +
