@@ -44,7 +44,15 @@ echo 'STAGE_IDEMPOTENCY_FIRST_EXECUTION=PROVEN'
 # Process death must not erase the replay ledger.
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-adb shell pidof "$PKG" >/dev/null
+
+# Do not make an instantaneous pidof sample a release gate: Android process
+# publication after am start is asynchronous. Bound it, then prove readiness by
+# the authenticated control endpoint below.
+i=0
+until adb shell pidof "$PKG" >/dev/null 2>&1; do
+  i=$((i + 1)); [ "$i" -lt 15 ] || { echo 'HAKIM process did not reappear after forced process death' >&2; exit 1; }; sleep 1
+done
+
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null; do
