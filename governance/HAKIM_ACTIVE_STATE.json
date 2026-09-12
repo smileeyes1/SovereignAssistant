@@ -2,50 +2,60 @@
   "name": "HAKIM_ACTIVE_STATE",
   "schema_version": "1.3",
   "active_extension_version": "2.1",
-  "status": "CANDIDATE_PHONE_SOVEREIGN_LOCK_PENDING_GATES",
-  "last_verified_baseline": "423ac89a1721a6727556d196e247329ee8498b10",
-  "latest_observed_main": "fb8c41a8c57e70698aa720bf264b79da8c790b93",
-  "candidate_branch": "hakim/lock-no-developer-options-20260912",
+  "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
+  "last_verified_baseline": "3d45f588ce82b5054ef2045fc7599d3b4b70839a",
+  "latest_observed_main": "3d45f588ce82b5054ef2045fc7599d3b4b70839a",
+  "candidate_branch": "hakim/hc1-over-sovereign-lock",
   "promotion_evidence": {
-    "previous_financial_safe_governance": "PASS",
-    "previous_financial_safe_reality_gate": "PASS",
-    "android_companion_release_build": "PASS",
-    "android15_pre_field_runtime_gate": "PASS",
-    "make_private_send_path": "PASS",
-    "physical_phone_round_trip": "NOT_PROVEN",
-    "candidate_governance_gate": "PENDING",
-    "candidate_android_gate": "PENDING",
-    "candidate_reality_gate": "PENDING"
+    "phone_sovereign_lock_main": "PASS",
+    "encrypted_companion_android_contracts_prior_identical_app_head": "PASS",
+    "encrypted_companion_android15_prior_identical_app_head": "PASS",
+    "encrypted_companion_installable_apk_build_prior_identical_app_head": "PASS",
+    "make_hc1_ciphertext_send": "PASS",
+    "make_result_mailbox_active": "PASS",
+    "make_free_plan_active_slot_restored_after_test": "PASS",
+    "candidate_debug_apk_v2_signature_and_content": "PASS",
+    "stable_release_signing_identity": "PASS",
+    "stable_release_apk_v2_signature_and_content": "PASS",
+    "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
+    "physical_phone_round_trip": "NOT_PROVEN"
   },
-  "trigger": "LATEST_EXPLICIT_USER_SOVEREIGN_CHANGE",
-  "intent": "تشغيل حكيم على الهاتف دون إبقاء خيارات المطور أو التصحيح اللاسلكي مفعّلين، مع أولوية توافق التطبيقات المالية ووضع مالي آمن مغلق الفشل",
+  "trigger": "LATEST_EXPLICIT_USER_SOVEREIGN_CHANGE_AND_VERIFIED_SECURITY_GAP",
+  "intent": "تشغيل حكيم على الهاتف دون خيارات المطور أو التصحيح اللاسلكي في التشغيل العادي، مع Android Companion مشفر طرفيًا HC1، وأولوية توافق التطبيقات المالية ووضع مالي آمن مغلق الفشل",
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
     "durable_active_state_recovery",
+    "phone_sovereign_no_developer_options_lock",
     "financial_safe_android_companion_pre_field",
-    "make_private_send_path",
+    "hc1_aes256gcm_ciphertext_only_carrier",
+    "make_hc1_ciphertext_send",
+    "make_result_mailbox_active",
+    "stable_android_release_signing_identity_private",
     "public_command_transport_disabled",
     "fail_closed_sensitive_mutations",
     "arabic_first",
     "goal_does_not_fail_when_a_means_fails"
   ],
   "known_failures": [
-    "REGRESSION_FB8C41A8_PROMOTED_TERMUX_WIRELESS_ADB_AGAINST_LATEST_USER_CONSTRAINT",
+    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED",
     "REMOTE_DESKTOP_COMMANDER_OFFLINE_AT_LAST_DIRECT_CHECK",
     "PHYSICAL_PHONE_ROUND_TRIP_NOT_YET_PROVEN"
   ],
   "field_phone": {
-    "primary_path": "ANDROID_COMPANION_ACCESSIBILITY_PRIVATE_RELAY",
+    "primary_path": "ANDROID_COMPANION_HC1_E2E_ENCRYPTED_PRIVATE_RELAY",
     "developer_options": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
     "wireless_debugging": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
     "developer_options_required_for_normal_operation": false,
     "wireless_debugging_required_for_normal_operation": false,
     "maintenance_fallback": "TERMUX_WIRELESS_ADB_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
-    "current_blocker": "LOCAL_ANDROID_COMPANION_INSTALL_OR_UPDATE_AND_EXPLICIT_ACCESSIBILITY_ACTIVATION",
+    "cloud_sender": "MAKE_HC1_CIPHERTEXT_SENDER_ON_DEMAND",
+    "result_path": "MAKE_RESULT_MAILBOX_ACTIVE",
+    "free_plan_sender_strategy": "TEMPORARY_ACTIVE_SLOT_SWAP_AUTOMATED_AND_RESTORED",
+    "current_blocker": "LOCAL_ANDROID_COMPANION_INSTALL_OR_UPDATE_AND_PRIVATE_PAIR_DEEP_LINK_THEN_REAL_ROUND_TRIP",
     "field_verified": false,
-    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP_AND_FINANCIAL_APP_COMPATIBILITY"
+    "next_gate": "REAL_ENCRYPTED_SIGNED_STATUS_ROUND_TRIP_AND_FINANCIAL_APP_COMPATIBILITY"
   },
   "financial_safety": {
     "priority": "P0",
@@ -56,14 +66,28 @@
     "unbind_notification_listener": true,
     "physical_financial_app_compatibility": "NOT_PROVEN"
   },
-  "known_live_constraint": {
-    "remote_desktop_commander": "OFFLINE_AT_LAST_DIRECT_CHECK_2026-09-12",
-    "effect": "NOT_PRIMARY; DOES_NOT_BLOCK_COMPANION_ACTIVATION",
-    "goal_rule": "DO_NOT_TREAT_BRIDGE_FAILURE_AS_GOAL_FAILURE"
-  },
+  "required_physical_matrix": [
+    "DEEP_LINK_PAIR_CONFIG",
+    "ENCRYPTED_SIGNED_STATUS_ROUND_TRIP",
+    "PLAINTEXT_CARRIER_REJECTION",
+    "BAD_GCM_TAG_REJECTION",
+    "BAD_HMAC_REJECTION",
+    "REPLAY_REJECTION",
+    "EXPIRY_REJECTION",
+    "STATUS_UI_SCREENSHOT_NOTIFICATIONS",
+    "FINANCIAL_SAFE_MODE_ONE_TAP_ISOLATION",
+    "TARGET_FINANCIAL_APPS_COMPATIBILITY_IN_SAFE_MODE",
+    "LOCAL_APPROVAL_FOR_MUTATION",
+    "SCREEN_OFF_BACKGROUND",
+    "RECONNECT",
+    "REBOOT_CONTINUITY",
+    "OFFLINE_RECOVERY",
+    "IDEMPOTENCY_LKG",
+    "BACKUP_RESTORE_CONTAINMENT"
+  ],
   "secrets": {
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "LOAD_PHONE_SOVEREIGN_CONSTRAINTS_BEFORE_RUNTIME_AND_BRIDGE_POLICY; NEVER_PROMOTE_ADB_TO_NORMAL_PATH_UNLESS_A_LATER_EXPLICIT_USER_INSTRUCTION_CHANGES_THE_P0_CONSTRAINT"
+  "resume_rule": "LOAD_PHONE_SOVEREIGN_CONSTRAINTS_BEFORE_RUNTIME_AND_BRIDGE_POLICY; PRE_FIELD VERIFIED DOES NOT MEAN PHYSICAL FIELD_VERIFIED; NEVER PROMOTE ADB TO NORMAL PATH UNLESS A LATER EXPLICIT USER INSTRUCTION CHANGES THE P0 CONSTRAINT"
 }
