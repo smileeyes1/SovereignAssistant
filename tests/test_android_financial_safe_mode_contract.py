@@ -17,19 +17,21 @@ def test_financial_safe_mode_is_persistent_and_fail_closed():
     t = read(JAVA / "FinancialSafeMode.kt")
     assert 'const val KEY = "financial_safe_mode"' in t
     assert ".putBoolean(KEY, true)" in t
-    assert "disableSelf()" in t
-    assert "requestUnbind()" in t
+    assert 'putString("companion_mode", "FINANCIAL_SAFE")' in t
     assert "stopService(Intent(context, HakimForegroundService::class.java))" in t
+    assert "HakimAccessibilityService" not in t
+    assert "HakimNotificationListener" not in t
 
 
 def test_financial_safe_mode_blocks_restart_paths():
     main = read(JAVA / "MainActivity.kt")
     boot = read(JAVA / "BootReceiver.kt")
     service = read(JAVA / "HakimForegroundService.kt")
-    assert main.count("!FinancialSafeMode.isEnabled(this)") >= 3
+    assert main.count("!FinancialSafeMode.isEnabled(this)") >= 2
     assert "if (FinancialSafeMode.isEnabled(context)) return" in boot
     assert "if (FinancialSafeMode.isEnabled(context)) return" in service
     assert "START_NOT_STICKY" in service
+    assert 'if (!prefs.getString("pair_token", null).isNullOrBlank())' in read(JAVA / "FinancialSafeMode.kt")
 
 
 def test_notification_has_one_tap_financial_safe_mode_action():
@@ -51,45 +53,47 @@ def test_normal_companion_control_does_not_require_developer_options_or_adb():
     assert "adb connect" not in all_text.lower()
 
 
-def test_accessibility_control_remains_available_without_adb():
-    t = read(JAVA / "HakimAccessibilityService.kt")
-    assert "performGlobalAction" in t
-    assert "dispatchGesture" in t
-    assert "ACTION_SET_TEXT" in t
-    assert "takeScreenshot" in t
+def test_owned_browser_control_remains_available_without_adb_or_privileged_services():
+    browser = read(JAVA / "HakimBrowserController.kt")
+    manifest = read(MANIFEST)
+    assert "evaluateJavascript" in browser
+    assert "loadDataWithBaseURL" in browser
+    assert "click_css" in browser
+    assert "set_text" in browser
+    assert "screenshotBase64" in browser
+    assert "BIND_ACCESSIBILITY_SERVICE" not in manifest
+    assert "BIND_NOTIFICATION_LISTENER_SERVICE" not in manifest
 
 
-def test_runtime_policy_uses_governing_local_adb_without_weakening_android_protection():
+def test_runtime_policy_locks_no_developer_options_for_normal_phone_control():
     p = json.loads(read(POLICY))
     control = p["device_control"]
-    assert control["governing_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
-    assert control["wireless_debugging_required_for_governing_local_path"] is True
-    assert control["wireless_debugging_pairing"] == "ANDROID_LOCAL_PAIRING_REQUIRED_IF_NOT_ALREADY_TRUSTED"
-    assert control["adb_policy"] == "LOCAL_GOVERNED_ALLOWLIST_ONLY_NO_GENERAL_REMOTE_SHELL"
-    assert control["cloud_command_relay"] == "MAKE_PRIVATE_ON_DEMAND_RELAY"
-    assert control["result_path"] == "RESULT_MAILBOX"
+    assert control["normal_phone_path"] == "ANDROID_COMPANION_SOVEREIGN_LOCAL_OWNED_BROWSER"
+    assert control["developer_options_required_for_normal_operation"] is False
+    assert control["wireless_debugging_required_for_normal_operation"] is False
+    assert control["accessibility_service_required_for_normal_operation"] is False
+    assert control["notification_listener_required_for_normal_operation"] is False
+    assert control["external_background_command_transport"] is False
+    assert control["adb_policy"] == "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF"
+    assert control["developer_options_policy"] == "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION"
+    assert control["wireless_debugging_policy"] == "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION"
     assert control["financial_safe_mode"]["persistent_until_user_exit"] is True
-    assert control["financial_safe_mode"]["disable_accessibility_service"] is True
-    assert p["security"]["do_not_disable_platform_protection"] is True
-    assert p["security"]["do_not_disable_play_protect"] is True
-    assert p["security"]["no_general_remote_shell"] is True
+    assert control["financial_safe_mode"]["stop_local_control_service"] is True
     assert p["bridges"]["public_command_transport"] is False
-    assert p["bridges"]["public_github_command_relay"] is False
-    assert p["bridges"]["preferred"][0] == "TERMUX_WIRELESS_ADB_LOCAL"
+    assert p["bridges"]["external_background_command_transport"] is False
+    assert "TERMUX_WIRELESS_ADB" not in p["bridges"]["preferred"]
+    assert "TERMUX_WIRELESS_ADB" in p["bridges"]["maintenance_only"]
 
 
 def test_latest_user_phone_constraint_is_p0_and_not_overridable_by_generic_autonomy():
     c = json.loads(read(PHONE_CONSTRAINTS))
     assert c["priority"] == "P0"
-    constraints = c["constraints"]
-    assert constraints["governing_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
-    assert constraints["cloud_command_relay"] == "MAKE_PRIVATE_ON_DEMAND_RELAY"
-    assert constraints["result_path"] == "RESULT_MAILBOX"
-    assert constraints["maintenance_bridge"] == "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY"
-    assert constraints["public_command_transport"] == "FORBIDDEN"
-    assert constraints["public_github_command_relay"] == "FORBIDDEN"
-    assert constraints["general_remote_shell"] == "FORBIDDEN"
-    assert constraints["play_protect_disable"] is False
+    assert c["constraints"]["developer_options_normal_operation"] == "MUST_REMAIN_OFF"
+    assert c["constraints"]["wireless_debugging_normal_operation"] == "MUST_REMAIN_OFF"
+    assert c["constraints"]["normal_phone_path"] == "ANDROID_COMPANION_SOVEREIGN_LOCAL_OWNED_BROWSER"
+    assert c["constraints"]["external_background_command_transport"] == "FORBIDDEN_IN_NORMAL_OPERATION"
+    assert c["constraints"]["accessibility_service_required"] is False
+    assert c["constraints"]["notification_listener_required"] is False
     assert c["precedence"]["generic_autonomy_cannot_override"] is True
     assert c["precedence"]["optimization_cannot_override"] is True
     assert c["precedence"]["only_later_explicit_user_instruction_may_change"] is True
