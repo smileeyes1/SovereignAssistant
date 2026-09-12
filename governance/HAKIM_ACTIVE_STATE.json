@@ -127,7 +127,7 @@
     "hc1_aes256gcm_ciphertext_only_carrier",
     "make_hc1_ciphertext_send",
     "make_result_mailbox_active",
-    "stable_release_signing_identity_private",
+    "stable_android_release_signing_identity_private",
     "auditable_android_release_provenance_v1",
     "fail_closed_physical_field_preflight_v1",
     "one_tap_field_qualification_v1",
