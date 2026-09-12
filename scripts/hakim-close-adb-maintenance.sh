@@ -31,23 +31,35 @@ if missing:
 print('✅ Companion local readiness verified before maintenance shutdown.')
 PY
 
-echo 'إغلاق التصحيح اللاسلكي وخيارات المطور لأنها ليست جزءًا من التشغيل المعتاد...'
-# Security-positive, reversible maintenance closure. Run only after Companion readiness.
-adb -s "$TARGET" shell settings put global adb_wifi_enabled 0 >/dev/null 2>&1 || true
-adb -s "$TARGET" shell settings put global adb_enabled 0 >/dev/null 2>&1 || true
-adb -s "$TARGET" shell settings put global development_settings_enabled 0 >/dev/null 2>&1 || true
+# First prove the Developer-options master setting can be written and read back
+# while the maintenance transport is still alive. Wireless ADB is disabled last,
+# because that action may intentionally destroy the very channel used to inspect it.
+echo 'إغلاق وضع الصيانة؛ التشغيل المعتاد سيبقى عبر Companion فقط...'
+adb -s "$TARGET" shell settings put global development_settings_enabled 0 >/dev/null
+DEV="$(adb -s "$TARGET" shell settings get global development_settings_enabled 2>/dev/null | tr -d '\r')"
+[ "$DEV" = '0' ] || { echo "ERROR: Developer Options readback is '$DEV', expected 0; maintenance bridge retained." >&2; exit 6; }
+
+# Request both ADB channels off. Loss of the connection after this point is an
+# expected positive effect, but it is NOT by itself proof of Companion autonomy.
+adb -s "$TARGET" shell 'settings put global adb_enabled 0; settings put global adb_wifi_enabled 0' >/dev/null 2>&1 || true
 sleep 2
 
 python - "$CFG" <<'PY'
 import json,sys,os,tempfile,time
 from pathlib import Path
 p=Path(sys.argv[1]); d=json.loads(p.read_text(encoding='utf-8'))
-d['maintenance_adb_closed_at_ms']=int(time.time()*1000)
+d['maintenance_close_requested_at_ms']=int(time.time()*1000)
+d['developer_options_readback_before_transport_close']='0'
 d['normal_runtime']='android-companion'
+d['adb_target_last']=d.get('adb_target','')
 d['adb_target']=''
+d['maintenance_close_state']='REQUESTED_AWAITING_COMPANION_ONLY_ROUND_TRIP'
 fd,tmp=tempfile.mkstemp(prefix='.hakim-cfg-',dir=str(p.parent)); os.close(fd)
 Path(tmp).write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding='utf-8'); os.chmod(tmp,0o600); os.replace(tmp,p)
 PY
 
 adb forward --remove "tcp:$LOCAL_PORT" >/dev/null 2>&1 || true
-printf '%s\n' '✅ HAKIM_ADB_MAINTENANCE_CLOSED' '✅ التشغيل المعتاد الآن عبر Companion والقناة الخاصة فقط.'
+printf '%s\n' \
+  '✅ HAKIM_ADB_MAINTENANCE_CLOSE_REQUESTED' \
+  '✅ Developer Options=0 تم التحقق منها قبل إسقاط قناة الصيانة.' \
+  '⏳ لا يُرفع CLOSED_VERIFIED إلا بعد نجاح جولة Companion بعيدة مستقلة بلا ADB.'
