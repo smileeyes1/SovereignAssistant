@@ -97,7 +97,7 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "pipefail" not in gate
     assert 'pm grant "$PKG" android.permission.POST_NOTIFICATIONS' in gate
     assert "EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY" in gate
-    assert "EMULATOR_ACCESSIBILITY_PERMISSION=SCAFFOLD_ONLY" in gate
+    assert "EMULATOR_ACCESSIBILITY_PERMISSION=NOT_REGISTERED_SAFE_CORE" in gate
     assert "EMULATOR_PAIRING=SCAFFOLD_ONLY" in gate
     assert "EMULATOR_RUNTIME=PROVEN" in gate
     assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
@@ -105,7 +105,7 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "adb reboot" in gate
 
 
-def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_semantics():
+def test_emulator_gate_exercises_authenticated_control_plane_and_safe_core_semantics():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
     assert 'adb forward "tcp:${PORT}" "tcp:${PORT}"' in gate
     assert "hakim://pair?token=${PAIR_TOKEN}" in gate
@@ -114,35 +114,49 @@ def test_emulator_gate_exercises_authenticated_control_plane_and_fail_closed_sem
     assert "[ \"$code\" = '401' ]" in gate
     assert '"evidence_state":"NOT_PROVEN"' in gate
     assert '"loopback_only":true' in gate
+    assert '"safe_core":true' in gate
+    assert '"control_scope":"OWNED_BROWSER_ONLY"' in gate
+    assert '"device_wide_accessibility":false' in gate
+    assert '"notification_access":false' in gate
     assert '"control_server_listening":true' in gate
     assert '"persistent_model":null' in gate
     assert '"persistent_model_allowed":false' in gate
+    assert "STAGE_SENSITIVE_SERVICES_ABSENT=PROVEN" in gate
     assert "EMULATOR_AUTH_FAIL_CLOSED=PROVEN" in gate
     assert "EMULATOR_STATUS_SEMANTICS=PROVEN" in gate
     assert "EMULATOR_CONTROL_PLANE=PROVEN" in gate
 
 
-def test_emulator_gate_retains_legacy_device_wide_profile_checks_separate_from_safe_core():
+def test_emulator_gate_proves_owned_browser_ui_screenshot_navigation_and_replay_protection():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
-    assert 'settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"' in gate
-    assert "settings put secure accessibility_enabled 1" in gate
+    assert '"scope":"OWNED_BROWSER_ONLY"' in gate
     assert '"${BASE_URL}/v1/ui"' in gate
+    assert '"https://example.com"' in gate
     assert '"${BASE_URL}/v1/screenshot"' in gate
-    assert "EMULATOR_UI_TREE=PROVEN" in gate
-    assert "EMULATOR_SCREENSHOT=PROVEN" in gate
-    assert "EMULATOR_NAVIGATION=PROVEN" in gate
+    assert "base64.b64decode" in gate
+    assert "data.startswith(b'\\x89PNG\\r\\n\\x1a\\n')" in gate
+    assert "owned_browser_view" in gate
+    assert '"action":"browser_reload"' in gate
+    assert "duplicate_request" in gate
+    assert "STAGE_OWNED_BROWSER_NAVIGATION=PROVEN" in gate
+    assert "STAGE_OWNED_BROWSER_SCREENSHOT=PROVEN" in gate
+    assert "STAGE_OWNED_BROWSER_ACTION_IDEMPOTENCY=PROVEN" in gate
+    assert "EMULATOR_UI_TREE=PROVEN_OWNED_BROWSER_ONLY" in gate
+    assert "EMULATOR_SCREENSHOT=PROVEN_OWNED_BROWSER_ONLY" in gate
+    assert "EMULATOR_NAVIGATION=PROVEN_OWNED_BROWSER_ONLY" in gate
+    assert "enabled_accessibility_services" not in gate
 
 
 def test_emulator_gate_proves_kernel_loopback_binding_and_pairing_recovery():
     gate = text("scripts/android-companion-emulator-runtime-gate.sh")
     assert "adb shell ss -ltn" in gate
     assert "Companion control plane is wildcard-bound" in gate
-    assert "EMULATOR_LOOPBACK_BINDING=PROVEN" in gate
+    assert "STAGE_KERNEL_LOOPBACK=PROVEN" in gate
     assert "hakim-status-after-restart.json" in gate
     assert "hakim-status-after-reboot.json" in gate
-    assert "Authenticated control plane did not recover after reboot" in gate
+    assert "Authenticated safe core did not recover after reboot" in gate
     assert "EMULATOR_PAIRING_RECOVERY=PROVEN" in gate
-    assert "EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN" in gate
+    assert "EMULATOR_PERMISSION_FAIL_CLOSED=PROVEN_SAFE_CORE" in gate
 
 
 def test_launch_requires_durable_identity_and_runtime_gate_proves_replay_rejection():
@@ -159,5 +173,4 @@ def test_launch_requires_durable_identity_and_runtime_gate_proves_replay_rejecti
     assert "bounded launch missing request identity" in gate
     assert "bounded launch replay after process death" in gate
     assert '"error":"duplicate_request"' in gate
-    assert "STAGE_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate
     assert "EMULATOR_LAUNCH_REPLAY_PROTECTION=PROVEN" in gate
