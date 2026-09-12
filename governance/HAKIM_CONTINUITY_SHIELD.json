@@ -1,8 +1,9 @@
 {
   "name": "HAKIM_CONTINUITY_SHIELD",
   "schema_version": "1.0",
-  "status": "CANDIDATE_UNTIL_GOVERNANCE_PASS_AND_MERGE",
+  "status": "ACTIVE_VERIFIED",
   "introduced_against_main": "d23ef65de5d2a6727a20bfad21ada06e999d2f93",
+  "activated_main": "cfd894239c2c6be7e5a423311a96e60588da2db8",
   "fail_closed": true,
   "preserve_outcomes_not_implementations": true,
   "protected_delete_prefixes": ["app/hakim/", "android/hakim-companion/", "governance/", "scripts/", "tests/", ".github/workflows/"],
@@ -19,6 +20,7 @@
     "governance/HAKIM_CAPABILITY_TRANSITIONS.json",
     "governance/HAKIM_CONTINUITY_SHIELD_AR.md",
     "governance/HAKIM_CONTINUITY_SHIELD.json",
+    "governance/HAKIM_CONTINUITY_SHIELD_PROMOTION.json",
     "scripts/hakim_continuity_shield.py",
     "scripts/hakim-phone-field-run.sh",
     "tests/test_hakim_continuity_shield.py",
@@ -62,14 +64,17 @@
     "goal_does_not_fail_when_a_means_fails",
     "field_architecture_reconcile_v1_governance_verified",
     "android_safe_core_0_4_1_verified",
-    "one_command_phone_field_v1_verified"
+    "one_command_phone_field_v1_verified",
+    "continuity_shield_v1",
+    "continuity_transition_gate_v1"
   ],
   "protected_promotion_lineage_ids": [
     "adaptive_best_route_optimizer_v1",
     "one_tap_field_qualification_v1",
     "field_architecture_reconcile_v1",
     "android_safe_core_0_4_1",
-    "one_command_phone_field_v1"
+    "one_command_phone_field_v1",
+    "continuity_shield_v1"
   ],
   "capabilities": [
     {"id":"governance_core","tier":"P0","status":"PROTECTED_ACTIVE","paths":["governance/HAKIM_ACTIVE.json","governance/HAKIM_CANONICAL_CORE_AR.md","governance/HAKIM_RUNTIME_POLICY_v2.json"],"tests":["tests/test_hakim_canonical_governance_contract.py","tests/test_hakim_nstar_governance.py"]},
@@ -83,7 +88,7 @@
     {"id":"field_qualification_truthfulness","tier":"P0","status":"PROTECTED_ACTIVE","paths":["governance/HAKIM_ACTIVE_STATE.json","scripts/android-physical-field-gate.py"],"tests":["tests/test_android_field_next_contract.py","tests/test_android_physical_field_gate.py","tests/test_android_one_tap_field_qualification_contract.py"]},
     {"id":"financial_safety","tier":"P0","status":"PROTECTED_ACTIVE","paths":["android/hakim-companion/app/src/main/AndroidManifest.xml"],"tests":["tests/test_android_financial_safe_mode_contract.py"]},
     {"id":"arabic_first","tier":"P0","status":"PROTECTED_ACTIVE","paths":["governance/HAKIM_CONTEXT_SEED_AR.txt","governance/HAKIM_CANONICAL_CORE_AR.md"],"tests":["tests/test_hakim_meta_method_contract.py"]},
-    {"id":"continuity_shield","tier":"P0","status":"PROTECTED_ACTIVE","paths":["governance/HAKIM_CONTINUITY_SHIELD_AR.md","governance/HAKIM_CONTINUITY_SHIELD.json","governance/HAKIM_CAPABILITY_TRANSITIONS.json","scripts/hakim_continuity_shield.py",".github/workflows/continuity-shield.yml"],"tests":["tests/test_hakim_continuity_shield.py"]}
+    {"id":"continuity_shield","tier":"P0","status":"PROTECTED_ACTIVE","paths":["governance/HAKIM_CONTINUITY_SHIELD_AR.md","governance/HAKIM_CONTINUITY_SHIELD.json","governance/HAKIM_CONTINUITY_SHIELD_PROMOTION.json","governance/HAKIM_CAPABILITY_TRANSITIONS.json","scripts/hakim_continuity_shield.py",".github/workflows/continuity-shield.yml"],"tests":["tests/test_hakim_continuity_shield.py","tests/test_hakim_continuity_shield_promotion.py"]}
   ],
   "android_manifest": {
     "path": "android/hakim-companion/app/src/main/AndroidManifest.xml",
