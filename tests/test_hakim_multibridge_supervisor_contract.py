@@ -60,6 +60,21 @@ def test_bootstrap_retires_legacy_public_worker_instead_of_installing_it():
     assert "POLICY_VIOLATION_RUNNING" in status
 
 
+def test_first_pairing_is_one_command_interactive_local_and_bounded():
+    boot = text("scripts/bootstrap-hakim-termux-adb.sh")
+    pair = text("scripts/hakim-adb-pair.sh")
+    assert 'exec "$OMEGA/bin/hakim-adb-pair" --interactive' in boot
+    assert 'PAIR_ADDR" = "--interactive"' in pair
+    assert "_adb-tls-pairing\\._tcp" in pair
+    assert "for _ in $(seq 1 90)" in pair
+    assert "sleep 2" in pair
+    assert "PAIRING_ENDPOINT_NOT_DISCOVERED_WITHIN_LIMIT" in pair
+    assert "أدخل رمز الاقتران ذي الستة أرقام" in pair
+    assert "PAIR_CODE=''" in pair and "unset PAIR_CODE" in pair
+    assert "ntfy.sh" not in pair
+    assert "github.com" not in pair
+
+
 def test_mutating_control_is_fail_closed_by_default():
     boot = text("scripts/bootstrap-hakim-termux-adb.sh")
     pair = text("scripts/hakim-adb-pair.sh")
