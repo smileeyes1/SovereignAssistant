@@ -11,8 +11,8 @@ def read(rel: str) -> str:
 def test_safe_core_version_and_package_stay_update_compatible():
     gradle = read("build.gradle.kts")
     assert 'applicationId = "org.hakim.omega.companion"' in gradle
-    assert 'versionCode = 6' in gradle
-    assert 'versionName = "0.4.1-safe-browser-core"' in gradle
+    assert 'versionCode = 7' in gradle
+    assert 'versionName = "0.4.2-native-local-adb-bootstrap"' in gradle
 
 
 def test_safe_core_manifest_has_no_device_wide_sensitive_services():
@@ -31,7 +31,8 @@ def test_safe_core_ui_does_not_invite_sensitive_settings():
     assert "ACTION_NOTIFICATION_LISTENER_SETTINGS" not in activity
     assert "تحكم الواجهة" not in activity
     assert "وصول الإشعارات" not in activity
-    assert "نطاق التحكم: متصفح حكيم المملوك فقط" in activity
+    assert "نطاق التحكم الحالي المثبت: متصفح حكيم المملوك" in activity
+    assert "التحكم الأوسع لا يُدّعى قبل التأهيل الميداني" in activity
 
 
 def test_compatibility_routes_are_confined_to_owned_browser():
