@@ -24,6 +24,7 @@ def test_active_state_promotes_only_pre_field_capability():
     assert state["last_verified_baseline"] == SOURCE_MAIN
     assert state["latest_observed_main"] == SOURCE_MAIN
     assert state["state_refresh_source_main"] == SOURCE_MAIN
+    assert state["promotion_lineage"]["one_tap_field_qualification_v1"] == SOURCE_MAIN
     assert state["one_tap_field_qualification_promotion"] == "governance/HAKIM_ONE_TAP_FIELD_QUALIFICATION_PROMOTION.json"
     assert "one_tap_field_qualification_v1" in state["proven_success"]
     assert "sanitized_remote_field_qualification_status_v1" in state["proven_success"]
