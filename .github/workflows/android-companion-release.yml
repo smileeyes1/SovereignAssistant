@@ -2,7 +2,7 @@ name: HAKIM Android Companion Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, hakim-playprotect-safe]
     paths:
       - 'android/hakim-companion/**'
       - 'scripts/install-android-companion-local.sh'
@@ -51,6 +51,6 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "HAKIM Companion ${GITHUB_SHA::12}" \
-            --notes "Unsigned Android Companion built from verified main. Sign locally on the owned phone; no repository signing key exists." \
+            --notes "Unsigned Android Companion built from verified source branch. Sign locally with the owned HAKIM key; no repository signing key exists." \
             hakim-companion-unsigned.apk \
             hakim-companion-unsigned.apk.sha256
