@@ -18,7 +18,11 @@ def test_active_state_tracks_current_active_extension_and_main_recovery_path():
     assert state["active_extension_version"] == active["version"]
     assert state["candidate_branch"] == "main"
     assert state["status"] == "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING"
-    assert state["latest_observed_main_semantics"].startswith("SOURCE_MAIN_AT_STATE_REFRESH")
+    assert state["latest_observed_main"] == state["last_verified_baseline"]
+    assert state["latest_observed_main_semantics"].startswith("VERIFIED_PROMOTION_BASELINE_POINTER")
+    assert isinstance(state["state_refresh_source_main"], str)
+    assert len(state["state_refresh_source_main"]) == 40
+    assert state["state_refresh_source_main_semantics"].startswith("SOURCE_MAIN_AT_STATE_REFRESH")
 
 
 def test_active_state_keeps_physical_phone_claim_fail_closed():
@@ -38,6 +42,8 @@ def test_active_state_restores_value_gates_and_physical_preflight_gate():
     assert (ROOT / gate).is_file()
     assert state["promotion_evidence"]["value_gates_v1_main"] == "PASS"
     assert state["promotion_evidence"]["physical_field_preflight_gate_v1_main"] == "PASS"
+    assert "nstar_adaptive_intelligence_extension_v2_1" in state["proven_success"]
+    assert "nstar_adaptive_intelligence_extension_v2_2" in state["proven_success"]
     assert "auditable_android_release_provenance_v1" in state["proven_success"]
     assert "fail_closed_physical_field_preflight_v1" in state["proven_success"]
 
