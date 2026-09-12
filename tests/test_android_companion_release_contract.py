@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -5,6 +6,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def test_install_script_is_valid_bash():
+    script = ROOT / "scripts/install-android-companion-local.sh"
+    result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 def test_release_is_unsigned_and_repository_has_no_signing_secret():
