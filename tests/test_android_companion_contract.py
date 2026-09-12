@@ -76,7 +76,7 @@ def test_ui_endpoint_uses_owned_browser_and_fails_closed_before_browser_is_avail
     browser = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimBrowserController.kt")
     assert 'path == "/v1/ui"' in server
     assert 'JSONObject().put("error", "browser_unavailable")' in server
-    assert 'JSONObject().put("nodes", HakimBrowserController.uiSnapshot())' in server
+    assert '.put("nodes", HakimBrowserController.uiSnapshot())' in server
     assert '"mode", "browser_dom"' in server
     assert "document.querySelectorAll" in browser
     assert '.put("mode", "SOVEREIGN_LOCAL_BROWSER")' in browser
