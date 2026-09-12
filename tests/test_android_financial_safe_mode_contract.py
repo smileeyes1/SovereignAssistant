@@ -50,7 +50,7 @@ def test_companion_path_itself_does_not_silently_enable_adb():
     assert "adb connect" not in all_text.lower()
 
 
-def test_accessibility_component_remains_available_as_non_governing_component():
+def test_accessibility_component_remains_available_as_normal_companion_component():
     t = read(JAVA / "HakimAccessibilityService.kt")
     assert "performGlobalAction" in t
     assert "dispatchGesture" in t
@@ -58,16 +58,18 @@ def test_accessibility_component_remains_available_as_non_governing_component():
     assert "takeScreenshot" in t
 
 
-def test_runtime_policy_locks_termux_wireless_adb_as_governing_field_path():
+def test_runtime_policy_uses_companion_normally_and_preserves_termux_as_optional_field_fallback():
     p = json.loads(read(POLICY))
     control = p["device_control"]
-    assert control["normal_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
-    assert control["developer_options_required_for_normal_operation"] is True
-    assert control["adb_policy"] == "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL"
-    assert control["developer_options_policy"] == "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH"
+    assert control["normal_phone_path"] == "ANDROID_COMPANION_E2E_ENCRYPTED"
+    assert control["developer_options_required_for_normal_operation"] is False
+    assert control["adb_policy"] == "OPTIONAL_FIELD_LOCAL_MAINTENANCE_ALLOWLISTED_NO_GENERAL_REMOTE_SHELL"
+    assert control["developer_options_policy"].startswith("NOT_REQUIRED_FOR_NORMAL_OPERATION")
+    assert "TERMUX_WIRELESS_ADB_LOCAL_FIELD" in p["bridges"]["preferred"]
     assert control["financial_safe_mode"]["persistent_until_user_exit"] is True
     assert control["financial_safe_mode"]["disable_accessibility_service"] is True
     assert p["bridges"]["public_command_transport"] is False
+    assert p["bridges"]["public_ciphertext_carrier_allowed"] is True
     assert p["bridges"]["public_github_command_relay"] is False
     assert p["security"]["no_general_remote_shell"] is True
     assert p["security"]["do_not_disable_platform_protection"] is True
