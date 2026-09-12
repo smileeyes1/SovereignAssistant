@@ -4,8 +4,10 @@
   "active_extension_version": "2.2",
   "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
   "last_verified_baseline": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
-  "latest_observed_main": "e5a951badf66ca7294ebefc89f64324c522cc798",
-  "latest_observed_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__THE_STATE_REFRESH_COMMIT_ITSELF_WILL_HAVE_A_DIFFERENT_SHA",
+  "latest_observed_main": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
+  "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
+  "state_refresh_source_main": "e5a951badf66ca7294ebefc89f64324c522cc798",
+  "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__THE_STATE_REFRESH_COMMIT_ITSELF_WILL_HAVE_A_DIFFERENT_SHA",
   "candidate_branch": "main",
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
