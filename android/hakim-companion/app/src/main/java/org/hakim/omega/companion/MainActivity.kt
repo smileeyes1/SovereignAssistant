@@ -20,8 +20,12 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         handlePairIntent(intent)
         buildUi()
-        ensureNotificationPermission()
         if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::status.isInitialized) refreshStatus()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -56,16 +60,19 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "HAKIM Ω Companion"; textSize = 26f })
         root.addView(TextView(this).apply {
-            text = "طبقة تحكم محلية مع قناة اتصال صادرة وموقعة. لا تحتاج خيارات المطور للتشغيل المعتاد. قبل استخدام تطبيق مالي شغّل «الوضع المالي الآمن» لفصل قناة حكيم وخدمة الوصول ومستمع الإشعارات حتى تعيد التفعيل بنفسك."
+            text = "المسار الحاكم للتشغيل العادي هو Companion نفسه: لا يحتاج خيارات المطور ولا التصحيح اللاسلكي. استخدم «أفضل خطوة قادمة» لإكمال موافقات أندرويد المحلية فقط. إذا قيّد Android 15 إمكانية الوصول أو الإشعارات بسبب التثبيت الخارجي، افتح «معلومات حكيم» وأكد بنفسك «السماح بالإعدادات المقيّدة» إن ظهر؛ حكيم لا يتجاوز هذا التأكيد الأمني. قبل استخدام تطبيق مالي شغّل الوضع المالي الآمن لعزل حكيم مغلق الفشل."
             textSize = 16f
         })
         status = TextView(this).apply { textSize = 16f; setPadding(0, 24, 0, 24) }
         root.addView(status)
+        root.addView(button("أفضل خطوة قادمة — إكمال إعداد حكيم") { continueSetup() })
+        root.addView(button("معلومات حكيم — السماح بالإعدادات المقيّدة إن ظهرت") { openAppInfo() })
         root.addView(button("تشغيل الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
         root.addView(button("استعادة حكيم بعد الانتهاء") {
             FinancialSafeMode.exit(this)
+            if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
             refreshStatus()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            continueSetup()
         })
         root.addView(button("تفعيل التحكم بالواجهة") {
             if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -73,9 +80,7 @@ class MainActivity : Activity() {
         root.addView(button("تفعيل الوصول إلى الإشعارات") {
             if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
-        root.addView(button("فتح إعدادات بطارية حكيم") {
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-        })
+        root.addView(button("فتح إعدادات تطبيق حكيم") { openAppInfo() })
         root.addView(button("تشغيل خدمة حكيم") {
             if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
             refreshStatus()
@@ -84,27 +89,69 @@ class MainActivity : Activity() {
         refreshStatus()
     }
 
-    private fun button(label: String, block: () -> Unit) = Button(this).apply { text = label; setOnClickListener { block() } }
-
-    private fun refreshStatus() {
-        val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
-        val paired = prefs.getString("pair_token", null) != null
-        val relay = !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
-            !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank() &&
-            !prefs.getString(HakimRemoteRelay.KEY_RELAY_KEY, null).isNullOrBlank()
-        val financial = FinancialSafeMode.isEnabled(this)
-        status.text = "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
-            "خيارات المطور: غير مطلوبة للتشغيل المعتاد\n" +
-            "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
-            "القناة البعيدة الموقعة: ${if (relay) "مهيأة" else "غير مهيأة"}\n" +
-            "التحكم بالواجهة: ${if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل"}\n" +
-            "الوصول إلى الإشعارات: ${if (HakimNotificationListener.isConnected()) "متصل" else "غير متصل"}\n" +
-            "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل محليًا" else "متوقف"}"
+    private fun button(label: String, block: () -> Unit) = Button(this).apply {
+        text = label
+        setOnClickListener { block() }
     }
 
-    private fun ensureNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+    private fun openAppInfo() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+    }
+
+    private fun notificationPermissionGranted(): Boolean =
+        Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    private fun paired(): Boolean =
+        getSharedPreferences("hakim", MODE_PRIVATE).getString("pair_token", null) != null
+
+    private fun relayConfigured(): Boolean {
+        val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
+        return !prefs.getString(HakimRemoteRelay.KEY_TOPIC, null).isNullOrBlank() &&
+            !prefs.getString(HakimRemoteRelay.KEY_RESULT_URL, null).isNullOrBlank() &&
+            !prefs.getString(HakimRemoteRelay.KEY_RELAY_KEY, null).isNullOrBlank()
+    }
+
+    private fun continueSetup() {
+        if (FinancialSafeMode.isEnabled(this)) {
+            FinancialSafeMode.exit(this)
+            HakimForegroundService.start(this)
+        }
+        when {
+            !notificationPermissionGranted() -> {
+                if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+            }
+            !paired() || !relayConfigured() -> {
+                refreshStatus("بانتظار تهيئة القناة الخاصة داخل Companion. لا تفتح خيارات المطور لهذا الغرض.")
+            }
+            HakimAccessibilityService.instance == null -> {
+                refreshStatus("الخطوة الحالية: فعّل «حكيم» في إمكانية الوصول. إذا قال النظام إن الإعداد مقيّد، ارجع وافتح «معلومات حكيم» واسمح بالإعداد المقيّد ثم أعد هذه الخطوة.")
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            !HakimNotificationListener.isConnected() -> {
+                refreshStatus("الخطوة الحالية: اسمح لحكيم بالوصول إلى الإشعارات. إذا ظهر تقييد Android 15، استخدم «معلومات حكيم» ثم أعد المحاولة.")
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
+            else -> {
+                HakimForegroundService.start(this)
+                refreshStatus("✅ الإعداد المحلي الأساسي مكتمل. التالي هو الاختبار الحي الموقّع والمشفّر على الهاتف الحقيقي دون ADB.")
+            }
+        }
+    }
+
+    private fun refreshStatus(note: String? = null) {
+        val financial = FinancialSafeMode.isEnabled(this)
+        val ready = paired() && relayConfigured() && HakimAccessibilityService.instance != null && HakimNotificationListener.isConnected()
+        status.text = buildString {
+            if (!note.isNullOrBlank()) append(note).append("\n\n")
+            append("الوضع المالي الآمن: ").append(if (financial) "مفعّل — حكيم معزول" else "غير مفعّل").append('\n')
+            append("خيارات المطور: يجب أن تبقى مغلقة في التشغيل العادي").append('\n')
+            append("التصحيح اللاسلكي: غير مطلوب للتشغيل العادي").append('\n')
+            append("الاقتران المحلي: ").append(if (paired()) "مفعّل" else "غير مفعّل").append('\n')
+            append("القناة البعيدة الموقعة/المشفرة: ").append(if (relayConfigured()) "مهيأة" else "غير مهيأة").append('\n')
+            append("التحكم بالواجهة: ").append(if (HakimAccessibilityService.instance != null) "متصل" else "غير متصل").append('\n')
+            append("الوصول إلى الإشعارات: ").append(if (HakimNotificationListener.isConnected()) "متصل" else "غير متصل").append('\n')
+            append("الخادم المحلي: ").append(if (HakimForegroundService.running) "يعمل محليًا" else "متوقف").append('\n')
+            append("حالة الهاتف: ").append(if (ready && !financial) "جاهز للاختبار الحي" else "الإعداد غير مكتمل بعد")
         }
     }
 }
