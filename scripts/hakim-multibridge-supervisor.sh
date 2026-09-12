@@ -3,11 +3,10 @@ set -u
 
 OMEGA="$HOME/.omega"
 CONFIG="$OMEGA/hakim-termux-adb.json"
-BRIDGE="$OMEGA/bin/hakim-termux-adb-bridge.py"
 STATE="$OMEGA/hakim-multibridge-state.json"
 LOG="$OMEGA/hakim-multibridge-supervisor.log"
 INTERVAL="${HAKIM_SUPERVISOR_INTERVAL:-20}"
-WORKER_SESSION="hakim-relay-worker"
+LEGACY_PUBLIC_WORKER_SESSION="hakim-relay-worker"
 
 mkdir -p "$OMEGA"
 chmod 700 "$OMEGA"
@@ -35,6 +34,9 @@ except Exception: d={}
 d['adb_target']=target
 d['transport']='termux-wireless-adb'
 d['apk_required']=False
+d['public_command_transport']=False
+d['upstream_bridges']=['make-private-relay']
+d['fallback_bridges']=[]
 fd,tmp=tempfile.mkstemp(prefix='.hakim-cfg-',dir=os.path.dirname(p) or '.')
 os.close(fd)
 with open(tmp,'w',encoding='utf-8') as f: json.dump(d,f,ensure_ascii=False,indent=2)
@@ -51,23 +53,19 @@ discover_target() {
   adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}'
 }
 
-ensure_worker() {
-  if ! tmux has-session -t "$WORKER_SESSION" 2>/dev/null; then
-    tmux new-session -d -s "$WORKER_SESSION" "python '$BRIDGE'"
-    log 'relay_worker_started'
-  fi
-}
-
-stop_worker() {
-  if tmux has-session -t "$WORKER_SESSION" 2>/dev/null; then
-    tmux kill-session -t "$WORKER_SESSION" 2>/dev/null || true
-    log 'relay_worker_stopped_adb_offline'
+# The historical relay worker consumes a public topic. The current sovereign
+# contract forbids public command transport, so the supervisor must never
+# start it and must actively stop any leftover session from an older release.
+stop_legacy_public_worker() {
+  if tmux has-session -t "$LEGACY_PUBLIC_WORKER_SESSION" 2>/dev/null; then
+    tmux kill-session -t "$LEGACY_PUBLIC_WORKER_SESSION" 2>/dev/null || true
+    log 'legacy_public_relay_worker_stopped_by_policy'
   fi
 }
 
 write_state() {
-  local target="$1" adb_state="$2" worker_state="$3" action="$4"
-  TARGET="$target" ADB_STATE="$adb_state" WORKER_STATE="$worker_state" LAST_ACTION="$action" python - "$STATE" <<'PY'
+  local target="$1" adb_state="$2" action="$3"
+  TARGET="$target" ADB_STATE="$adb_state" LAST_ACTION="$action" python - "$STATE" <<'PY'
 import json,os,sys,time,tempfile
 p=sys.argv[1]
 d={
@@ -75,11 +73,12 @@ d={
  'transport':'termux-wireless-adb',
  'adb_target':os.environ.get('TARGET',''),
  'adb':os.environ.get('ADB_STATE','offline'),
- 'relay_worker':os.environ.get('WORKER_STATE','stopped'),
- 'github_relay':'configured',
- 'make_relay':'fallback-configured',
- 'remote_desktop_commander':'external-maintenance-bridge',
- 'result_mailbox':'configured',
+ 'public_command_transport':'disabled_by_sovereign_policy',
+ 'public_github_command_relay':'disabled',
+ 'legacy_public_relay_worker':'stopped',
+ 'make_private_command_relay':'required_unproven',
+ 'remote_desktop_commander':'optional_maintenance_only',
+ 'result_mailbox':'configured_result_path',
  'last_action':os.environ.get('LAST_ACTION',''),
 }
 fd,tmp=tempfile.mkstemp(prefix='.hakim-state-',dir=os.path.dirname(p) or '.')
@@ -90,6 +89,7 @@ PY
 }
 
 termux-wake-lock >/dev/null 2>&1 || true
+stop_legacy_public_worker
 
 while true; do
   action='none'
@@ -108,12 +108,13 @@ while true; do
     fi
   fi
 
+  # Reassert fail-closed policy every cycle in case an older boot/session tries
+  # to resurrect the retired public worker.
+  stop_legacy_public_worker
   if adb_online "$target"; then
-    ensure_worker
-    write_state "$target" 'device' 'running' "$action"
+    write_state "$target" 'device' "$action"
   else
-    stop_worker
-    write_state "$target" 'offline' 'stopped' "$action"
+    write_state "$target" 'offline' "$action"
   fi
 
   sleep "$INTERVAL"
