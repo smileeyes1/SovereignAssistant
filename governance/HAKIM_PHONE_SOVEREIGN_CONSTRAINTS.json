@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS",
-  "version": "1.0",
+  "version": "1.1",
   "status": "ACTIVE_USER_SOVEREIGN_CONSTRAINT",
   "source": "LATEST_EXPLICIT_USER_INSTRUCTION",
   "effective_date": "2026-09-12",
@@ -10,8 +10,17 @@
     "wireless_debugging_normal_operation": "MUST_REMAIN_OFF",
     "normal_phone_control_must_not_require_developer_options": true,
     "normal_phone_control_must_not_require_wireless_debugging": true,
-    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "normal_phone_path": "SOVEREIGN_LOCAL_ANDROID_COMPANION_WITH_LOOPBACK_BROWSER_AND_USER_OPENED_SIGNED_TASK_LINK",
+    "background_external_relay_normal_operation": "FORBIDDEN_BY_DEFAULT",
+    "make_runtime_dependency": "FORBIDDEN",
+    "tinyfish_runtime_dependency": "FORBIDDEN",
+    "ntfy_runtime_dependency": "FORBIDDEN",
+    "paid_api_runtime_dependency": "FORBIDDEN",
+    "paid_operation_credit_dependency": "FORBIDDEN",
+    "external_bridges": "OPTIONAL_EXPLICIT_NON_CORE_ONLY",
     "termux_wireless_adb_role": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "local_control_bind_scope": "LOOPBACK_ONLY",
+    "chat_to_phone_handoff": "USER_OPENED_SIGNED_EXPIRING_REPLAY_PROTECTED_TASK_LINK",
     "financial_app_compatibility_is_governing_constraint": true,
     "financial_safe_mode": "FAIL_CLOSED_ONE_TAP_ISOLATION",
     "platform_protection_bypass": false
@@ -25,6 +34,11 @@
   "release_gate": {
     "reject_if_primary_path_requires_developer_options": true,
     "reject_if_primary_path_requires_wireless_debugging": true,
+    "reject_if_background_external_relay_is_hidden_default": true,
+    "reject_if_make_tinyfish_ntfy_or_paid_api_is_runtime_core": true,
+    "reject_if_local_server_binds_non_loopback": true,
+    "reject_if_unsigned_or_nonexpiring_chat_task_is_accepted": true,
+    "reject_if_replay_protection_is_missing": true,
     "reject_if_termux_wireless_adb_is_promoted_above_maintenance": true,
     "reject_if_financial_safe_mode_is_weakened": true
   }
