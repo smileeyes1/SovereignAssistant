@@ -20,12 +20,13 @@ def test_non_idempotent_actions_require_request_identity_and_durable_claim():
     assert '@Synchronized' in s
 
 
-def test_missing_accessibility_still_fails_closed_before_idempotency_claim():
+def test_missing_browser_fails_closed_before_idempotency_claim_so_retry_remains_possible():
     s = source()
-    service_check = s.index('if (service == null)')
-    request_check = s.index('val requestId = headers["x-hakim-request-id"]')
-    assert service_check < request_check
-    assert 'accessibility_unavailable' in s
+    browser_check = s.index('else if (!HakimBrowserController.isAttached())')
+    claim_check = s.index('else if (requestId != null && !claimRequest(requestId))')
+    assert browser_check < claim_check
+    assert 'browser_unavailable' in s
+    assert "Do not consume the idempotency key" in s
 
 
 def test_home_remains_compatible_because_repeating_home_is_idempotent():
