@@ -34,6 +34,7 @@
             <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
         </service>
 
+        <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".DirectApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".FinancialSafeModeReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
