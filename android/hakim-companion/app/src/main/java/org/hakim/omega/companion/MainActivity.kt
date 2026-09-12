@@ -60,12 +60,13 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "HAKIM Ω Companion"; textSize = 26f })
         root.addView(TextView(this).apply {
-            text = "تشغيل حكيم المعتاد لا يحتاج خيارات المطور أو ADB. استخدم زر «أفضل خطوة قادمة» لإكمال الموافقات المحلية التي يفرضها أندرويد فقط. قبل تطبيق مالي شغّل الوضع المالي الآمن لفصل قناة حكيم وخدمة الوصول ومستمع الإشعارات."
+            text = "تشغيل حكيم المعتاد لا يحتاج خيارات المطور أو ADB. استخدم «أفضل خطوة قادمة» للموافقات المحلية التي يفرضها أندرويد فقط. إذا منع Android 15 إمكانية الوصول أو الإشعارات بسبب التثبيت الخارجي، افتح «معلومات حكيم» أدناه واختر بنفسك «السماح بالإعدادات المقيّدة» إن ظهر في قائمة الصفحة؛ حكيم لا يتجاوز هذا التأكيد الأمني. قبل تطبيق مالي شغّل الوضع المالي الآمن."
             textSize = 16f
         })
         status = TextView(this).apply { textSize = 16f; setPadding(0, 24, 0, 24) }
         root.addView(status)
         root.addView(button("أفضل خطوة قادمة — إكمال إعداد حكيم") { continueSetup() })
+        root.addView(button("معلومات حكيم — السماح بالإعدادات المقيّدة إن ظهرت") { openAppInfo() })
         root.addView(button("تشغيل الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
         root.addView(button("استعادة حكيم بعد الانتهاء") {
             FinancialSafeMode.exit(this)
@@ -79,9 +80,7 @@ class MainActivity : Activity() {
         root.addView(button("تفعيل الوصول إلى الإشعارات") {
             if (!FinancialSafeMode.isEnabled(this)) startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
-        root.addView(button("فتح إعدادات بطارية حكيم") {
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-        })
+        root.addView(button("فتح إعدادات بطارية حكيم") { openAppInfo() })
         root.addView(button("تشغيل خدمة حكيم") {
             if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.start(this)
             refreshStatus()
@@ -93,6 +92,10 @@ class MainActivity : Activity() {
     private fun button(label: String, block: () -> Unit) = Button(this).apply {
         text = label
         setOnClickListener { block() }
+    }
+
+    private fun openAppInfo() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
     }
 
     private fun notificationPermissionGranted(): Boolean =
@@ -118,19 +121,19 @@ class MainActivity : Activity() {
                 if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
             }
             !paired() || !relayConfigured() -> {
-                refreshStatus("بانتظار تهيئة القناة الخاصة من جسر الصيانة لمرة واحدة.")
+                refreshStatus("بانتظار تهيئة القناة الخاصة من جسر التأسيس/الصيانة عند الحاجة.")
             }
             HakimAccessibilityService.instance == null -> {
-                refreshStatus("الخطوة الحالية: فعّل «حكيم» في إمكانية الوصول ثم ارجع للتطبيق.")
+                refreshStatus("الخطوة الحالية: فعّل «حكيم» في إمكانية الوصول. إذا قال النظام إن الإعداد مقيّد، ارجع إلى حكيم وافتح «معلومات حكيم» لتأكيد السماح من صفحة معلومات التطبيق، ثم أعد هذه الخطوة.")
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
             !HakimNotificationListener.isConnected() -> {
-                refreshStatus("الخطوة الحالية: اسمح لحكيم بالوصول إلى الإشعارات ثم ارجع للتطبيق.")
+                refreshStatus("الخطوة الحالية: اسمح لحكيم بالوصول إلى الإشعارات. إذا ظهر تقييد من Android 15، استخدم «معلومات حكيم» وأكد الإعداد المقيّد بنفسك ثم أعد المحاولة.")
                 startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
             }
             else -> {
                 HakimForegroundService.start(this)
-                refreshStatus("✅ التأسيس المحلي الأساسي مكتمل. يمكن الآن تنفيذ الاختبارات الحية ثم إغلاق جسر الصيانة ADB.")
+                refreshStatus("✅ التأسيس المحلي الأساسي مكتمل. يمكن الآن تنفيذ الاختبارات الحية وإثبات الاستقلال عن ADB.")
             }
         }
     }
