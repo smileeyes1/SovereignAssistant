@@ -8,8 +8,9 @@
   "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
   "freshness_observed_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
   "freshness_observed_main_semantics": "LATEST_MAIN_OBSERVED_BUT_NOT_PROMOTED_OVER_LAST_VERIFIED_BASELINE_WITHOUT_GATES",
-  "state_refresh_source_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
-  "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__THE_STATE_REFRESH_COMMIT_ITSELF_WILL_HAVE_A_DIFFERENT_SHA",
+  "state_refresh_source_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
+  "state_refresh_source_main_semantics": "VERIFIED_PROMOTION_SOURCE_POINTER_PRESERVED_UNTIL_NEW_CANDIDATE_PASSES_GATES",
+  "freshness_state_refresh_source_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
   "candidate_branch": "main",
   "field_architecture_candidate_branch": "hakim/field-architecture-reconcile-20260912",
   "promotion_lineage": {
@@ -121,7 +122,7 @@
     "one_tap_self_qualification": "ACTIVE_VERIFIED_PRE_FIELD",
     "one_tap_self_qualification_ui": "تأهيل حكيم",
     "remote_qualification_summary": "SANITIZED_STATUS_AVAILABLE_OVER_ENCRYPTED_STATUS_ROUTE",
-    "next_gate": "PHYSICAL_PHONE_LOCAL_WIRELESS_ADB_PAIR_IF_REQUIRED__SIGNED_STATUS_ROUND_TRIP__NEGATIVE_SECURITY_MATRIX__UI_SCREENSHOT_NOTIFICATIONS__BACKGROUND_RECONNECT_REBOOT_OFFLINE_IDEMPOTENCY_BACKUP_RESTORE"
+    "next_gate": "PHYSICAL_PHONE_PRIVATE_PAIR_LOCAL_WIRELESS_ADB_IF_REQUIRED__SIGNED_STATUS_ROUND_TRIP__NEGATIVE_SECURITY_MATRIX__UI_SCREENSHOT_NOTIFICATIONS__BACKGROUND_RECONNECT_REBOOT_OFFLINE_IDEMPOTENCY_BACKUP_RESTORE"
   },
   "financial_safety": {
     "priority": "P0",
@@ -144,7 +145,8 @@
     "REBOOT_CONTINUITY",
     "OFFLINE_RECOVERY",
     "IDEMPOTENCY_LKG",
-    "BACKUP_RESTORE_CONTAINMENT"
+    "BACKUP_RESTORE_CONTAINMENT",
+    "TARGET_FINANCIAL_APPS_COMPATIBILITY_IN_SAFE_MODE"
   ],
   "secrets": {
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
