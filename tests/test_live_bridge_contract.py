@@ -2,54 +2,51 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+JAVA = ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion"
 
 
-def test_live_bridge_keeps_local_server_loopback_only():
-    text = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt").read_text()
+def test_local_control_server_remains_loopback_only():
+    text = (JAVA / "LocalControlServer.kt").read_text(encoding="utf-8")
     assert "InetAddress.getLoopbackAddress()" in text
     assert "0.0.0.0" not in text
 
 
-def test_remote_relay_has_no_shell_surface_and_requires_approval_for_mutation():
-    text = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt").read_text()
-    assert 'setOf("status", "ui", "notifications", "screenshot")' in text
-    assert 'setOf("action", "launch")' in text
-    assert "showApproval(context, requestId, op)" in text
+def test_background_remote_relay_source_is_removed_from_sovereign_local_runtime():
+    assert not (JAVA / "HakimRemoteRelay.kt").exists()
+    service = (JAVA / "HakimForegroundService.kt").read_text(encoding="utf-8")
+    assert "HakimRemoteRelay" not in service
+    assert 'putBoolean("external_transport_enabled", false)' in service
+    assert "LocalControlServer" in service
+
+
+def test_signed_task_surface_has_no_shell_and_is_expiring_replay_guarded():
+    text = (JAVA / "HakimSignedTask.kt").read_text(encoding="utf-8")
     assert "Runtime.getRuntime" not in text
     assert "ProcessBuilder" not in text
     assert "/bin/sh" not in text
-
-
-def test_remote_relay_is_outbound_only_signed_and_replay_guarded():
-    text = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt").read_text()
-    assert "https://ntfy.sh/" in text
-    assert "claimRemoteRequest" in text
-    assert "request_expired" in text
-    assert "HmacSHA256" in text
+    assert 'Mac.getInstance("HmacSHA256")' in text
     assert "MessageDigest.isEqual" in text
-    assert "validSignature" in text
-    assert 'KEY_RELAY_KEY = "relay_hmac_key"' in text
-    assert "ServerSocket" not in text
+    assert 'private const val MAX_FUTURE_MS' in text
+    assert "task_duplicate" in text
+    assert "ALLOWED_ACTIONS" in text
 
 
-def test_remote_approval_receiver_not_exported():
-    manifest = (ROOT / "android/hakim-companion/app/src/main/AndroidManifest.xml").read_text()
-    marker = 'android:name=".RemoteApprovalReceiver"'
-    i = manifest.index(marker)
-    window = manifest[i : i + 180]
-    assert 'android:exported="false"' in window
+def test_manifest_has_no_remote_approval_receiver_or_sensitive_listener_services():
+    manifest = (ROOT / "android/hakim-companion/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    assert "RemoteApprovalReceiver" not in manifest
+    assert "BIND_ACCESSIBILITY_SERVICE" not in manifest
+    assert "BIND_NOTIFICATION_LISTENER_SERVICE" not in manifest
+    assert 'android:host="task"' in manifest
 
 
-def test_live_bridge_shell_entrypoints_parse_and_chain_expected_scripts():
+def test_legacy_live_bridge_shell_entrypoints_are_syntactically_valid_and_fail_closed():
     configure = ROOT / "scripts/configure-hakim-live-bridge.sh"
     bootstrap = ROOT / "scripts/bootstrap-hakim-live-bridge.sh"
     for script in (configure, bootstrap):
         subprocess.run(["bash", "-n", str(script)], check=True)
-    configure_text = configure.read_text()
-    bootstrap_text = bootstrap.read_text()
-    assert "relay_key" in configure_text
-    assert "RELAY_KEY" in configure_text
-    assert "install-android-companion-local.sh" in bootstrap_text
-    assert "configure-hakim-live-bridge.sh" in bootstrap_text
-    assert "RELAY_KEY" in bootstrap_text
-    assert "git pull --ff-only" in bootstrap_text
+        content = script.read_text(encoding="utf-8")
+        assert "exit 64" in content
+        assert "pair-android-companion.sh" in content
+        assert "HAKIM_RELAY_TOPIC" not in content
+        assert "HAKIM_RESULT_URL" not in content
+        assert "HAKIM_RELAY_KEY" not in content
