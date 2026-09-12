@@ -2,9 +2,18 @@ name: HAKIM Android Companion Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, hakim/sovereign-local-current-main-20260912]
     paths:
       - 'android/hakim-companion/**'
+      - 'governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json'
+      - 'governance/HAKIM_RUNTIME_POLICY_v2.json'
+      - 'governance/HAKIM_BRIDGE_POLICY_v2.json'
+      - 'tests/test_android_sovereign_local_mainline_contract.py'
+      - 'tests/test_android_safe_core_contract.py'
+      - 'tests/test_android_unified_independent_contract.py'
+      - 'tests/test_hakim_encrypted_carrier_contract.py'
+      - 'tests/test_hakim_secure_bridge_policy_contract.py'
+      - 'tests/test_live_bridge_contract.py'
       - 'scripts/install-android-companion-local.sh'
       - '.github/workflows/android-companion-release.yml'
   workflow_dispatch:
@@ -17,6 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify sovereign-local contracts
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q \
+            tests/test_android_sovereign_local_mainline_contract.py \
+            tests/test_android_safe_core_contract.py \
+            tests/test_android_unified_independent_contract.py \
+            tests/test_hakim_encrypted_carrier_contract.py \
+            tests/test_hakim_secure_bridge_policy_contract.py \
+            tests/test_live_bridge_contract.py
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -46,7 +68,6 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-
           manifest = {
               "schema_version": "1.0",
               "status": "UNSIGNED_SOURCE_BUILD_VERIFIED",
@@ -62,10 +83,7 @@ jobs:
               "required_final_signing": "LOCAL_DEVICE_OWNED_KEY_ONLY",
               "field_verification": "NOT_PROVEN_BY_BUILD",
           }
-          Path("hakim-companion-build-manifest.json").write_text(
-              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-              encoding="utf-8",
-          )
+          Path("hakim-companion-build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           print(json.dumps(manifest, ensure_ascii=False, indent=2))
           PY
       - name: Upload CI artifact
@@ -78,6 +96,7 @@ jobs:
             hakim-companion-build-manifest.json
           if-no-files-found: error
       - name: Publish immutable source-build release
+        if: github.ref_name == 'main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -87,7 +106,7 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "HAKIM Companion ${GITHUB_SHA::12}" \
-            --notes "Unsigned Android Companion built from current main. Archive integrity and source provenance are recorded in the attached manifest. Sign locally on the owned phone; no repository signing key exists. Build success is not physical field verification." \
+            --notes "Unsigned Android Companion built from verified source. Archive integrity and source provenance are recorded in the attached manifest. Sign locally with the owned HAKIM key; no repository signing key exists. Build success is not physical field verification." \
             hakim-companion-unsigned.apk \
             hakim-companion-unsigned.apk.sha256 \
             hakim-companion-build-manifest.json

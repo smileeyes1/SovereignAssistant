@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
-  "version": "2.0",
+  "version": "2.1",
   "status": "FROZEN_BY_DEFAULT",
   "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
   "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
@@ -70,22 +70,25 @@
     "only_later_explicit_user_instruction_may_change": true
   },
   "device_control": {
-    "governing_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
-    "wireless_debugging_required_for_governing_local_path": true,
-    "wireless_debugging_pairing": "ANDROID_LOCAL_PAIRING_REQUIRED_IF_NOT_ALREADY_TRUSTED",
-    "developer_options_policy": "ENABLE_ONLY_AS_REQUIRED_FOR_LOCAL_WIRELESS_ADB_AND_DO_NOT_WEAKEN_OTHER_ANDROID_PROTECTIONS",
-    "adb_policy": "LOCAL_GOVERNED_ALLOWLIST_ONLY_NO_GENERAL_REMOTE_SHELL",
-    "cloud_command_relay": "MAKE_PRIVATE_ON_DEMAND_RELAY",
-    "result_path": "RESULT_MAILBOX",
-    "maintenance_bridge": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
+    "normal_phone_path": "ANDROID_COMPANION_SOVEREIGN_LOCAL_OWNED_BROWSER",
+    "developer_options_required_for_normal_operation": false,
+    "wireless_debugging_required_for_normal_operation": false,
+    "accessibility_service_required_for_normal_operation": false,
+    "notification_listener_required_for_normal_operation": false,
+    "external_background_command_transport": false,
+    "signed_local_task_deep_link": true,
+    "explicit_user_open_required_for_task_ingress": true,
+    "adb_policy": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "developer_options_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
+    "wireless_debugging_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
     "financial_safe_mode": {
       "available": true,
       "persistent_until_user_exit": true,
-      "stop_remote_relay": true,
+      "stop_remote_relay": false,
       "stop_local_control_service": true,
-      "disable_accessibility_service": true,
-      "unbind_notification_listener": true,
-      "reactivation_requires_local_user_action_for_accessibility": true
+      "disable_accessibility_service": false,
+      "unbind_notification_listener": false,
+      "reactivation_requires_pair_token": true
     }
   },
   "bridges": {
@@ -94,22 +97,24 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["TERMUX_WIRELESS_ADB_LOCAL","MAKE_PRIVATE_ON_DEMAND_RELAY","RESULT_MAILBOX","REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE"],
+    "preferred": ["ANDROID_COMPANION_LOCAL_LOOPBACK","SIGNED_LOCAL_TASK_DEEPLINK","REMOTE_DESKTOP_MAINTENANCE"],
+    "maintenance_only": ["TERMUX_WIRELESS_ADB"],
     "public_command_transport": false,
     "public_github_command_relay": false,
-    "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
+    "external_background_command_transport": false,
+    "fallback_command_transport": "NONE_IN_NORMAL_OPERATION"
   },
   "security": {
     "least_privilege": true,
-    "outbound_only_preferred": true,
+    "loopback_only_control_plane": true,
     "no_general_remote_shell": true,
     "allowlist_commands": true,
     "signed_commands": true,
+    "signed_task_protocol": "HMAC_SHA256_LOCAL_PAIR_TOKEN",
     "expiry_required": true,
     "anti_replay": true,
-    "local_approval_for_sensitive_actions": true,
+    "explicit_user_open_for_external_task_ingress": true,
     "do_not_disable_platform_protection": true,
-    "do_not_disable_play_protect": true,
     "secrets_not_in_public_repo": true,
     "secrets_not_in_context_seed": true,
     "sensitive_data_not_promoted_to_general_rule": true

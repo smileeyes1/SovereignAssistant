@@ -14,7 +14,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** متصفح حكيم المملوك داخل التطبيق؛ يعمل بجانب خدمات الجهاز ولا يستبدلها. */
+/** متصفح حكيم المملوك داخل التطبيق؛ سطح التنفيذ الافتراضي الآمن على الهاتف. */
 object HakimBrowserController {
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var ref: WeakReference<WebView>? = null
@@ -44,7 +44,8 @@ object HakimBrowserController {
 
     fun action(obj: JSONObject): Boolean = when (obj.optString("action")) {
         "browser_open", "open_url" -> openUrl(obj.optString("url"))
-        "browser_back" -> onMain(false) { if (it.canGoBack()) { it.goBack(); true } else false }
+        "local_proof" -> loadLocalProof()
+        "browser_back", "back" -> onMain(false) { if (it.canGoBack()) { it.goBack(); true } else false }
         "browser_forward" -> onMain(false) { if (it.canGoForward()) { it.goForward(); true } else false }
         "browser_reload" -> onMain(false) { it.reload(); true }
         "click_text" -> clickText(obj.optString("text"))
@@ -54,6 +55,19 @@ object HakimBrowserController {
         "swipe" -> swipe(obj.optDouble("x1"), obj.optDouble("y1"), obj.optDouble("x2"), obj.optDouble("y2"))
         "scroll_by" -> scrollBy(obj.optDouble("x"), obj.optDouble("y"))
         else -> false
+    }
+
+    /** صفحة إثبات محلية حتمية: لا شبكة، لا ملف، ولا صلاحية إضافية. */
+    fun loadLocalProof(): Boolean = onMain(false) { webView ->
+        val html = """
+            <!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>إثبات حكيم المحلي</title></head>
+            <body><main><h1>حكيم</h1><label for="hakim-proof-input">حقل الاختبار</label>
+            <input id="hakim-proof-input" placeholder="اكتب هنا" value="">
+            <button id="hakim-proof-button" onclick="this.textContent='تم التنفيذ'">تنفيذ محلي</button>
+            <div id="hakim-proof-result">جاهز</div></main></body></html>
+        """.trimIndent()
+        webView.loadDataWithBaseURL("https://hakim.local/", html, "text/html", "UTF-8", null)
+        true
     }
 
     fun uiSnapshot(limit: Int = 200): JSONArray {
