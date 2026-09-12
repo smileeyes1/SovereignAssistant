@@ -22,7 +22,7 @@ def test_intelligence_fabric_is_single_hakim_layer_not_parallel_identity():
 def test_active_pointer_loads_fabric_and_matrix_before_meta_method():
     active = _json("HAKIM_ACTIVE.json")
     seq = active["restore_sequence"]
-    assert active["version"] == "2.1"
+    assert active["version"] == "2.2"
     assert active["intelligence_fabric_spec"] == "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md"
     assert active["intelligence_matrix"] == "governance/HAKIM_INTELLIGENCE_MATRIX.json"
     assert seq.index("LOAD_NSTAR_GOVERNING_CONSTITUTION") < seq.index("LOAD_INTELLIGENCE_FABRIC_SPEC")
