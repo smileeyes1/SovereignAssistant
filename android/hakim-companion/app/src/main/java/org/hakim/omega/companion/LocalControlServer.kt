@@ -113,17 +113,16 @@ class LocalControlServer(private val context: Context) {
                 }
                 method == "POST" && path == "/v1/action" -> {
                     val obj = JSONObject(body)
-                    val action = obj.optString("action")
                     val requestId = headers["x-hakim-request-id"]
-                    if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
+                    if (requestId == null || !REQUEST_ID.matches(requestId)) {
                         respond(c, 400, JSONObject().put("error", "request_id_required"))
                     } else if (!HakimBrowserController.isAttached()) {
                         respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
-                    } else if (requestId != null && !claimRequest(requestId)) {
+                    } else if (!claimRequest(requestId)) {
                         respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
                     } else {
                         val ok = HakimBrowserController.action(obj)
-                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
+                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId))
                     }
                 }
                 method == "POST" && path == "/v1/launch" -> {
