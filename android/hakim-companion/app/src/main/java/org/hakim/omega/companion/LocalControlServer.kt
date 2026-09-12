@@ -78,6 +78,8 @@ class LocalControlServer(private val context: Context) {
                     respond(c, 200, JSONObject()
                         .put("evidence_state", "NOT_PROVEN")
                         .put("runtime_health", prefs.getString("companion_mode", "UNKNOWN"))
+                        .put("safe_core", true)
+                        .put("control_scope", "OWNED_BROWSER_ONLY")
                         .put("loopback_only", true)
                         .put("control_server_listening", isListening())
                         .put("heartbeat_age_ms", if (heartbeat > 0L) (System.currentTimeMillis() - heartbeat).coerceAtLeast(0L) else -1L)
@@ -88,6 +90,7 @@ class LocalControlServer(private val context: Context) {
                         .put("play_protect_safe_mode", true)
                         .put("accessibility", false)
                         .put("notification_listener", false)
+                        .put("local_qualification", LocalQualification.summary(context))
                         .put("last_signed_task", prefs.getString("last_signed_task", JSONObject.NULL.toString()))
                         .put("browser", HakimBrowserController.status()))
                 }
