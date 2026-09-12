@@ -1,8 +1,8 @@
 {
   "name": "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS",
-  "version": "1.0",
+  "version": "1.1",
   "status": "ACTIVE_USER_SOVEREIGN_CONSTRAINT",
-  "source": "LATEST_EXPLICIT_USER_INSTRUCTION",
+  "source": "LATEST_EXPLICIT_USER_INSTRUCTION_AND_ZERO_COST_LOCAL_SOVEREIGN_BASELINE",
   "effective_date": "2026-09-12",
   "priority": "P0",
   "constraints": {
@@ -10,10 +10,17 @@
     "wireless_debugging_normal_operation": "MUST_REMAIN_OFF",
     "normal_phone_control_must_not_require_developer_options": true,
     "normal_phone_control_must_not_require_wireless_debugging": true,
-    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "normal_phone_path": "ANDROID_COMPANION_SOVEREIGN_LOCAL_OWNED_BROWSER",
+    "external_background_command_transport": "FORBIDDEN_IN_NORMAL_OPERATION",
+    "accessibility_service_required": false,
+    "notification_listener_required": false,
+    "task_ingress": "EXPLICIT_USER_OPENED_SIGNED_LOCAL_DEEP_LINK",
+    "task_signature": "HMAC_SHA256_WITH_LOCAL_PAIR_TOKEN",
+    "task_expiry_required": true,
+    "task_replay_protection_required": true,
     "termux_wireless_adb_role": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
     "financial_app_compatibility_is_governing_constraint": true,
-    "financial_safe_mode": "FAIL_CLOSED_ONE_TAP_ISOLATION",
+    "financial_safe_mode": "FAIL_CLOSED_ONE_TAP_LOCAL_CONTROL_ISOLATION",
     "platform_protection_bypass": false
   },
   "precedence": {
@@ -25,6 +32,9 @@
   "release_gate": {
     "reject_if_primary_path_requires_developer_options": true,
     "reject_if_primary_path_requires_wireless_debugging": true,
+    "reject_if_external_background_transport_is_enabled": true,
+    "reject_if_accessibility_or_notification_listener_is_required": true,
+    "reject_if_signed_task_expiry_or_replay_protection_is_missing": true,
     "reject_if_termux_wireless_adb_is_promoted_above_maintenance": true,
     "reject_if_financial_safe_mode_is_weakened": true
   }
