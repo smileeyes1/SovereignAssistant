@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
   "version": "2.3-termux-primary-live-field",
-  "status": "ACTIVE_OVERRIDE_PENDING_GOVERNANCE_PASS",
+  "status": "ACTIVE_OVERRIDE",
   "priority": [
     "TERMUX_WIRELESS_ADB_LOCAL",
     "MAKE_PRIVATE_RELAY",
