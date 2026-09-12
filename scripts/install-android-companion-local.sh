@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO="smileeyes1/SovereignAssistant"
+PACKAGE_ID="org.hakim.omega.companion"
 HOME_DIR="${HOME:-/data/data/com.termux/files/home}"
 ROOT="$HOME_DIR/.omega/android-companion"
 KEY_DIR="$HOME_DIR/.omega/keys"
@@ -9,6 +10,44 @@ mkdir -p "$ROOT" "$KEY_DIR"
 chmod 700 "$ROOT" "$KEY_DIR"
 
 pkg install -y apksigner openjdk-21 curl python >/dev/null
+
+# Fail closed before preparing an update if Android package state cannot be
+# inspected. An already-installed Hakim may only be upgraded by an APK signed
+# with the same certificate; otherwise Android will reject the in-place update.
+PM_BIN="/system/bin/pm"
+if [ ! -x "$PM_BIN" ]; then
+  echo 'ERROR: Android package manager is unavailable; signing continuity cannot be proven' >&2
+  exit 7
+fi
+set +e
+PACKAGE_LIST="$($PM_BIN list packages "$PACKAGE_ID" 2>&1)"
+PACKAGE_LIST_RC=$?
+set -e
+if [ "$PACKAGE_LIST_RC" -ne 0 ]; then
+  echo 'ERROR: cannot inspect installed package state; refusing an unverified upgrade' >&2
+  printf '%s\n' "$PACKAGE_LIST" >&2
+  exit 7
+fi
+INSTALLED_APK=""
+if printf '%s\n' "$PACKAGE_LIST" | grep -Fxq "package:$PACKAGE_ID"; then
+  set +e
+  PACKAGE_PATHS="$($PM_BIN path "$PACKAGE_ID" 2>&1)"
+  PACKAGE_PATHS_RC=$?
+  set -e
+  if [ "$PACKAGE_PATHS_RC" -ne 0 ]; then
+    echo 'ERROR: installed Hakim found but its APK path cannot be inspected' >&2
+    printf '%s\n' "$PACKAGE_PATHS" >&2
+    exit 8
+  fi
+  INSTALLED_APK="$(printf '%s\n' "$PACKAGE_PATHS" | sed -n 's/^package://p' | head -n 1)"
+  if [ -z "$INSTALLED_APK" ] || [ ! -r "$INSTALLED_APK" ]; then
+    echo 'ERROR: installed Hakim signing identity cannot be read; refusing upgrade' >&2
+    exit 8
+  fi
+  echo "INSTALLED_PACKAGE_FOUND=$PACKAGE_ID"
+else
+  echo "INSTALLED_PACKAGE_FOUND=0"
+fi
 
 JSON="$ROOT/latest-release.json"
 curl -fsSL --retry 4 --retry-delay 2 "https://api.github.com/repos/$REPO/releases/latest" -o "$JSON"
@@ -37,6 +76,7 @@ SHA_FILE="$ROOT/hakim-companion-unsigned.apk.sha256"
 MANIFEST="$ROOT/hakim-companion-build-manifest.json"
 SIGNED="$ROOT/hakim-companion-signed.apk"
 VERIFIED_RELEASE="$ROOT/verified-release.json"
+SIGNING_CONTINUITY="$ROOT/signing-continuity.json"
 
 curl -fsSL --retry 4 --retry-delay 2 "${RELEASE_META[1]}" -o "$UNSIGNED"
 curl -fsSL --retry 4 --retry-delay 2 "${RELEASE_META[2]}" -o "$SHA_FILE"
@@ -102,6 +142,10 @@ if [ -z "$PASS" ]; then
   exit 4
 fi
 if [ ! -s "$KEYSTORE" ]; then
+  if [ -n "$INSTALLED_APK" ]; then
+    echo 'ERROR: Hakim is already installed but the owned signing key is missing; refusing to create a replacement key' >&2
+    exit 9
+  fi
   keytool -genkeypair -noprompt \
     -keystore "$KEYSTORE" -storepass "$PASS" -keypass "$PASS" \
     -alias hakim-companion -keyalg RSA -keysize 4096 -validity 10000 \
@@ -128,6 +172,52 @@ apksigner sign \
   --out "$SIGNED" "$UNSIGNED"
 apksigner verify --verbose --print-certs "$SIGNED" > "$ROOT/signature-verification.txt"
 chmod 600 "$SIGNED" "$ROOT/signature-verification.txt"
+
+certificate_digest() {
+  apksigner verify --print-certs "$1" 2>/dev/null \
+    | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print tolower($2); exit}'
+}
+NEW_CERT_SHA256="$(certificate_digest "$SIGNED")"
+if [ -z "$NEW_CERT_SHA256" ]; then
+  echo 'ERROR: newly signed Hakim certificate digest could not be read' >&2
+  exit 10
+fi
+if [ -n "$INSTALLED_APK" ]; then
+  INSTALLED_CERT_SHA256="$(certificate_digest "$INSTALLED_APK")"
+  if [ -z "$INSTALLED_CERT_SHA256" ]; then
+    echo 'ERROR: installed Hakim certificate digest could not be read; refusing upgrade' >&2
+    exit 10
+  fi
+  if [ "$INSTALLED_CERT_SHA256" != "$NEW_CERT_SHA256" ]; then
+    echo 'ERROR: INSTALLED_SIGNATURE_MISMATCH; refusing to create a second signing lineage' >&2
+    exit 11
+  fi
+  SIGNING_CONTINUITY_STATUS="PROVEN_MATCH"
+  echo 'SIGNATURE_CONTINUITY=PROVEN'
+else
+  INSTALLED_CERT_SHA256=""
+  SIGNING_CONTINUITY_STATUS="FIRST_INSTALL_NO_EXISTING_PACKAGE"
+  echo 'SIGNATURE_CONTINUITY=FIRST_INSTALL'
+fi
+
+NEW_CERT_SHA256="$NEW_CERT_SHA256" INSTALLED_CERT_SHA256="$INSTALLED_CERT_SHA256" SIGNING_CONTINUITY_STATUS="$SIGNING_CONTINUITY_STATUS" python - "$SIGNING_CONTINUITY" <<'PY'
+import json, os, sys
+from pathlib import Path
+out = Path(sys.argv[1])
+payload = {
+    'status': os.environ['SIGNING_CONTINUITY_STATUS'],
+    'package_id': 'org.hakim.omega.companion',
+    'new_apk_certificate_sha256': os.environ['NEW_CERT_SHA256'],
+    'installed_apk_certificate_sha256': os.environ['INSTALLED_CERT_SHA256'] or None,
+    'parallel_signing_lineage_forbidden': True,
+    'field_verification': 'NOT_PROVEN',
+}
+tmp = out.with_name('.' + out.name + '.tmp')
+tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+tmp.chmod(0o600)
+tmp.replace(out)
+print(json.dumps(payload, ensure_ascii=False, indent=2))
+PY
 
 python - "$SIGNED" "$ROOT/signature-verification.txt" "$VERIFIED_RELEASE" <<'PY'
 import hashlib, json, sys
