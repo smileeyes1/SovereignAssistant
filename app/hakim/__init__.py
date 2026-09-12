@@ -8,6 +8,16 @@ from .forge import (
     WorkspaceSpec,
     WorkspaceStatus,
 )
+from .intelligence_fabric import (
+    FAMILIES,
+    IntelligenceFamily,
+    IntelligenceRequest,
+    IntelligenceSelection,
+    RiskTier,
+    composition_plan,
+    select_intelligence,
+    selected_family_names,
+)
 
 __all__ = [
     "Action",
@@ -21,4 +31,12 @@ __all__ = [
     "WorkspaceControlPlane",
     "WorkspaceSpec",
     "WorkspaceStatus",
+    "FAMILIES",
+    "IntelligenceFamily",
+    "IntelligenceRequest",
+    "IntelligenceSelection",
+    "RiskTier",
+    "composition_plan",
+    "select_intelligence",
+    "selected_family_names",
 ]
