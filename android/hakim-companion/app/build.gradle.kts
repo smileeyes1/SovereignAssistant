@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0-playprotect-safe"
+        versionCode = 3
+        versionName = "0.2.1-relay-recovery"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
