@@ -7,6 +7,7 @@ POLICY = ROOT / "governance" / "HAKIM_BRIDGE_POLICY_v2.json"
 MAIN = ROOT / "android" / "hakim-companion" / "app" / "src" / "main" / "java" / "org" / "hakim" / "omega" / "companion" / "MainActivity.kt"
 BOOTSTRAP = ROOT / "scripts" / "hakim-complete-phone-bootstrap.sh"
 CLOSE = ROOT / "scripts" / "hakim-close-adb-maintenance.sh"
+FIELD_START = ROOT / "scripts" / "hakim-field-start.sh"
 
 
 def test_companion_is_normal_runtime_and_adb_is_conditional_temporary_maintenance():
@@ -34,7 +35,7 @@ def test_android_ui_has_single_next_step_orchestrator_without_bypassing_sensitiv
     assert "ACCESS_RESTRICTED_SETTINGS" not in text
 
 
-def test_bootstrap_signs_installs_configures_and_verifies_loopback_without_protection_bypass():
+def test_bootstrap_signs_installs_configures_waits_approvals_and_retires_maintenance():
     text = BOOTSTRAP.read_text(encoding="utf-8")
     for needle in (
         "install-android-companion-local.sh",
@@ -43,7 +44,11 @@ def test_bootstrap_signs_installs_configures_and_verifies_loopback_without_prote
         "hakim://pair?",
         "/v1/status",
         "Authorization: Bearer",
-        "LOCAL_ANDROID_APPROVALS_PENDING",
+        "APPROVAL_TIMEOUT_SECONDS",
+        "LOCAL_ANDROID_APPROVALS_READY",
+        "ACTION_NOTIFICATION_LISTENER_SETTINGS",
+        "bash \"$CLOSE_MAINT\"",
+        "HAKIM_COMPANION_BOOTSTRAP_LOCAL_PHASE_COMPLETE",
     ):
         assert needle in text
     forbidden = (
@@ -57,16 +62,32 @@ def test_bootstrap_signs_installs_configures_and_verifies_loopback_without_prote
         assert needle not in text
 
 
-def test_maintenance_closure_is_gated_by_companion_readiness():
+def test_maintenance_closure_is_gated_and_does_not_overclaim_remote_independence():
     text = CLOSE.read_text(encoding="utf-8")
     assert "control_server_listening" in text
     assert "accessibility" in text
     assert "notification_listener" in text
-    assert "adb_wifi_enabled 0" in text
     assert "development_settings_enabled 0" in text
+    assert "developer_options_readback_before_transport_close" in text
+    assert "adb_wifi_enabled 0" in text
+    assert "REQUESTED_AWAITING_COMPANION_ONLY_ROUND_TRIP" in text
+    assert "HAKIM_ADB_MAINTENANCE_CLOSE_REQUESTED" in text
+    assert "HAKIM_ADB_MAINTENANCE_CLOSED" not in text
     assert text.index("notification_listener") < text.index("adb_wifi_enabled 0")
 
 
+def test_field_start_is_one_command_orchestrator_and_rejects_public_transport():
+    text = FIELD_START.read_text(encoding="utf-8")
+    assert "git pull --ff-only" in text
+    assert "bootstrap-hakim-termux-adb.sh" in text
+    assert "hakim-adb-pair.sh" in text
+    assert "hakim-complete-phone-bootstrap.sh" in text
+    assert "public_command_transport" in text
+    assert "make-private-relay" in text
+    assert "HAKIM_RELAY_KEY" in text
+    assert "relay_key='" not in text
+
+
 def test_shell_scripts_parse():
-    for path in (BOOTSTRAP, CLOSE):
+    for path in (BOOTSTRAP, CLOSE, FIELD_START):
         subprocess.run(["bash", "-n", str(path)], check=True)
