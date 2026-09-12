@@ -77,48 +77,34 @@ class LocalControlServer(private val context: Context) {
                 }
                 method == "GET" && path == "/v1/ui" -> {
                     val service = HakimAccessibilityService.instance
-                    if (service != null) {
-                        respond(c, 200, JSONObject().put("mode", "accessibility").put("nodes", service.uiSnapshot()))
-                    } else if (HakimBrowserController.isAttached()) {
-                        respond(c, 200, JSONObject()
-                            .put("mode", "browser_dom")
-                            .put("url", HakimBrowserController.currentUrl() ?: JSONObject.NULL)
-                            .put("nodes", HakimBrowserController.uiSnapshot()))
-                    } else respond(c, 409, JSONObject().put("error", "ui_unavailable"))
+                    if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                    else respond(c, 200, JSONObject().put("nodes", service.uiSnapshot()))
                 }
                 method == "GET" && path == "/v1/notifications" -> {
                     if (!HakimNotificationListener.isConnected()) respond(c, 409, JSONObject().put("error", "notification_listener_unavailable"))
                     else respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
                 }
                 method == "GET" && path == "/v1/screenshot" -> {
-                    val accessibilityShot = HakimAccessibilityService.instance?.screenshotBase64()
-                    val browserShot = if (accessibilityShot == null) HakimBrowserController.screenshotBase64() else null
-                    val data = accessibilityShot ?: browserShot
+                    val data = HakimAccessibilityService.instance?.screenshotBase64()
                     if (data == null) respond(c, 409, JSONObject().put("error", "screenshot_unavailable"))
-                    else respond(c, 200, JSONObject()
-                        .put("png_base64", data)
-                        .put("mode", if (accessibilityShot != null) "device" else "browser_view"))
+                    else respond(c, 200, JSONObject().put("png_base64", data))
                 }
                 method == "POST" && path == "/v1/action" -> {
-                    val obj = JSONObject(body)
-                    val action = obj.optString("action")
-                    val requestId = headers["x-hakim-request-id"]
-                    if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
-                        respond(c, 400, JSONObject().put("error", "request_id_required"))
-                    } else if (requestId != null && !claimRequest(requestId)) {
-                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                    val service = HakimAccessibilityService.instance
+                    if (service == null) {
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "accessibility_unavailable"))
                     } else {
-                        val browserScoped = obj.optString("scope") == "browser" ||
-                            action.startsWith("browser_") || action in setOf("open_url", "click_text", "click_css", "scroll_by")
-                        val ok = if (browserScoped) {
-                            HakimBrowserController.isAttached() && HakimBrowserController.action(obj)
+                        val obj = JSONObject(body)
+                        val action = obj.optString("action")
+                        val requestId = headers["x-hakim-request-id"]
+                        if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
+                            respond(c, 400, JSONObject().put("error", "request_id_required"))
+                        } else if (requestId != null && !claimRequest(requestId)) {
+                            respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
                         } else {
-                            HakimAccessibilityService.instance?.action(obj) ?: false
+                            val ok = service.action(obj)
+                            respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
                         }
-                        respond(c, if (ok) 200 else 409, JSONObject()
-                            .put("ok", ok)
-                            .put("mode", if (browserScoped) "browser" else "accessibility")
-                            .put("request_id", requestId ?: JSONObject.NULL))
                     }
                 }
                 method == "POST" && path == "/v1/launch" -> {
@@ -138,6 +124,30 @@ class LocalControlServer(private val context: Context) {
                             context.startActivity(intent)
                             respond(c, 200, JSONObject().put("ok", true).put("request_id", requestId))
                         }
+                    }
+                }
+                method == "GET" && path == "/v1/browser/ui" -> {
+                    if (!HakimBrowserController.isAttached()) respond(c, 409, JSONObject().put("error", "browser_unavailable"))
+                    else respond(c, 200, JSONObject()
+                        .put("url", HakimBrowserController.currentUrl() ?: JSONObject.NULL)
+                        .put("nodes", HakimBrowserController.uiSnapshot()))
+                }
+                method == "GET" && path == "/v1/browser/screenshot" -> {
+                    val data = HakimBrowserController.screenshotBase64()
+                    if (data == null) respond(c, 409, JSONObject().put("error", "browser_screenshot_unavailable"))
+                    else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "browser_view"))
+                }
+                method == "POST" && path == "/v1/browser/action" -> {
+                    val requestId = headers["x-hakim-request-id"]
+                    if (requestId == null || !REQUEST_ID.matches(requestId)) {
+                        respond(c, 400, JSONObject().put("error", "request_id_required"))
+                    } else if (!claimRequest("browser:$requestId")) {
+                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                    } else if (!HakimBrowserController.isAttached()) {
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
+                    } else {
+                        val ok = HakimBrowserController.action(JSONObject(body))
+                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId))
                     }
                 }
                 else -> respond(c, 404, JSONObject().put("error", "not_found"))
