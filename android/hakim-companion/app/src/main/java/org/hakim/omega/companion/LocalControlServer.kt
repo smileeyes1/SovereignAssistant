@@ -84,9 +84,11 @@ class LocalControlServer(private val context: Context) {
                         .put("persistent_model", JSONObject.NULL)
                         .put("persistent_model_evidence", "NOT_PROVEN")
                         .put("persistent_model_allowed", false)
+                        .put("external_transport_enabled", false)
                         .put("play_protect_safe_mode", true)
                         .put("accessibility", false)
                         .put("notification_listener", false)
+                        .put("last_signed_task", prefs.getString("last_signed_task", JSONObject.NULL.toString()))
                         .put("browser", HakimBrowserController.status()))
                 }
                 method == "GET" && path == "/v1/ui" -> {
@@ -115,10 +117,11 @@ class LocalControlServer(private val context: Context) {
                     val requestId = headers["x-hakim-request-id"]
                     if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
                         respond(c, 400, JSONObject().put("error", "request_id_required"))
+                    } else if (!HakimBrowserController.isAttached()) {
+                        // Do not consume the idempotency key when the local execution surface is unavailable.
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
                     } else if (requestId != null && !claimRequest(requestId)) {
                         respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
-                    } else if (!HakimBrowserController.isAttached()) {
-                        respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
                     } else {
                         val ok = HakimBrowserController.action(obj)
                         respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
