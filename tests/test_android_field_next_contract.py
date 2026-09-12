@@ -13,24 +13,26 @@ def test_android_field_next_is_local_only_and_collects_required_evidence():
     assert 'home_available_gib' in script
     assert 'TERMUX_APP__APK_RELEASE' in script
     assert 'device-field-profile.json' in script
-    assert "next_gate = 'ANDROID_COMPANION_LOCAL_INSTALL'" in script
-    assert "'background_survival_role': 'diagnostic_only_not_companion_prerequisite'" in script
+    assert "next_gate='TERMUX_ADB_REAL_FIELD_ROUND_TRIP'" in script
+    assert "next_gate='ANDROID_WIRELESS_DEBUGGING_PAIRING'" in script
+    assert "'field_path': 'TERMUX_WIRELESS_ADB_LOCAL'" in script
+    assert "'post_field_candidate': 'ANDROID_COMPANION_NO_ADB_RUNTIME'" in script
     assert 'BACKGROUND_SURVIVAL_REPAIR' not in script
     assert 'BACKGROUND_SURVIVAL_EVIDENCE' not in script
     assert 'http://' not in script
     assert 'https://' not in script
 
 
-def test_android_field_next_preserves_companion_first_and_no_resident_model_policy():
+def test_android_field_next_preserves_no_resident_model_and_no_premature_promotion():
     script = Path('scripts/android-field-next.sh').read_text(encoding='utf-8')
     lowered = script.lower()
     assert 'local_model_selection' not in lowered
-    assert 'diagnostic-only' in lowered
-    assert 'must never gate android companion installation or qualification' in lowered
-    assert 'local inference is optional and on-demand only after core companion field qualification' in lowered
+    assert 'diagnostic_until_real_field_matrix' in lowered
+    assert 'never retire adb' in lowered
+    assert 'companion-only real round trip' in lowered
+    assert 'local inference is optional and on-demand only after core device qualification' in lowered
     assert 'never keep a resident local model' in lowered
     assert 'never use a local llm for autonomous planning' in lowered
-    assert 'stop any on-demand model immediately after the bounded request' in lowered
     assert 'curl ' not in lowered
     assert 'wget ' not in lowered
     assert 'huggingface' not in lowered
