@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -25,7 +27,8 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized encrypted relay and owned-browser control" />
         </service>
 
-        <!-- Safe core intentionally does not register AccessibilityService or NotificationListenerService. -->
+        <!-- Native ADB bootstrap stays inside HAKIM and does not require AccessibilityService or NotificationListenerService. -->
+        <receiver android:name=".HakimPairingReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".DirectApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".FinancialSafeModeReceiver" android:enabled="true" android:exported="false" />
