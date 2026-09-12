@@ -27,6 +27,7 @@ class GitHubWritePolicy:
     allow_merge: bool = False
     allow_comment: bool = True
     allow_file_write: bool = False
+    protected_branches: tuple[str, ...] = ("main", "master")
 
 
 class GitHubControl:
@@ -73,6 +74,22 @@ class GitHubControl:
     def repo_path(self) -> str:
         return "/repos/" + "/".join(quote(part, safe="") for part in self.repository.split("/", 1))
 
+    def _normalized_branch(self, branch: str) -> str:
+        value = branch.strip()
+        prefix = "refs/heads/"
+        if value.startswith(prefix):
+            value = value[len(prefix):]
+        return value.strip("/")
+
+    def _assert_candidate_branch(self, branch: str) -> str:
+        normalized = self._normalized_branch(branch)
+        if not normalized:
+            raise ValueError("branch is required")
+        protected = {self._normalized_branch(item).lower() for item in self.policy.protected_branches}
+        if normalized.lower() in protected:
+            raise PermissionError(f"direct autonomous writes to protected branch are forbidden: {normalized}")
+        return normalized
+
     def get_pull_request(self, number: int) -> dict[str, object]:
         return dict(self._request("GET", f"{self.repo_path}/pulls/{number}"))
 
@@ -117,12 +134,14 @@ class GitHubControl:
     def create_branch(self, branch: str, base_sha: str) -> dict[str, object]:
         if not self.policy.allow_branch_create:
             raise PermissionError("branch creation is disabled by policy")
+        branch = self._assert_candidate_branch(branch)
         return dict(self._request("POST", f"{self.repo_path}/git/refs", {"ref": f"refs/heads/{branch}", "sha": base_sha}))
 
     def commit_files(self, branch: str, expected_head_sha: str, changes: dict[str, str], message: str) -> str:
-        """Atomically replace text files on a branch with optimistic head locking."""
+        """Atomically replace text files on a candidate branch with optimistic head locking."""
         if not self.policy.allow_file_write:
             raise PermissionError("file writes are disabled by policy")
+        branch = self._assert_candidate_branch(branch)
         if not changes or not message.strip():
             raise ValueError("changes and commit message are required")
         ref_path = f"{self.repo_path}/git/ref/heads/{quote(branch, safe='')}"

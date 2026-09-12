@@ -29,13 +29,20 @@ def make_runtime(tmp_path, opener, allow_merge=True):
     return runtime
 
 
+def required_success_runs():
+    return [
+        {"id": 1, "name": "HAKIM Governance Gate", "status": "completed", "conclusion": "success"},
+        {"id": 2, "name": "HAKIM Continuity Shield", "status": "completed", "conclusion": "success"},
+    ]
+
+
 def success_opener(calls):
     def opener(req, timeout):
         calls.append((req.get_method(), req.full_url, None if req.data is None else json.loads(req.data.decode())))
         if req.get_method() == "GET" and "/pulls/8" in req.full_url:
             return Response({"number": 8, "state": "open", "mergeable": True, "head": {"sha": "abc"}})
         if req.get_method() == "GET" and "/actions/runs" in req.full_url:
-            return Response({"workflow_runs": [{"id": 1, "status": "completed", "conclusion": "success"}]})
+            return Response({"workflow_runs": required_success_runs()})
         if req.get_method() == "PUT" and "/pulls/8/merge" in req.full_url:
             return Response({"merged": True, "sha": "merge-sha"})
         raise AssertionError(req.full_url)
@@ -73,12 +80,62 @@ def test_merge_rechecks_all_workflows_and_refuses_incomplete_evidence(tmp_path):
         if "/pulls/8" in req.full_url:
             return Response({"number": 8, "state": "open", "mergeable": True, "head": {"sha": "abc"}})
         if "/actions/runs" in req.full_url:
-            return Response({"workflow_runs": [{"id": 1, "status": "in_progress", "conclusion": None}]})
+            return Response({"workflow_runs": [
+                {"id": 1, "name": "HAKIM Governance Gate", "status": "completed", "conclusion": "success"},
+                {"id": 2, "name": "HAKIM Continuity Shield", "status": "in_progress", "conclusion": None},
+            ]})
         raise AssertionError("merge must not be attempted")
     runtime = make_runtime(tmp_path, opener, allow_merge=True)
     result = runtime.governor.engine().handle(ci_event())
     assert result.status == "failed"
     assert runtime.governor.failure_count("delivery-1", "merge-verified-pr") == 1
+
+
+def test_merge_refuses_when_continuity_shield_workflow_is_missing(tmp_path):
+    def opener(req, timeout):
+        if "/pulls/8" in req.full_url:
+            return Response({"number": 8, "state": "open", "mergeable": True, "head": {"sha": "abc"}})
+        if "/actions/runs" in req.full_url:
+            return Response({"workflow_runs": [
+                {"id": 1, "name": "HAKIM Governance Gate", "status": "completed", "conclusion": "success"},
+            ]})
+        raise AssertionError("merge must not be attempted")
+    runtime = make_runtime(tmp_path, opener, allow_merge=True)
+    result = runtime.governor.engine().handle(ci_event())
+    assert result.status == "failed"
+    assert runtime.state.get_state("omega.development.last_merge") is None
+
+
+def test_merge_refuses_when_required_workflow_fails_even_if_other_workflows_succeed(tmp_path):
+    def opener(req, timeout):
+        if "/pulls/8" in req.full_url:
+            return Response({"number": 8, "state": "open", "mergeable": True, "head": {"sha": "abc"}})
+        if "/actions/runs" in req.full_url:
+            return Response({"workflow_runs": [
+                {"id": 1, "name": "HAKIM Governance Gate", "status": "completed", "conclusion": "success"},
+                {"id": 2, "name": "HAKIM Continuity Shield", "status": "completed", "conclusion": "failure"},
+                {"id": 3, "name": "Some Optional Check", "status": "completed", "conclusion": "success"},
+            ]})
+        raise AssertionError("merge must not be attempted")
+    runtime = make_runtime(tmp_path, opener, allow_merge=True)
+    result = runtime.governor.engine().handle(ci_event())
+    assert result.status == "failed"
+    assert runtime.state.get_state("omega.development.last_merge") is None
+
+
+def test_required_workflow_must_have_actual_success_not_only_skipped(tmp_path):
+    def opener(req, timeout):
+        if "/pulls/8" in req.full_url:
+            return Response({"number": 8, "state": "open", "mergeable": True, "head": {"sha": "abc"}})
+        if "/actions/runs" in req.full_url:
+            return Response({"workflow_runs": [
+                {"id": 1, "name": "HAKIM Governance Gate", "status": "completed", "conclusion": "success"},
+                {"id": 2, "name": "HAKIM Continuity Shield", "status": "completed", "conclusion": "skipped"},
+            ]})
+        raise AssertionError("merge must not be attempted")
+    runtime = make_runtime(tmp_path, opener, allow_merge=True)
+    result = runtime.governor.engine().handle(ci_event())
+    assert result.status == "failed"
 
 
 def test_ci_failure_is_persisted_for_recovery(tmp_path):
