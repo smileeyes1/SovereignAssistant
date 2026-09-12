@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,6 +8,7 @@ MODULE_PATH = ROOT / "scripts/hakim_continuity_shield.py"
 SPEC = importlib.util.spec_from_file_location("hakim_continuity_shield", MODULE_PATH)
 assert SPEC and SPEC.loader
 shield = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = shield
 SPEC.loader.exec_module(shield)
 
 
