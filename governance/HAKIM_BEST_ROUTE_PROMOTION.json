@@ -1,0 +1,36 @@
+{
+  "name": "HAKIM_BEST_ROUTE_PROMOTION",
+  "version": "1.0",
+  "status": "ACTIVE_VERIFIED",
+  "promoted_main_sha": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
+  "conditions": {
+    "merged_to_main": "PASS",
+    "governance_regression_main": "PASS",
+    "omega_autonomy_certification_main": "PASS",
+    "production_container_build_main": "PASS",
+    "live_smoke_main": "PASS",
+    "omega_apex_reality_gate_main": "PASS"
+  },
+  "capability": {
+    "multicriteria_route_ranking": true,
+    "method_style_medium_technique_mechanism_timing_audit": true,
+    "pareto_dominance_guard": true,
+    "risk_uncertainty_adaptive_weights": true,
+    "cost_dependency_burden_penalties": true,
+    "prior_failure_feedback": true,
+    "selection_stage_ranking": true,
+    "execution_boundary_rerank": true,
+    "ranking_is_not_outcome_proof": true
+  },
+  "preserves": [
+    "HAKIM_ONE",
+    "CANONICAL_CORE_FROZEN",
+    "RUNTIME_POLICY_VERSION_2_0",
+    "ACTIVE_POINTER_VERSION_2_1",
+    "INTELLIGENCE_FABRIC_LIVE_GATE",
+    "PHONE_FIELD_VERIFICATION_UNCHANGED"
+  ],
+  "phone_field_verified": false,
+  "physical_phone_round_trip": "NOT_PROVEN",
+  "rule": "Best means highest net-value eligible route for the current goal, context, evidence and constraints; ranking is auditable preference, never proof of outcome success."
+}
