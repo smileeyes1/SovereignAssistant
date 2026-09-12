@@ -91,9 +91,9 @@ class MainActivity : Activity() {
             setPadding(24, 30, 24, 20)
             gravity = Gravity.CENTER_HORIZONTAL
         }
-        root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
+        root.addView(TextView(this).apply { text = CanonicalHakimIdentity.DISPLAY_NAME_AR; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "النواة الآمنة ٠٫٤٫٢: اقتران ADB محلي أصيل داخل حكيم + متصفح حكيم المملوك، بلا تطبيقات وسيطة."
+            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك."
             textSize = 14f
         })
 
@@ -199,7 +199,10 @@ class MainActivity : Activity() {
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val localAdb = HakimLocalPairing.currentSummary(this)
         val url = HakimBrowserController.currentUrl().orEmpty()
-        status.text = "النمط: نواة آمنة مستقلة — بلا API مدفوع وبلا تطبيق وسيط للاقتران\n" +
+        status.text = "الهوية: ${CanonicalHakimIdentity.INSTANCE_ID}\n" +
+            "الدور: الواجهة المثبتة لحكيم الأصلي — ليست حكيمًا ثانيًا\n" +
+            "مصدر الحقيقة: ${CanonicalHakimIdentity.RUNTIME_REPOSITORY} / ${CanonicalHakimIdentity.ACTIVE_POINTER}\n" +
+            "النمط: نواة آمنة مستقلة — بلا API مدفوع وبلا تطبيق وسيط للاقتران\n" +
             "$localAdb\n" +
             "نطاق التحكم الحالي المثبت: متصفح حكيم المملوك؛ التحكم الأوسع لا يُدّعى قبل التأهيل الميداني\n" +
             "وصول لإشعارات التطبيقات: غير موجود في هذه النسخة\n" +
