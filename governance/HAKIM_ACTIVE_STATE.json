@@ -21,7 +21,10 @@
     "field_architecture_reconcile_v1": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
     "android_safe_core_0_4_1": "461cfc973338ef37def0d6f6ecd0014e9f399663",
     "one_command_phone_field_v1": "2b5f8ceb8570c889b25f900bcec1600757cf8fa1",
-    "continuity_shield_v1": "cfd894239c2c6be7e5a423311a96e60588da2db8"
+    "continuity_shield_v1": "cfd894239c2c6be7e5a423311a96e60588da2db8",
+    "public_relay_supervisor_fail_closed_v1": "f65704e1a53fe9c9f3988a2c815e800b63fb9e21",
+    "public_relay_bootstrap_retirement_v1": "40e5fca4f25f9879b62881280bcfad7cfa56500c",
+    "one_command_interactive_pairing_v1": "54caf62acee179f3ad6e00f3bbe2b9525b6b31d6"
   },
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -30,6 +33,7 @@
     "encrypted_companion_installable_apk_build_prior_identical_app_head": "PASS",
     "make_hc1_ciphertext_send": "PASS",
     "make_result_mailbox_active": "PASS",
+    "make_result_mailbox_real_android_delivery": "OBSERVED_DELIVERY__REQUEST_EXPIRED__NOT_FULL_ROUND_TRIP",
     "make_free_plan_active_slot_restored_after_test": "PASS",
     "candidate_debug_apk_v2_signature_and_content": "PASS",
     "stable_release_signing_identity": "PASS",
@@ -77,6 +81,12 @@
     "continuity_shield_v1_reality_gate_main": "PASS",
     "continuity_shield_v1_live_restart_main": "PASS",
     "continuity_shield_v1_transition_contract": "PASS",
+    "public_relay_supervisor_fail_closed_main": "PASS",
+    "public_relay_bootstrap_retirement_main": "PASS",
+    "one_command_interactive_pairing_contract_main": "PASS",
+    "one_command_interactive_pairing_continuity_main": "PASS",
+    "one_command_interactive_pairing_governance_main": "PASS",
+    "one_command_interactive_pairing_reality_gate_main": "PASS",
     "latest_main_signature_verified": "PASS",
     "public_ntfy_plain_sender": "REJECTED_AND_INACTIVE",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
@@ -118,7 +128,10 @@
     "android_safe_core_0_4_1_verified",
     "one_command_phone_field_v1_verified",
     "continuity_shield_v1",
-    "continuity_transition_gate_v1"
+    "continuity_transition_gate_v1",
+    "public_relay_supervisor_fail_closed_v1",
+    "public_relay_bootstrap_retired_v1",
+    "one_command_interactive_pairing_v1"
   ],
   "protected_prior_success_not_reinterpreted_as_current_field_path": [
     "phone_sovereign_no_developer_options_lock",
@@ -128,7 +141,9 @@
   ],
   "resolved_failures": [
     "OLDER_COMPANION_PRIMARY_POLICY_CONFLICTED_WITH_LATEST_EXPLICIT_USER_FIELD_ARCHITECTURE",
-    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED"
+    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED",
+    "PUBLIC_RELAY_SUPERVISOR_POLICY_DRIFT_CLOSED",
+    "PUBLIC_RELAY_BOOTSTRAP_POLICY_DRIFT_CLOSED"
   ],
   "known_failures": [
     "REMOTE_DESKTOP_COMMANDER_OFFLINE_AT_LAST_DIRECT_CHECK",
@@ -139,11 +154,13 @@
     "primary_path": "TERMUX_WIRELESS_ADB_LOCAL",
     "wireless_debugging": "REQUIRED_FOR_LOCAL_ADB_PATH_ONLY",
     "wireless_debugging_first_pairing": "LOCAL_ANDROID_ACTION_IF_NOT_ALREADY_TRUSTED",
+    "wireless_debugging_first_pairing_flow": "ONE_COMMAND_INTERACTIVE_LOCAL_MDNS_PLUS_EPHEMERAL_6_DIGIT_ANDROID_CODE__PRE_FIELD_VERIFIED_ONLY",
     "cloud_sender": "MAKE_PRIVATE_ON_DEMAND_RELAY_REQUIRED",
     "result_path": "MAKE_RESULT_MAILBOX_ACTIVE",
     "maintenance_bridge": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
     "public_command_transport": false,
     "public_github_command_relay": false,
+    "legacy_public_relay": "RETIRED_FAIL_CLOSED",
     "fallback": "PRIVATE_OR_ENCRYPTED_ONLY",
     "general_remote_shell": false,
     "platform_protection_bypass": false,
@@ -186,5 +203,5 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
+  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; USE_ONE_COMMAND_INTERACTIVE_LOCAL_PAIRING_FOR_FIRST_ADB_TRUST_IF_REQUIRED; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; LEGACY_PUBLIC_RELAY_RETIRED_FAIL_CLOSED; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
 }
