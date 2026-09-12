@@ -29,27 +29,42 @@ class LocalControlServer(private val context: Context) {
     }
 
     fun isListening(): Boolean = socket?.let { it.isBound && !it.isClosed } == true
-    fun close() { runCatching { socket?.close() }; socket = null; pool.shutdownNow() }
+
+    fun close() {
+        runCatching { socket?.close() }
+        socket = null
+        pool.shutdownNow()
+    }
 
     private fun handle(client: Socket) {
         client.use { c ->
             c.soTimeout = 5000
             val reader = BufferedReader(InputStreamReader(c.getInputStream(), Charsets.UTF_8))
             val request = reader.readLine() ?: return
-            val parts = request.split(' '); if (parts.size < 2) return
-            val method = parts[0]; val path = parts[1]
+            val parts = request.split(' ')
+            if (parts.size < 2) return
+            val method = parts[0]
+            val path = parts[1]
             val headers = mutableMapOf<String, String>()
             while (true) {
                 val line = reader.readLine() ?: break
                 if (line.isBlank()) break
-                val i = line.indexOf(':'); if (i > 0) headers[line.substring(0, i).trim().lowercase()] = line.substring(i + 1).trim()
+                val i = line.indexOf(':')
+                if (i > 0) headers[line.substring(0, i).trim().lowercase()] = line.substring(i + 1).trim()
             }
             val len = headers["content-length"]?.toIntOrNull()?.coerceIn(0, 65536) ?: 0
-            val chars = CharArray(len); var off = 0
-            while (off < len) { val n = reader.read(chars, off, len - off); if (n <= 0) break; off += n }
+            val chars = CharArray(len)
+            var off = 0
+            while (off < len) {
+                val n = reader.read(chars, off, len - off)
+                if (n <= 0) break
+                off += n
+            }
             val body = String(chars, 0, off)
             val token = context.getSharedPreferences("hakim", Context.MODE_PRIVATE).getString("pair_token", null)
-            if (token == null || headers["authorization"] != "Bearer $token") return respond(c, 401, JSONObject().put("error", "unauthorized"))
+            if (token == null || headers["authorization"] != "Bearer $token") {
+                return respond(c, 401, JSONObject().put("error", "unauthorized"))
+            }
             route(c, method, path, body, headers)
         }
     }
@@ -69,42 +84,46 @@ class LocalControlServer(private val context: Context) {
                         .put("persistent_model", JSONObject.NULL)
                         .put("persistent_model_evidence", "NOT_PROVEN")
                         .put("persistent_model_allowed", false)
-                        .put("direct_relay_configured", HakimDirectRelay.isConfigured(context))
-                        .put("accessibility", HakimAccessibilityService.instance != null)
-                        .put("notification_listener", HakimNotificationListener.isConnected())
-                        .put("notifications_buffered", HakimNotificationListener.snapshot().length())
+                        .put("external_transport_enabled", false)
+                        .put("play_protect_safe_mode", true)
+                        .put("accessibility", false)
+                        .put("notification_listener", false)
+                        .put("last_signed_task", prefs.getString("last_signed_task", JSONObject.NULL.toString()))
                         .put("browser", HakimBrowserController.status()))
                 }
                 method == "GET" && path == "/v1/ui" -> {
-                    val service = HakimAccessibilityService.instance
-                    if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
-                    else respond(c, 200, JSONObject().put("nodes", service.uiSnapshot()))
+                    if (!HakimBrowserController.isAttached()) {
+                        respond(c, 409, JSONObject().put("error", "browser_unavailable"))
+                    } else {
+                        respond(c, 200, JSONObject()
+                            .put("mode", "browser_dom")
+                            .put("url", HakimBrowserController.currentUrl() ?: JSONObject.NULL)
+                            .put("nodes", HakimBrowserController.uiSnapshot()))
+                    }
                 }
                 method == "GET" && path == "/v1/notifications" -> {
-                    if (!HakimNotificationListener.isConnected()) respond(c, 409, JSONObject().put("error", "notification_listener_unavailable"))
-                    else respond(c, 200, JSONObject().put("items", HakimNotificationListener.snapshot()))
+                    respond(c, 409, JSONObject()
+                        .put("error", "notification_listener_disabled_by_play_protect_safe_mode")
+                        .put("ok", false))
                 }
                 method == "GET" && path == "/v1/screenshot" -> {
-                    val data = HakimAccessibilityService.instance?.screenshotBase64()
-                    if (data == null) respond(c, 409, JSONObject().put("error", "screenshot_unavailable"))
-                    else respond(c, 200, JSONObject().put("png_base64", data))
+                    val data = HakimBrowserController.screenshotBase64()
+                    if (data == null) respond(c, 409, JSONObject().put("error", "browser_screenshot_unavailable"))
+                    else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "browser_view"))
                 }
                 method == "POST" && path == "/v1/action" -> {
-                    val service = HakimAccessibilityService.instance
-                    if (service == null) {
-                        respond(c, 409, JSONObject().put("ok", false).put("error", "accessibility_unavailable"))
+                    val obj = JSONObject(body)
+                    val action = obj.optString("action")
+                    val requestId = headers["x-hakim-request-id"]
+                    if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
+                        respond(c, 400, JSONObject().put("error", "request_id_required"))
+                    } else if (!HakimBrowserController.isAttached()) {
+                        respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
+                    } else if (requestId != null && !claimRequest(requestId)) {
+                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
                     } else {
-                        val obj = JSONObject(body)
-                        val action = obj.optString("action")
-                        val requestId = headers["x-hakim-request-id"]
-                        if (action != "home" && (requestId == null || !REQUEST_ID.matches(requestId))) {
-                            respond(c, 400, JSONObject().put("error", "request_id_required"))
-                        } else if (requestId != null && !claimRequest(requestId)) {
-                            respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
-                        } else {
-                            val ok = service.action(obj)
-                            respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
-                        }
+                        val ok = HakimBrowserController.action(obj)
+                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId ?: JSONObject.NULL))
                     }
                 }
                 method == "POST" && path == "/v1/launch" -> {
@@ -126,33 +145,11 @@ class LocalControlServer(private val context: Context) {
                         }
                     }
                 }
-                method == "GET" && path == "/v1/browser/ui" -> {
-                    if (!HakimBrowserController.isAttached()) respond(c, 409, JSONObject().put("error", "browser_unavailable"))
-                    else respond(c, 200, JSONObject()
-                        .put("url", HakimBrowserController.currentUrl() ?: JSONObject.NULL)
-                        .put("nodes", HakimBrowserController.uiSnapshot()))
-                }
-                method == "GET" && path == "/v1/browser/screenshot" -> {
-                    val data = HakimBrowserController.screenshotBase64()
-                    if (data == null) respond(c, 409, JSONObject().put("error", "browser_screenshot_unavailable"))
-                    else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "browser_view"))
-                }
-                method == "POST" && path == "/v1/browser/action" -> {
-                    val requestId = headers["x-hakim-request-id"]
-                    if (requestId == null || !REQUEST_ID.matches(requestId)) {
-                        respond(c, 400, JSONObject().put("error", "request_id_required"))
-                    } else if (!claimRequest("browser:$requestId")) {
-                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
-                    } else if (!HakimBrowserController.isAttached()) {
-                        respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
-                    } else {
-                        val ok = HakimBrowserController.action(JSONObject(body))
-                        respond(c, if (ok) 200 else 409, JSONObject().put("ok", ok).put("request_id", requestId))
-                    }
-                }
                 else -> respond(c, 404, JSONObject().put("error", "not_found"))
             }
-        } catch (e: Exception) { respond(c, 500, JSONObject().put("error", e.javaClass.simpleName)) }
+        } catch (e: Exception) {
+            respond(c, 500, JSONObject().put("error", e.javaClass.simpleName))
+        }
     }
 
     @Synchronized
@@ -166,7 +163,9 @@ class LocalControlServer(private val context: Context) {
         val bytes = json.toString().toByteArray(Charsets.UTF_8)
         val reason = if (code == 200) "OK" else "Error"
         val head = "HTTP/1.1 $code $reason\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
-        c.getOutputStream().write(head.toByteArray(Charsets.UTF_8)); c.getOutputStream().write(bytes); c.getOutputStream().flush()
+        c.getOutputStream().write(head.toByteArray(Charsets.UTF_8))
+        c.getOutputStream().write(bytes)
+        c.getOutputStream().flush()
     }
 
     companion object {
