@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_PHONE_INTERFACE_IDENTITY",
   "version": "1.0",
-  "status": "CANDIDATE_UNTIL_GOVERNANCE_PASS_AND_MERGE",
+  "status": "ACTIVE_VERIFIED",
   "canonical_instance_id": "HAKIM_ORIGINAL_PHONE_APP",
   "installed_interface_role": "PRIMARY_INSTALLED_INTERFACE_OF_SINGLE_HAKIM",
   "android_application_id": "org.hakim.omega.companion",
@@ -11,6 +11,8 @@
   "runtime_repository": "smileeyes1/SovereignAssistant",
   "active_pointer": "governance/HAKIM_ACTIVE.json",
   "active_state_pointer": "governance/HAKIM_ACTIVE_STATE.json",
+  "promotion_record": "governance/HAKIM_PHONE_INTERFACE_PROMOTION.json",
+  "verified_merged_main": "f054ee0900e8d907b0ce0166b71ab64c83e0d225",
   "upgrade_in_place_required": true,
   "parallel_hakim_forbidden": true,
   "phone_interface_is_same_hakim": true,
