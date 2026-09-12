@@ -1,0 +1,6 @@
+{
+  "name": "HAKIM_CAPABILITY_TRANSITIONS",
+  "schema_version": "1.0",
+  "rule": "NO_PROTECTED_CAPABILITY_TEST_WORKFLOW_SYMBOL_OR_EVIDENCE_MAY_DISAPPEAR_SILENTLY",
+  "transitions": []
+}
