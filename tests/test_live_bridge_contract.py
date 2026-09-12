@@ -6,7 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_live_bridge_keeps_local_server_loopback_only():
     text = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt").read_text()
-    assert "InetAddress.getLoopbackAddress()" in text
+    assert 'const val LOOPBACK_HOST = "127.0.0.1"' in text
+    assert "InetAddress.getByName(LOOPBACK_HOST)" in text
+    assert "InetAddress.getLoopbackAddress()" not in text
     assert "0.0.0.0" not in text
 
 
