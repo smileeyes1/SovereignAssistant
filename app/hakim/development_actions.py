@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .best_route_optimizer import RouteProfile
 from .core import ActionRisk
 from .event_continuation import ContinuationEvent, EventType
 from .production import ProductionRuntime
@@ -25,6 +26,24 @@ class AutonomousDevelopmentActions:
                 claim_factory=lambda event: strong_claim("GitHub reported CI success", "github-webhook"),
                 executor=self.merge_verified_pr,
                 ready=lambda event: self.runtime.config.allow_merge,
+                route_profile=RouteProfile(
+                    method="verified_squash_merge",
+                    style="transactional_fail_closed",
+                    medium="github_api",
+                    technique="head_sha_and_workflow_revalidation",
+                    mechanism="governed_remote_mutation",
+                    timing="after_all_workflows_complete",
+                    fit=0.95,
+                    evidence=0.95,
+                    expected_success=0.90,
+                    safety_margin=0.86,
+                    burden=0.10,
+                    monetary_cost=0.0,
+                    external_dependency=0.70,
+                    independence=0.30,
+                    sustainability=0.82,
+                    speed=0.78,
+                ),
             )
         )
         self.runtime.registry.register(
@@ -37,6 +56,24 @@ class AutonomousDevelopmentActions:
                 requires_human_approval=False,
                 claim_factory=lambda event: strong_claim("GitHub reported CI failure", "github-webhook"),
                 executor=self.record_ci_failure,
+                route_profile=RouteProfile(
+                    method="durable_failure_capture",
+                    style="minimal_append_state",
+                    medium="local_durable_state",
+                    technique="event_snapshot",
+                    mechanism="transactional_state_write",
+                    timing="immediately_on_ci_failure",
+                    fit=0.98,
+                    evidence=0.98,
+                    expected_success=0.97,
+                    safety_margin=0.98,
+                    burden=0.03,
+                    monetary_cost=0.0,
+                    external_dependency=0.05,
+                    independence=0.95,
+                    sustainability=0.95,
+                    speed=0.99,
+                ),
             )
         )
         self.runtime.registry.register(
@@ -49,6 +86,24 @@ class AutonomousDevelopmentActions:
                 requires_human_approval=False,
                 claim_factory=lambda event: strong_claim("GitHub reported PR merge", "github-webhook"),
                 executor=self.record_pr_merged,
+                route_profile=RouteProfile(
+                    method="durable_merge_capture",
+                    style="minimal_append_state",
+                    medium="local_durable_state",
+                    technique="event_snapshot",
+                    mechanism="transactional_state_write",
+                    timing="immediately_on_pr_merge",
+                    fit=0.98,
+                    evidence=0.98,
+                    expected_success=0.97,
+                    safety_margin=0.98,
+                    burden=0.03,
+                    monetary_cost=0.0,
+                    external_dependency=0.05,
+                    independence=0.95,
+                    sustainability=0.95,
+                    speed=0.99,
+                ),
             )
         )
 
