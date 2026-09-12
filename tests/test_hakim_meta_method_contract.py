@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -47,6 +48,14 @@ def test_context_seed_restores_meta_method_without_replacing_core():
     assert "governance/HAKIM_META_METHOD_AR.md" in seed
     assert "governance/HAKIM_CANONICAL_CORE_AR.md" in seed
     assert "RELEASE_BUILD→VALIDATOR_GATE→FINALIZE→DELIVER" in seed
+
+
+def test_active_restore_sequence_loads_meta_method_explicitly():
+    active = json.loads((GOV / "HAKIM_ACTIVE.json").read_text(encoding="utf-8"))
+    assert active["meta_method_spec"] == "governance/HAKIM_META_METHOD_AR.md"
+    assert "LOAD_META_METHOD_SPEC" in active["restore_sequence"]
+    assert active["restore_sequence"].index("LOAD_META_METHOD_SPEC") > active["restore_sequence"].index("LOAD_NSTAR_SPEC")
+    assert active["restore_sequence"].index("LOAD_META_METHOD_SPEC") < active["restore_sequence"].index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS")
 
 
 def test_meta_method_does_not_claim_physical_field_success():

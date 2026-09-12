@@ -14,6 +14,7 @@ def test_nstar_is_active_and_machine_encoded():
     policy = _json("HAKIM_RUNTIME_POLICY_v2.json")
     assert active["version"] == "2.1"
     assert active["adaptive_intelligence_spec"] == "governance/HAKIM_NSTAR_SPEC_AR.md"
+    assert active["meta_method_spec"] == "governance/HAKIM_META_METHOD_AR.md"
     assert active["phone_sovereign_constraints"] == "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json"
     assert active["active_state"] == "governance/HAKIM_ACTIVE_STATE.json"
     nstar = policy["adaptive_intelligence"]
@@ -28,16 +29,19 @@ def test_restore_chain_is_complete_and_files_exist():
     active = _json("HAKIM_ACTIVE.json")
     expected = [
         "LOAD_ACTIVE_POINTER", "LOAD_CANONICAL", "LOAD_NSTAR_SPEC",
-        "LOAD_PHONE_SOVEREIGN_CONSTRAINTS", "LOAD_RUNTIME_POLICY",
-        "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE", "LOAD_BRIDGE_HEALTH",
-        "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT",
+        "LOAD_META_METHOD_SPEC", "LOAD_PHONE_SOVEREIGN_CONSTRAINTS",
+        "LOAD_RUNTIME_POLICY", "LOAD_BRIDGE_POLICY", "LOAD_ACTIVE_STATE",
+        "LOAD_BRIDGE_HEALTH", "VERIFY_FRESHNESS", "RESUME_FROM_LAST_PROVEN_POINT",
     ]
     assert active["restore_sequence"] == expected
+    assert expected.index("LOAD_NSTAR_SPEC") < expected.index("LOAD_META_METHOD_SPEC")
+    assert expected.index("LOAD_META_METHOD_SPEC") < expected.index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS")
     assert expected.index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS") < expected.index("LOAD_RUNTIME_POLICY")
     assert expected.index("LOAD_PHONE_SOVEREIGN_CONSTRAINTS") < expected.index("LOAD_BRIDGE_POLICY")
     for key in (
-        "core", "adaptive_intelligence_spec", "phone_sovereign_constraints",
-        "runtime_policy", "bridge_policy", "active_state", "context_seed",
+        "core", "adaptive_intelligence_spec", "meta_method_spec",
+        "phone_sovereign_constraints", "runtime_policy", "bridge_policy",
+        "active_state", "context_seed",
     ):
         assert (ROOT / active[key]).is_file(), key
 
