@@ -8,6 +8,10 @@ GOV = ROOT / "governance"
 def test_surface_reconciliation_contract_is_single_hakim_and_fail_closed():
     text = (GOV / "HAKIM_SURFACE_RECONCILIATION_AR.md").read_text(encoding="utf-8")
     required = [
+        "الحالة: ACTIVE_VERIFIED",
+        "PR #163",
+        "b01cbb8f622c43633ab7da7deea9a49ea9d2cc67",
+        "نجاح Governance وContinuity وReality Gate على `main` بعد الدمج",
         "منع انقسام حكيم",
         "المصدر التنفيذي الحاكم",
         "HAKIM_ACTIVE.json",
@@ -23,6 +27,7 @@ def test_surface_reconciliation_contract_is_single_hakim_and_fail_closed():
         "لا يقال «حكيم في Gemini مطبّق/مثبت سلوكيًا» إلا بعد دليل",
         "UNQUALIFIED",
         "لا يرفع FIELD_VERIFIED",
+        "PROTECTED_ACTIVE",
     ]
     for token in required:
         assert token in text
