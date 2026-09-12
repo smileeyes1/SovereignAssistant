@@ -36,9 +36,13 @@
     "secrets_in_public_repository": false
   },
   "qualification": {
-    "encrypted_companion_android15_pre_field": "VERIFIED_ON_PRIOR_IDENTICAL_APP_HEAD",
+    "reconciled_governance_gate": "VERIFIED_PRE_FIELD",
+    "encrypted_companion_contracts": "VERIFIED_PRE_FIELD",
+    "encrypted_companion_android15_runtime": "VERIFIED_PRE_FIELD",
     "encrypted_companion_installable_apk": "INDEPENDENTLY_SIGNATURE_AND_CONTENT_VERIFIED_PRE_FIELD",
-    "cloud_hc1_sender": "PENDING_RECONCILED_MAKE_PATCH",
+    "cloud_hc1_ciphertext_send_path": "VERIFIED_PRE_FIELD",
+    "result_mailbox": "ACTIVE_VERIFIED_AVAILABLE",
+    "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
     "physical_phone": "PENDING_LOCAL_COMPANION_ACTIVATION_AND_REAL_ROUND_TRIP",
     "wireless_debugging_pairing": "NOT_REQUIRED_FOR_NORMAL_OPERATION__OPTIONAL_FOR_LOCAL_FIELD_FALLBACK",
     "field_verified_requires_real_round_trip": true,
@@ -53,6 +57,7 @@
       "ui_and_screenshot_when_accessibility_enabled",
       "notifications_when_listener_enabled",
       "local_approval_for_mutation",
+      "financial_safe_mode_physical",
       "screen_off_background",
       "reconnect",
       "reboot_recovery",
