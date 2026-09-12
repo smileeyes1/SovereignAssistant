@@ -61,7 +61,7 @@ def test_pairing_survives_update_key_names_and_release_version_moves_forward():
     assert 'uri.getQueryParameter("relay_base")' in activity
     assert 'const val KEY_TOPIC = "relay_topic"' in relay
     assert 'const val KEY_RELAY_KEY = "relay_hmac_key"' in relay
-    assert 'versionCode = 8' in gradle
+    assert 'versionCode = 20018' in gradle
     assert 'versionName = "0.5.0-canonical-phone-interface-native-adb"' in gradle
 
 
