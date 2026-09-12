@@ -73,8 +73,15 @@ def test_seed_and_spec_preserve_nstar_and_safe_autonomy():
 def test_phone_sovereign_constraints_are_p0_and_stronger_than_generic_autonomy():
     c = _json("HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json")
     assert c["priority"] == "P0"
-    assert c["constraints"]["developer_options_normal_operation"] == "MUST_REMAIN_OFF"
-    assert c["constraints"]["wireless_debugging_normal_operation"] == "MUST_REMAIN_OFF"
+    constraints = c["constraints"]
+    assert constraints["governing_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
+    assert constraints["cloud_command_relay"] == "MAKE_PRIVATE_ON_DEMAND_RELAY"
+    assert constraints["result_path"] == "RESULT_MAILBOX"
+    assert constraints["public_command_transport"] == "FORBIDDEN"
+    assert constraints["public_github_command_relay"] == "FORBIDDEN"
+    assert constraints["general_remote_shell"] == "FORBIDDEN"
+    assert constraints["platform_protection_bypass"] is False
+    assert constraints["play_protect_disable"] is False
     assert c["precedence"]["generic_autonomy_cannot_override"] is True
     assert c["precedence"]["only_later_explicit_user_instruction_may_change"] is True
 
