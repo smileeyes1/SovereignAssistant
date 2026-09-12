@@ -1,0 +1,35 @@
+{
+  "name": "HAKIM_PHONE_INTERFACE_PROMOTION",
+  "version": "1.0",
+  "status": "ACTIVE_VERIFIED",
+  "canonical_instance_id": "HAKIM_ORIGINAL_PHONE_APP",
+  "source_pr": 172,
+  "source_candidate_head": "6b242f067f1c527bbefdcc17143518d75101b553",
+  "feature_merged_main": "f054ee0900e8d907b0ce0166b71ab64c83e0d225",
+  "identity_activation_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
+  "verified_repository_truth_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
+  "evidence": {
+    "feature_continuity_pr": "PASS",
+    "feature_governance_pr": "PASS",
+    "feature_android_contracts_and_build_pr": "PASS",
+    "feature_android15_runtime_and_airplane_recovery_pr": "PASS",
+    "feature_continuity_main": "PASS",
+    "feature_governance_main": "PASS",
+    "feature_reality_main": "PASS",
+    "feature_android_release_main": "PASS",
+    "identity_activation_continuity_main": "PASS",
+    "identity_activation_governance_main": "PASS",
+    "identity_activation_reality_main": "PASS"
+  },
+  "protected_outcomes": [
+    "ONE_HAKIM_ONLY",
+    "STABLE_ANDROID_APPLICATION_ID_FOR_IN_PLACE_UPGRADE",
+    "NATIVE_LOCAL_ADB_PRESERVED",
+    "NO_PARALLEL_HAKIM",
+    "NO_FIELD_VERIFIED_WITHOUT_REAL_PHONE_EVIDENCE",
+    "BOUNDED_DIAGNOSTIC_AIRPLANE_RECOVERY_FAIL_CLOSED"
+  ],
+  "field_verified": false,
+  "physical_phone_round_trip": "NOT_PROVEN",
+  "rule": "Promote the installed Android interface as the single canonical Hakim phone interface while preserving pre-field truthfulness. This promotion is software/governance evidence only and cannot promote physical-phone field status."
+}
