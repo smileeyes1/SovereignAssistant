@@ -30,7 +30,8 @@ def test_max_value_rule_contract():
         assert token in text
 
 
-def test_active_pointer_enforces_rule_in_restore_and_promotion_contract():
+def test_active_pointer_names_rule_without_changing_frozen_restore_contract():
+    """Stable contract id retained; 2.3 intentionally promotes the rule into the restore contract."""
     active = json.loads((GOV / "HAKIM_ACTIVE.json").read_text(encoding="utf-8"))
     assert active["version"] == "2.3"
     assert active["max_value_intent_rule"] == "governance/HAKIM_MAX_VALUE_INTENT_RULE_AR.md"
