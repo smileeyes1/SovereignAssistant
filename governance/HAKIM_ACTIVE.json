@@ -8,6 +8,7 @@
   "intelligence_fabric_spec": "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md",
   "intelligence_matrix": "governance/HAKIM_INTELLIGENCE_MATRIX.json",
   "meta_method_spec": "governance/HAKIM_META_METHOD_AR.md",
+  "max_value_intent_rule": "governance/HAKIM_MAX_VALUE_INTENT_RULE_AR.md",
   "value_gates_spec": "governance/HAKIM_VALUE_GATES_AR.md",
   "continuity_shield_spec": "governance/HAKIM_CONTINUITY_SHIELD_AR.md",
   "continuity_shield_policy": "governance/HAKIM_CONTINUITY_SHIELD.json",
