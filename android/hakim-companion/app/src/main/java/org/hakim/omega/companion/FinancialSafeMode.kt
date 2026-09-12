@@ -1,15 +1,12 @@
 package org.hakim.omega.companion
 
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.service.notification.NotificationListenerService
 
 /**
- * وضع مالي آمن يفصل قدرات التحكم الحساسة قبل استخدام التطبيقات المالية.
- * لا يعتمد على ADB أو خيارات المطور.
+ * وضع مالي آمن يفصل خدمة التحكم المحلية قبل استخدام التطبيقات المالية.
+ * الإصدار السيادي المحلي لا يستخدم Accessibility ولا Notification Listener ولا ناقلًا خلفيًا أصلًا.
  */
 object FinancialSafeMode {
     const val KEY = "financial_safe_mode"
@@ -24,27 +21,18 @@ object FinancialSafeMode {
             .putBoolean(KEY, true)
             .putString("companion_mode", "FINANCIAL_SAFE")
             .apply()
-
-        runCatching { HakimAccessibilityService.instance?.disableSelf() }
-        runCatching { HakimNotificationListener.instance?.requestUnbind() }
         runCatching { context.stopService(Intent(context, HakimForegroundService::class.java)) }
     }
 
     fun exit(context: Context) {
-        context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
-            .edit()
+        val prefs = context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
+        prefs.edit()
             .putBoolean(KEY, false)
             .putString("companion_mode", "REACTIVATING")
             .apply()
-
-        if (Build.VERSION.SDK_INT >= 24) {
-            runCatching {
-                NotificationListenerService.requestRebind(
-                    ComponentName(context, HakimNotificationListener::class.java),
-                )
-            }
+        if (!prefs.getString("pair_token", null).isNullOrBlank()) {
+            HakimForegroundService.start(context)
         }
-        HakimForegroundService.start(context)
     }
 }
 

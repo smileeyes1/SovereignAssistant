@@ -83,15 +83,15 @@ def test_phone_sovereign_constraints_are_p0_and_stronger_than_generic_autonomy()
     c = _json("HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json")
     assert c["priority"] == "P0"
     constraints = c["constraints"]
-    assert constraints["governing_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
-    assert constraints["cloud_command_relay"] == "MAKE_PRIVATE_ON_DEMAND_RELAY"
-    assert constraints["result_path"] == "RESULT_MAILBOX"
-    assert constraints["public_command_transport"] == "FORBIDDEN"
-    assert constraints["public_github_command_relay"] == "FORBIDDEN"
-    assert constraints["general_remote_shell"] == "FORBIDDEN"
+    assert constraints["developer_options_normal_operation"] == "MUST_REMAIN_OFF"
+    assert constraints["wireless_debugging_normal_operation"] == "MUST_REMAIN_OFF"
+    assert constraints["normal_phone_path"] == "ANDROID_COMPANION_SOVEREIGN_LOCAL_OWNED_BROWSER"
+    assert constraints["external_background_command_transport"] == "FORBIDDEN_IN_NORMAL_OPERATION"
+    assert constraints["accessibility_service_required"] is False
+    assert constraints["notification_listener_required"] is False
     assert constraints["platform_protection_bypass"] is False
-    assert constraints["play_protect_disable"] is False
     assert c["precedence"]["generic_autonomy_cannot_override"] is True
+    assert c["precedence"]["optimization_cannot_override"] is True
     assert c["precedence"]["only_later_explicit_user_instruction_may_change"] is True
 
 

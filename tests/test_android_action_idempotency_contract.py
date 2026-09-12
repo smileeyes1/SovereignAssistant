@@ -8,9 +8,10 @@ def source():
     return SERVER.read_text(encoding="utf-8")
 
 
-def test_browser_actions_require_request_identity_and_durable_claim():
+def test_all_mutating_actions_require_request_identity_and_durable_claim():
     s = source()
     assert 'headers["x-hakim-request-id"]' in s
+    assert 'action != "home"' not in s
     assert 'request_id_required' in s
     assert 'duplicate_request' in s
     assert 'getSharedPreferences("hakim_idempotency", Context.MODE_PRIVATE)' in s
@@ -19,14 +20,15 @@ def test_browser_actions_require_request_identity_and_durable_claim():
     assert '@Synchronized' in s
 
 
-def test_missing_owned_browser_fails_closed():
+def test_missing_owned_browser_fails_closed_before_idempotency_claim():
     s = source()
-    assert '!HakimBrowserController.isAttached()' in s
+    browser_check = s.index('else if (!HakimBrowserController.isAttached())')
+    claim_check = s.index('else if (!claimRequest(requestId))')
+    assert browser_check < claim_check
     assert 'browser_unavailable' in s
-    assert 'HakimBrowserController.action(JSONObject(body))' in s
 
 
-def test_device_wide_home_exception_is_not_present_in_safe_core():
+def test_action_response_always_returns_non_null_request_identity():
     s = source()
-    assert 'action != "home"' not in s
-    assert 'HakimAccessibilityService' not in s
+    assert 'put("request_id", requestId)' in s
+    assert 'requestId ?: JSONObject.NULL' not in s

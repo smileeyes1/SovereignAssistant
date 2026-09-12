@@ -10,59 +10,60 @@ def text(path):
     return Path(path).read_text(encoding="utf-8")
 
 
-def test_direct_transport_is_zero_cost_encrypted_and_result_topic_based():
-    relay = text(APP / "HakimDirectRelay.kt")
-    assert 'const val KEY_RESULT_TOPIC = "relay_result_topic"' in relay
-    assert 'const val KEY_RELAY_BASE = "relay_base_url"' in relay
-    assert 'private const val DEFAULT_RELAY_BASE = "https://ntfy.sh"' in relay
-    assert 'private const val CARRIER_PREFIX = "HC1."' in relay
-    assert 'private const val RESULT_PREFIX = "HR1."' in relay
-    assert 'AES/GCM/NoPadding' in relay
-    assert 'Mac.getInstance("HmacSHA256")' in relay
-    assert 'duplicate_request' in relay
-    assert 'request_expired' in relay
-    assert 'DirectApprovalReceiver' in relay
-    assert 'hook.eu1.make.com' not in relay
-    assert 'relay_result_url' not in relay
-
-
-def test_foreground_runtime_uses_direct_transport_not_legacy_transport():
+def test_normal_runtime_has_no_external_background_transport():
+    for name in ["HakimDirectRelay.kt", "HakimRemoteRelay.kt"]:
+        assert not (APP / name).exists()
     service = text(APP / "HakimForegroundService.kt")
-    assert 'HakimDirectRelay' in service
-    assert 'HakimRemoteRelay(' not in service
+    local = text(APP / "LocalControlServer.kt")
+    assert "HakimDirectRelay" not in service
+    assert "HakimRemoteRelay" not in service
+    assert 'putBoolean("external_transport_enabled", false)' in service
+    assert '.put("external_transport_enabled", false)' in local
+
+
+def test_foreground_runtime_uses_loopback_local_control():
+    service = text(APP / "HakimForegroundService.kt")
+    local = text(APP / "LocalControlServer.kt")
+    assert 'LocalControlServer(this@HakimForegroundService)' in service
+    assert 'InetAddress.getLoopbackAddress()' in local
     assert 'START_STICKY' in service
 
 
-def test_safe_unified_build_keeps_owned_browser_without_sensitive_device_services():
+def test_sovereign_build_keeps_owned_browser_and_removes_privileged_device_services():
     manifest = text(MANIFEST)
     activity = text(APP / "MainActivity.kt")
     local = text(APP / "LocalControlServer.kt")
     assert '.HakimAccessibilityService' not in manifest
     assert '.HakimNotificationListener' not in manifest
-    assert 'BIND_ACCESSIBILITY_SERVICE' not in manifest
-    assert 'BIND_NOTIFICATION_LISTENER_SERVICE' not in manifest
-    assert '.DirectApprovalReceiver' in manifest
+    assert '.DirectApprovalReceiver' not in manifest
+    assert '.RemoteApprovalReceiver' not in manifest
     assert 'HakimBrowserController.attach(browser)' in activity
-    assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' not in activity
-    assert 'Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS' not in activity
-    assert 'HakimDirectRelay.configure' in activity
-    assert 'HakimAccessibilityService.instance' not in local
-    assert 'HakimNotificationListener.isConnected()' not in local
+    assert 'HakimAccessibilityService' not in activity
+    assert 'HakimNotificationListener' not in activity
     assert 'HakimBrowserController.uiSnapshot()' in local
     assert 'HakimBrowserController.screenshotBase64()' in local
-    assert '"control_scope", "OWNED_BROWSER_ONLY"' in local
 
 
-def test_pairing_survives_update_key_names_and_release_version_moves_forward():
+def test_pairing_survives_update_and_release_version_moves_forward():
     activity = text(APP / "MainActivity.kt")
-    relay = text(APP / "HakimDirectRelay.kt")
     gradle = text(GRADLE)
-    assert 'uri.getQueryParameter("result_topic")' in activity
-    assert 'uri.getQueryParameter("relay_base")' in activity
-    assert 'const val KEY_TOPIC = "relay_topic"' in relay
-    assert 'const val KEY_RELAY_KEY = "relay_hmac_key"' in relay
-    assert 'versionCode = 6' in gradle
-    assert 'versionName = "0.4.1-safe-browser-core"' in gradle
+    assert 'uri.getQueryParameter("token")' in activity
+    assert 'putString("pair_token", token)' in activity
+    assert 'putString("pair_mode", "SOVEREIGN_LOCAL")' in activity
+    assert 'versionCode = 7' in gradle
+    assert 'versionName = "0.4.2-sovereign-local"' in gradle
+
+
+def test_signed_local_task_channel_is_authenticated_expiring_and_replay_guarded():
+    task = text(APP / "HakimSignedTask.kt")
+    assert 'uri.scheme != "hakim" || uri.host != "task"' in task
+    assert 'Mac.getInstance("HmacSHA256")' in task
+    assert 'MessageDigest.isEqual' in task
+    assert 'MAX_FUTURE_MS' in task
+    assert 'task_bad_signature' in task
+    assert 'task_duplicate' in task
+    assert 'task_expired_or_too_far' in task
+    assert 'ALLOWED_ACTIONS' in task
 
 
 def test_financial_safe_mode_remains_a_runtime_gate():
