@@ -23,7 +23,7 @@ jobs:
           python-version: '3.12'
       - name: Install contract test tooling
         run: python -m pip install --disable-pip-version-check pytest
-      - name: Zero-cost independence contract
+      - name: Zero-cost independence source contract
         run: python -m pytest -q tests/test_android_zero_cost_transport_contract.py
       - uses: actions/setup-java@v5
         with:
@@ -32,9 +32,41 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build unsigned release APK
+      - name: Clean-build unsigned release APK
         working-directory: android/hakim-companion
-        run: gradle --no-daemon :app:assembleRelease
+        run: gradle --no-daemon clean :app:assembleRelease
+      - name: Verify built APK contains no stale external relay runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/hakim-companion/app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -s "$APK"
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+          unzip -q "$APK" -d "$TMP"
+          strings_all() { find "$TMP" -type f -print0 | xargs -0 strings 2>/dev/null || true; }
+          strings_all > "$TMP/all.strings"
+          for marker in \
+            'ntfy.sh' \
+            'hook.eu1.make.com' \
+            'TinyFish' \
+            'HakimRemoteRelay' \
+            'relay_topic' \
+            'relay_result_topic' \
+            'relay_base_url' \
+            'relay_hmac_key'
+          do
+            if grep -Fq "$marker" "$TMP/all.strings"; then
+              echo "Forbidden stale transport marker found in built APK: $marker" >&2
+              exit 21
+            fi
+          done
+          for marker in 'local_proof' 'HAKIM-TASK-v1' 'hakim.local' 'SOVEREIGN_LOCAL'; do
+            grep -Fq "$marker" "$TMP/all.strings" || {
+              echo "Required sovereign-local marker missing from built APK: $marker" >&2
+              exit 22
+            }
+          done
       - name: Stage build, hash, and official apksig tool
         shell: bash
         run: |
@@ -63,6 +95,6 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "HAKIM Companion ${GITHUB_SHA::12}" \
-            --notes "Unsigned Android Companion built from verified source branch. Sign locally with the owned HAKIM key; no repository signing key exists." \
+            --notes "Unsigned Android Companion built from a clean verified source tree. Source and built-binary gates reject stale external relay runtime. Sign locally with the owned HAKIM key; no repository signing key exists." \
             hakim-companion-unsigned.apk \
             hakim-companion-unsigned.apk.sha256
