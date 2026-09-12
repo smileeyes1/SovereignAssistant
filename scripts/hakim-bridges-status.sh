@@ -13,7 +13,7 @@ fi
 
 echo
 printf 'supervisor='; tmux has-session -t hakim-multibridge-supervisor 2>/dev/null && echo running || echo stopped
-printf 'relay_worker='; tmux has-session -t hakim-relay-worker 2>/dev/null && echo running || echo stopped
+printf 'legacy_public_relay_worker='; tmux has-session -t hakim-relay-worker 2>/dev/null && echo POLICY_VIOLATION_RUNNING || echo retired_stopped
 printf 'control_window='; if [ -s "$OMEGA/hakim-control-until" ] && [ "$(cat "$OMEGA/hakim-control-until" 2>/dev/null || echo 0)" -gt "$(date +%s%3N)" ] 2>/dev/null; then echo open; else echo closed; fi
 if [ -f "$CONFIG" ]; then
   python - "$CONFIG" <<'PY'
@@ -23,6 +23,9 @@ try:
  print('adb_target='+str(d.get('adb_target','')))
  print('transport='+str(d.get('transport','')))
  print('apk_required='+str(d.get('apk_required',False)).lower())
+ print('public_command_transport='+str(d.get('public_command_transport',False)).lower())
+ print('make_private_command_relay='+str(d.get('make_private_command_relay','required_unproven')))
+ print('result_path_state='+str(d.get('result_path_state','unknown')))
 except Exception as e:
  print('config_error='+type(e).__name__)
 PY
