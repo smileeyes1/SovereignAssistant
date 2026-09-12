@@ -1,0 +1,34 @@
+{
+  "name": "HAKIM_AUTONOMOUS_MUTATION_GUARD_PROMOTION",
+  "schema_version": "1.0",
+  "status": "ACTIVE_VERIFIED",
+  "source_main": "2149d6dcb60339625fb27551dcc6b670ffbc59bc",
+  "capability": "AUTONOMOUS_MUTATION_GUARD",
+  "proven": {
+    "governance_gate_main": "PASS",
+    "continuity_shield_main": "PASS",
+    "reality_gate_main": "PASS",
+    "no_direct_protected_branch_write_contract": "PASS",
+    "required_merge_workflows_contract": "PASS"
+  },
+  "guard_contract": {
+    "autonomous_direct_write_to_main_or_master": false,
+    "candidate_branch_only_mutations": true,
+    "required_autonomous_merge_workflows": [
+      "HAKIM Governance Gate",
+      "HAKIM Continuity Shield"
+    ],
+    "required_workflow_conclusion": "completed_success",
+    "expected_head_sha_lock": true,
+    "default_autonomous_merge_enabled": false
+  },
+  "protected_paths": [
+    "app/hakim/github_control.py",
+    "app/hakim/development_actions.py",
+    "tests/test_github_control.py",
+    "tests/test_development_actions.py"
+  ],
+  "field_phone_verified": false,
+  "physical_phone_round_trip": "NOT_PROVEN",
+  "note": "ترقية حوكمة للمستودع فقط؛ لا تعيد تفسير حالة الهاتف ولا تمنح صلاحيات جديدة."
+}
