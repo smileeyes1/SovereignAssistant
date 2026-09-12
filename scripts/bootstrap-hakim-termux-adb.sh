@@ -112,4 +112,8 @@ am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS >/dev/null 2>&1 ||
 echo '✅ تم تجهيز مسار حكيم المحلي بدون APK وبدون تجاوز Play Protect.'
 echo '✅ النقل العام متقاعد، والمشرف يحافظ على Wireless ADB المحلي فقط.'
 echo '🔐 بقي حاجز أندرويد الوحيد: الاقتران الأول بالتصحيح اللاسلكي.'
-echo 'افتح «التصحيح اللاسلكي» واضغط «إقران الجهاز باستخدام رمز الإقران»، ثم أرسل لقطة الشاشة هنا.'
+echo 'اضغط «إقران الجهاز باستخدام رمز الإقران». سيكتشف حكيم عنوان الاقتران تلقائيًا؛ ثم ارجع إلى Termux وأدخل الرمز ذي الستة أرقام فقط.'
+
+# Continue in the same command: bounded local discovery, one ephemeral code,
+# then verified ADB connect and supervised recovery. No code/address leaves the phone.
+exec "$OMEGA/bin/hakim-adb-pair" --interactive
