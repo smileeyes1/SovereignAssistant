@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
   "version": "2.6-termux-wireless-adb-primary-private-make",
-  "status": "ACTIVE_OVERRIDE_CANDIDATE_PENDING_GATES",
+  "status": "ACTIVE_OVERRIDE",
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "priority": [
     "TERMUX_WIRELESS_ADB_LOCAL",
@@ -10,6 +10,7 @@
     "REMOTE_DESKTOP_COMMANDER_OPTIONAL_MAINTENANCE"
   ],
   "public_command_transport": false,
+  "public_ciphertext_carrier_allowed": true,
   "public_github_command_relay": "DISABLED",
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
   "phone_execution": "TERMUX_WIRELESS_ADB_LOCAL_GOVERNED",
@@ -18,24 +19,32 @@
   "self_healing_supervisor": true,
   "security": {
     "least_privilege": true,
+    "outbound_only_preferred": true,
+    "carrier_protocol": "HC1",
+    "carrier_content_encryption": "AES-256-GCM",
+    "public_carrier_payload": "CIPHERTEXT_ONLY",
+    "carrier_plaintext_fallback": false,
     "signed_commands": true,
+    "hmac_sha256": true,
     "expiry_required": true,
     "anti_replay": true,
     "allowlist_only": true,
     "general_remote_shell": false,
     "mutating_actions_fail_closed": true,
     "mutating_actions_require_local_approval": true,
+    "financial_safe_mode_available": true,
     "platform_protection_bypass": false,
     "play_protect_disable": false,
     "secrets_in_public_repository": false,
     "secrets_in_context_seed": false
   },
   "qualification": {
+    "legacy_hc1_encrypted_carrier_contract": "PRESERVED_PROVEN_PRE_FIELD_NOT_GOVERNING_PRIMARY_PATH",
     "make_private_on_demand_relay": "REQUIRED_NOT_YET_FIELD_PROVEN",
-    "result_mailbox": "ACTIVE_AVAILABLE",
+    "result_mailbox": "ACTIVE_VERIFIED_AVAILABLE",
     "remote_desktop_commander": "OPTIONAL_NOT_BLOCKING",
     "physical_phone": "PENDING_ANDROID_LOCAL_WIRELESS_ADB_PAIRING_OR_EXISTING_TRUSTED_CONNECTION",
-    "field_verified_requires_real_phone_evidence": true,
+    "field_verified_requires_real_round_trip": true,
     "required_field_evidence": [
       "signed_status_round_trip",
       "bad_signature_rejection",
@@ -51,5 +60,5 @@
       "backup_restore_containment"
     ]
   },
-  "rule": "Latest explicit user instruction governs: Termux Wireless ADB local is the governing phone FIELD path; Make private on-demand relay is the cloud command channel; result mailbox is the result channel; Remote Desktop Commander is optional maintenance only. Public command transport and public GitHub relay are forbidden. Any fallback must be private or encrypted. Do not expose a general remote shell, do not disable Play Protect or Android protections, do not place secrets in a public repository or context seed, and never claim FIELD_VERIFIED without direct evidence from the real phone."
+  "rule": "Latest explicit user instruction governs: Termux Wireless ADB local is the governing phone FIELD path; Make private on-demand relay is the cloud command channel; result mailbox is the result channel; Remote Desktop Commander is optional maintenance only. Public command transport and public GitHub relay are forbidden. Any fallback must be private or encrypted. The previously proven HC1 ciphertext carrier contract remains preserved as historical PRE_FIELD success but is not the governing primary phone path. Do not expose a general remote shell, do not disable Play Protect or Android protections, do not place secrets in a public repository or context seed, and never claim FIELD_VERIFIED without direct evidence from the real phone."
 }
