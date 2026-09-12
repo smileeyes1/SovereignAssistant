@@ -51,6 +51,13 @@ def test_branch_creation_is_allowed_by_default_but_merge_is_not():
     assert calls[0][2] == {"ref": "refs/heads/feature/x", "sha": "abc"}
 
 
+def test_autonomous_branch_creation_cannot_target_protected_branches():
+    control = GitHubControl("t", "o/r", opener=lambda req, timeout: (_ for _ in ()).throw(AssertionError("network must not be called")))
+    for branch in ("main", "master", "refs/heads/main", "refs/heads/master"):
+        with pytest.raises(PermissionError, match="protected branch"):
+            control.create_branch(branch, "abc")
+
+
 def test_merge_requires_explicit_policy_and_expected_head_sha():
     calls = []
 
@@ -127,6 +134,18 @@ def test_atomic_commit_uses_expected_head_and_updates_ref_once():
     patch_calls = [c for c in calls if c[0] == "PATCH"]
     assert len(patch_calls) == 1
     assert patch_calls[0][2] == {"sha": "commit-new", "force": False}
+
+
+def test_atomic_commit_refuses_protected_branch_even_when_file_writes_are_enabled():
+    control = GitHubControl(
+        "t",
+        "o/r",
+        policy=GitHubWritePolicy(allow_file_write=True),
+        opener=lambda req, timeout: (_ for _ in ()).throw(AssertionError("network must not be called")),
+    )
+    for branch in ("main", "master", "refs/heads/main"):
+        with pytest.raises(PermissionError, match="protected branch"):
+            control.commit_files(branch, "expected", {"x": "y"}, "fix")
 
 
 def test_atomic_commit_refuses_stale_head_and_default_write_policy():
