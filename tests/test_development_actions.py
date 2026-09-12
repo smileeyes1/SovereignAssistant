@@ -58,7 +58,7 @@ def ci_event():
     )
 
 
-def test_verified_ci_can_merge_only_when_both_governing_workflows_succeed(tmp_path):
+def test_verified_ci_can_merge_when_explicitly_enabled(tmp_path):
     calls = []
     runtime = make_runtime(tmp_path, success_opener(calls), allow_merge=True)
     result = runtime.governor.engine().handle(ci_event())
