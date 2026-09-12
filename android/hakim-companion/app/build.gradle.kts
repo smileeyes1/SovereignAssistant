@@ -10,8 +10,11 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0-zero-cost-independent"
+        versionCode = 5
+        versionName = "0.4.0-sovereign-local"
+    }
+    sourceSets {
+        getByName("main").java.exclude("**/HakimRemoteRelay.kt")
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
