@@ -35,7 +35,11 @@ def test_active_state_keeps_physical_phone_claim_fail_closed():
 
 
 def test_active_state_restores_value_gates_and_physical_preflight_gate():
+    """Stable contract id retained; 2.3 strengthens it with the max-value restore rule."""
     state = load(STATE)
+    assert state["max_value_intent_rule"] == "governance/HAKIM_MAX_VALUE_INTENT_RULE_AR.md"
+    assert state["max_value_intent_rule_enforcement"] == "ACTIVE_VERIFIED__RESTORE_AND_PROMOTION_GATE_REQUIRED_ON_2_3_MERGE"
+    assert "LOAD_AND_ENFORCE_MAX_VALUE_INTENT_RULE" in state["resume_rule"]
     assert state["value_gates_spec"] == "governance/HAKIM_VALUE_GATES_AR.md"
     gate = state["physical_field_preflight_gate"]
     assert gate == "scripts/android-physical-field-gate.py"
