@@ -22,7 +22,7 @@
         </activity>
 
         <service android:name=".HakimForegroundService" android:exported="false" android:foregroundServiceType="specialUse">
-            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized device control bridge" />
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized device and owned-browser control bridge" />
         </service>
 
         <service android:name=".HakimAccessibilityService" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
@@ -34,7 +34,7 @@
             <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
         </service>
 
-        <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
+        <receiver android:name=".DirectApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".FinancialSafeModeReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
