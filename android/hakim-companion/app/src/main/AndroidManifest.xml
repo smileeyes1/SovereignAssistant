@@ -24,6 +24,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="hakim" android:host="pair" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="hakim" android:host="task" />
+            </intent-filter>
         </activity>
 
         <service
@@ -32,10 +38,9 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="local user-authorized browser control bridge" />
+                android:value="local user-authorized browser control core" />
         </service>
 
-        <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".FinancialSafeModeReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
