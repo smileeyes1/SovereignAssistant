@@ -14,15 +14,20 @@ ACTION='{"action":"browser_reload"}'
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 
+# Runtime status and WebView attachment are distinct readiness conditions.
 i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"control_scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-idempotency-status.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Safe-core owned browser did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Safe-core control plane did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
 done
-echo 'STAGE_IDEMPOTENCY_OWNED_BROWSER_PRECONDITION=PROVEN'
 
-code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
-[ "$code" = '200' ] || { echo "owned browser UI expected 200 got $code" >&2; cat /tmp/hakim-idempotency-ui.json >&2; exit 1; }
-grep -F '"scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-idempotency-ui.json >/dev/null || { cat /tmp/hakim-idempotency-ui.json >&2; exit 1; }
+i=0
+while [ "$i" -lt 30 ]; do
+  code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+  if [ "$code" = '200' ] && grep -F '"scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-idempotency-ui.json >/dev/null; then break; fi
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 30 ] || { echo 'Owned browser did not attach for replay proof' >&2; cat /tmp/hakim-idempotency-ui.json >&2 || true; exit 1; }
+echo 'STAGE_IDEMPOTENCY_OWNED_BROWSER_PRECONDITION=PROVEN'
 
 # Without a durable identity the mutation must fail closed before dispatch.
 code=$(curl -sS -o /tmp/hakim-no-rid.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
@@ -45,6 +50,16 @@ i=0
 until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null; do
   i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Safe core did not recover for replay proof' >&2; exit 1; }; sleep 1
 done
+
+# Duplicate rejection must remain durable. Wait for the owned browser so a 409 can
+# only mean replay protection, not a transient browser-unavailable race.
+i=0
+while [ "$i" -lt 30 ]; do
+  code=$(curl -sS -o /tmp/hakim-idempotency-ui-after-restart.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
+  [ "$code" = '200' ] && break
+  i=$((i + 1)); sleep 1
+done
+[ "$i" -lt 30 ] || { echo 'Owned browser did not recover after process death' >&2; cat /tmp/hakim-idempotency-ui-after-restart.json >&2 || true; exit 1; }
 
 code=$(curl -sS -o /tmp/hakim-rid-replay.json -w '%{http_code}' -H "$AUTH" -H "X-Hakim-Request-Id: ${RID}" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
 [ "$code" = '409' ] || { echo "duplicate browser request expected 409 got $code" >&2; cat /tmp/hakim-rid-replay.json >&2; exit 1; }
