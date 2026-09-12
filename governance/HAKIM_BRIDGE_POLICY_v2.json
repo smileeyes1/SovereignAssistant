@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.4-companion-primary-sovereign-lock",
+  "version": "2.5-companion-primary-sovereign-lock-hc1",
   "status": "ACTIVE_OVERRIDE",
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "priority": [
@@ -11,6 +11,7 @@
     "TERMUX_WIRELESS_ADB_EXPLICIT_TEMPORARY_MAINTENANCE_ONLY"
   ],
   "public_command_transport": false,
+  "public_ciphertext_carrier_allowed": true,
   "public_github_command_relay": "DISABLED",
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
   "phone_execution": "ANDROID_COMPANION_PRIMARY",
@@ -22,6 +23,10 @@
   "self_healing_supervisor": true,
   "security": {
     "outbound_only_preferred": true,
+    "carrier_protocol": "HC1",
+    "carrier_content_encryption": "AES-256-GCM",
+    "public_carrier_payload": "CIPHERTEXT_ONLY",
+    "carrier_plaintext_fallback": false,
     "signed_commands": true,
     "hmac_sha256": true,
     "expiry_required": true,
@@ -35,17 +40,21 @@
     "secrets_in_public_repository": false
   },
   "qualification": {
-    "cloud_send_path": "VERIFIED",
+    "cloud_hc1_ciphertext_send_path": "VERIFIED_PRE_FIELD",
+    "result_mailbox": "ACTIVE_VERIFIED_AVAILABLE",
     "android15_pre_field_runtime": "VERIFIED",
     "installable_field_apk": "VERIFIED_PRE_FIELD",
+    "stable_release_signing_identity": "VERIFIED_PRIVATE_KEY_NOT_IN_PUBLIC_REPOSITORY",
     "physical_phone": "PENDING_LOCAL_COMPANION_ACTIVATION_AND_REAL_ROUND_TRIP",
     "wireless_debugging_pairing": "NOT_REQUIRED_AND_FORBIDDEN_FOR_NORMAL_OPERATION",
     "financial_app_compatibility": "PENDING_PHYSICAL_TEST",
     "field_verified_requires_real_round_trip": true,
     "required_field_evidence": [
       "deep_link_pair_config",
-      "signed_status_round_trip",
-      "bad_signature_rejection",
+      "encrypted_signed_status_round_trip",
+      "plaintext_carrier_rejection",
+      "bad_gcm_tag_rejection",
+      "bad_hmac_rejection",
       "replay_rejection",
       "expiry_rejection",
       "ui_and_screenshot_when_accessibility_enabled",
@@ -58,5 +67,5 @@
       "offline_recovery"
     ]
   },
-  "rule": "The latest explicit user constraint is P0: Developer Options and Wireless Debugging remain off for normal operation. Android Companion is the governing normal phone path. Termux Wireless ADB may be used only after a later explicit user request for temporary maintenance and must be turned off afterwards. Never claim physical-phone FIELD_VERIFIED before direct real-device evidence passes the applicable matrix."
+  "rule": "The latest explicit user constraint is P0: Developer Options and Wireless Debugging remain off for normal operation. Android Companion is the governing normal phone path and accepts remote command content only through HC1 AES-256-GCM ciphertext with HMAC, expiry, anti-replay and allowlist checks. Public plaintext commands and public GitHub relays are forbidden. Termux Wireless ADB may be used only after a later explicit user request for temporary maintenance and must be turned off afterwards. Never claim physical-phone FIELD_VERIFIED before direct real-device evidence passes the applicable matrix."
 }

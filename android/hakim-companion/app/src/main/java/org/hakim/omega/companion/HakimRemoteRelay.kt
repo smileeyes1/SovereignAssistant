@@ -16,7 +16,9 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.crypto.Cipher
 import javax.crypto.Mac
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
@@ -24,7 +26,8 @@ import javax.crypto.spec.SecretKeySpec
  *
  * Security invariants:
  * - never opens a non-loopback listener;
- * - every remote command is authenticated with a separate HMAC key;
+ * - public carrier messages are ciphertext-only (HC1 / AES-256-GCM);
+ * - every decrypted remote command is authenticated again with HMAC-SHA256;
  * - remote state-changing operations require an explicit Android approval;
  * - request ids are claimed before execution to prevent replay;
  * - expired requests fail closed;
@@ -83,11 +86,9 @@ class HakimRemoteRelay(private val context: Context) {
     private fun handleNtfyLine(line: String, resultUrl: String, relayKey: String) {
         val event = runCatching { JSONObject(line) }.getOrNull() ?: return
         if (event.optString("event") != "message") return
-        val encoded = event.optString("message").trim()
-        if (encoded.length !in 8..65536) return
-        val raw = runCatching {
-            String(Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING), Charsets.UTF_8)
-        }.getOrNull() ?: return
+        val carrier = event.optString("message").trim()
+        if (carrier.length !in 32..65536) return
+        val raw = decryptCarrier(carrier, relayKey) ?: return
         val envelope = runCatching { JSONObject(raw) }.getOrNull() ?: return
         val requestId = envelope.optString("request_id")
         val op = envelope.optString("op")
@@ -128,6 +129,10 @@ class HakimRemoteRelay(private val context: Context) {
         private const val ACTION_APPROVE = "org.hakim.omega.companion.REMOTE_APPROVE"
         private const val ACTION_REJECT = "org.hakim.omega.companion.REMOTE_REJECT"
         private const val EXTRA_REQUEST_ID = "request_id"
+        private const val CARRIER_PREFIX = "HC1."
+        private const val CARRIER_AAD = "HAKIM-CARRIER-v1"
+        private const val GCM_NONCE_BYTES = 12
+        private const val GCM_TAG_BITS = 128
         private val REQUEST_ID = Regex("^[A-Za-z0-9._:-]{8,128}$")
         private val SIGNATURE = Regex("^[0-9a-fA-F]{64}$")
         private val RELAY_KEY = Regex("^[A-Za-z0-9_-]{40,100}$")
@@ -143,6 +148,31 @@ class HakimRemoteRelay(private val context: Context) {
                 .putString(KEY_RESULT_URL, resultUrl)
                 .putString(KEY_RELAY_KEY, relayKey)
                 .apply()
+        }
+
+        private fun decryptCarrier(carrier: String, relayKey: String): String? {
+            if (!carrier.startsWith(CARRIER_PREFIX)) return null
+            val packed = runCatching {
+                Base64.decode(
+                    carrier.removePrefix(CARRIER_PREFIX),
+                    Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+                )
+            }.getOrNull() ?: return null
+            if (packed.size < GCM_NONCE_BYTES + 16) return null
+            val nonce = packed.copyOfRange(0, GCM_NONCE_BYTES)
+            val ciphertext = packed.copyOfRange(GCM_NONCE_BYTES, packed.size)
+            return runCatching {
+                val keyMaterial = "$CARRIER_AAD\u0000$relayKey".toByteArray(Charsets.UTF_8)
+                val aesKey = MessageDigest.getInstance("SHA-256").digest(keyMaterial)
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    SecretKeySpec(aesKey, "AES"),
+                    GCMParameterSpec(GCM_TAG_BITS, nonce),
+                )
+                cipher.updateAAD(CARRIER_AAD.toByteArray(Charsets.UTF_8))
+                String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+            }.getOrNull()
         }
 
         private fun validSignature(
