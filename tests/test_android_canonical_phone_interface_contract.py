@@ -37,6 +37,7 @@ def test_active_pointer_names_identity_without_mutating_frozen_restore_contract(
     assert active["version"] == "2.3"
     assert "LOAD_PHONE_INTERFACE_IDENTITY" not in active["restore_sequence"]
     assert "PHONE_INTERFACE_IDENTITY_CONTRACT_PASS" not in active["promotion_gate"]
+    assert spec["status"] == "ACTIVE_VERIFIED"
     assert spec["canonical_instance_id"] == "HAKIM_ORIGINAL_PHONE_APP"
     assert spec["android_application_id"] == "org.hakim.omega.companion"
     assert spec["upgrade_in_place_required"] is True
@@ -44,3 +45,11 @@ def test_active_pointer_names_identity_without_mutating_frozen_restore_contract(
     assert spec["phone_interface_is_same_hakim"] is True
     assert spec["native_local_adb_must_be_preserved"] is True
     assert spec["field_verified"] is False
+    evidence = spec["activation_evidence"]
+    assert evidence["merged_main_commit"] == "f054ee0900e8d907b0ce0166b71ab64c83e0d225"
+    assert evidence["pull_request"] == 172
+    assert evidence["post_merge_governance"] == "PASS"
+    assert evidence["post_merge_continuity"] == "PASS"
+    assert evidence["post_merge_reality_gate"] == "PASS"
+    assert evidence["physical_phone_installation"] == "NOT_PROVEN"
+    assert evidence["physical_phone_field_verification"] == "NOT_PROVEN"

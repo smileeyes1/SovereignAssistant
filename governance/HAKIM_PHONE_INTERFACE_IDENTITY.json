@@ -1,7 +1,7 @@
 {
   "name": "HAKIM_PHONE_INTERFACE_IDENTITY",
   "version": "1.0",
-  "status": "CANDIDATE_UNTIL_GOVERNANCE_PASS_AND_MERGE",
+  "status": "ACTIVE_VERIFIED",
   "canonical_instance_id": "HAKIM_ORIGINAL_PHONE_APP",
   "installed_interface_role": "PRIMARY_INSTALLED_INTERFACE_OF_SINGLE_HAKIM",
   "android_application_id": "org.hakim.omega.companion",
@@ -17,5 +17,18 @@
   "native_local_adb_must_be_preserved": true,
   "field_proof_required": true,
   "field_verified": false,
+  "activation_evidence": {
+    "merged_main_commit": "f054ee0900e8d907b0ce0166b71ab64c83e0d225",
+    "pull_request": 172,
+    "pre_merge_governance": "PASS",
+    "pre_merge_continuity": "PASS",
+    "pre_merge_android_build": "PASS",
+    "pre_merge_android_15_runtime": "PASS",
+    "post_merge_governance": "PASS",
+    "post_merge_continuity": "PASS",
+    "post_merge_reality_gate": "PASS",
+    "physical_phone_installation": "NOT_PROVEN",
+    "physical_phone_field_verification": "NOT_PROVEN"
+  },
   "rule": "The installed Android package is the primary phone interface of the same canonical Hakim. HAKIM-Omega governance and SovereignAssistant runtime are backing layers of that one Hakim, not additional user-facing Hakim identities."
 }
