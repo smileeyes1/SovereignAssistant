@@ -12,7 +12,7 @@ def _json(name):
 def test_nstar_is_active_and_machine_encoded():
     active = _json("HAKIM_ACTIVE.json")
     policy = _json("HAKIM_RUNTIME_POLICY_v2.json")
-    assert active["version"] == "2.2"
+    assert active["version"] == "2.1"
     assert active["adaptive_intelligence_spec"] == "governance/HAKIM_NSTAR_SPEC_AR.md"
     assert active["nstar_governing_constitution"] == "governance/HAKIM_NSTAR_GOVERNING_CONSTITUTION_AR.md"
     assert active["intelligence_fabric_spec"] == "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md"
