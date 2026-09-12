@@ -8,6 +8,8 @@ MODULE_PATH = ROOT / "scripts/hakim_continuity_shield.py"
 SPEC = importlib.util.spec_from_file_location("hakim_continuity_shield", MODULE_PATH)
 assert SPEC and SPEC.loader
 shield = importlib.util.module_from_spec(SPEC)
+# dataclasses resolves annotations through sys.modules while the module executes;
+# register the dynamic module first so mutation tests exercise the shield itself.
 sys.modules[SPEC.name] = shield
 SPEC.loader.exec_module(shield)
 
