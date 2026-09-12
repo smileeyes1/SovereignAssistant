@@ -7,6 +7,7 @@ from typing import Callable, Iterable
 from .core import Action, ActionRisk, Claim, Decision, Evidence, GovernanceKernel
 from .durable_state import DurableStateStore
 from .event_continuation import ActionCandidate, ContinuationEvent, EventDrivenContinuation, EventType
+from .intelligence_fabric import IntelligenceRequest, RiskTier, composition_plan, select_intelligence
 from .mission_kernel import AuthorityLevel, MissionAction, MissionKernel, OperationalEnvelope
 
 
@@ -56,6 +57,24 @@ _RISK_SCORE = {
     ActionRisk.CRITICAL: 3,
 }
 
+_RISK_TIER = {
+    ActionRisk.LOW: RiskTier.LOW,
+    ActionRisk.MODERATE: RiskTier.MEDIUM,
+    ActionRisk.HIGH: RiskTier.HIGH,
+    ActionRisk.CRITICAL: RiskTier.CRITICAL,
+}
+
+_EVENT_INTELLIGENCE_SIGNALS = {
+    EventType.CI_SUCCEEDED: frozenset({"facts", "test", "acceptance", "regression"}),
+    EventType.CI_FAILED: frozenset({"facts", "failure", "repair", "root_cause", "single_path_failure", "test"}),
+    EventType.PR_MERGED: frozenset({"facts", "integration", "regression", "release", "system"}),
+    EventType.TASK_COMPLETED: frozenset({"facts", "acceptance", "state", "reuse"}),
+    EventType.TASK_FAILED: frozenset({"facts", "failure", "repair", "root_cause", "single_path_failure"}),
+    EventType.CHECKPOINT_SAVED: frozenset({"state", "history", "reuse", "persistent"}),
+    EventType.CAPABILITY_CHANGED: frozenset({"facts", "system", "integration", "dependencies"}),
+    EventType.MANUAL_SIGNAL: frozenset({"intent", "ambiguity", "context"}),
+}
+
 
 class RecoveryGovernor:
     """Selects the highest-value path allowed by governance and mission safety.
@@ -64,9 +83,16 @@ class RecoveryGovernor:
     candidate and again immediately before the real executor is invoked. The
     execution-time check is the final fail-closed boundary against stale,
     forged, or time-of-check/time-of-use candidates.
+
+    The intelligence fabric is also routed twice. The selection route records
+    what intelligence families are required before candidate choice. The
+    execution-boundary route is recomputed immediately before authorization and
+    side effects. Routing is evidence that the fabric was invoked, not evidence
+    that every named reasoning method was actually executed.
     """
 
     FAILURE_PREFIX = "omega.recovery.failures"
+    INTELLIGENCE_PREFIX = "omega.intelligence_fabric.route"
 
     def __init__(
         self,
@@ -94,6 +120,9 @@ class RecoveryGovernor:
     def _key(self, event_id: str, action_name: str) -> str:
         return f"{self.FAILURE_PREFIX}.{event_id}.{action_name}"
 
+    def _intelligence_key(self, event_id: str, stage: str) -> str:
+        return f"{self.INTELLIGENCE_PREFIX}.{stage}.{event_id}"
+
     def failure_count(self, event_id: str, action_name: str) -> int:
         return int(self.state.get_state(self._key(event_id, action_name), 0))
 
@@ -102,6 +131,111 @@ class RecoveryGovernor:
 
     def _clear_failure(self, event_id: str, action_name: str) -> None:
         self.state.set_state(self._key(event_id, action_name), 0)
+
+    @staticmethod
+    def _payload_signals(event: ContinuationEvent) -> set[str]:
+        raw = event.payload.get("intelligence_signals", event.payload.get("signals", ()))
+        if isinstance(raw, str):
+            raw = (raw,)
+        if not isinstance(raw, (list, tuple, set, frozenset)):
+            return set()
+        signals: set[str] = set()
+        for item in tuple(raw)[:32]:
+            if not isinstance(item, str):
+                continue
+            signal = item.strip().lower().replace("-", "_").replace(" ", "_")
+            if signal and len(signal) <= 64:
+                signals.add(signal)
+        return signals
+
+    @staticmethod
+    def _payload_uncertainty(event: ContinuationEvent) -> float:
+        raw = event.payload.get("uncertainty")
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            if event.event_type in {EventType.CI_FAILED, EventType.TASK_FAILED}:
+                return 0.35
+            if event.event_type == EventType.MANUAL_SIGNAL:
+                return 0.50
+            return 0.10
+        return max(0.0, min(1.0, float(raw)))
+
+    def _intelligence_request(
+        self,
+        event: ContinuationEvent,
+        actions: Iterable[RegisteredAction],
+    ) -> IntelligenceRequest:
+        items = tuple(actions)
+        risk = max((_RISK_TIER[item.risk] for item in items), default=RiskTier.LOW)
+        signals = {
+            "intent", "context", "action", "execution", "state", "persistent",
+            *_EVENT_INTELLIGENCE_SIGNALS.get(event.event_type, frozenset()),
+            *self._payload_signals(event),
+        }
+        claimed_improvement = bool(event.payload.get("claimed_improvement", False)) or (
+            event.payload.get("source") == "continuous-excellence"
+        )
+        return IntelligenceRequest(
+            signals=frozenset(signals),
+            risk=risk,
+            uncertainty=self._payload_uncertainty(event),
+            requires_execution=True,
+            persistent=True,
+            claimed_improvement=claimed_improvement,
+        )
+
+    def _route_intelligence(
+        self,
+        event: ContinuationEvent,
+        actions: Iterable[RegisteredAction],
+        *,
+        stage: str,
+    ) -> dict[str, object]:
+        request = self._intelligence_request(event, actions)
+        selected = select_intelligence(request)
+        selected_names = {item.family for item in selected}
+        required = {"intent_contract", "metacognitive", "simplicity_economy", "operational_execution", "memory_learning"}
+        if request.risk >= RiskTier.HIGH:
+            required.update({"evidence", "adversarial", "decision_strategy", "security_privacy"})
+        if request.risk >= RiskTier.CRITICAL:
+            required.add("ensemble")
+        if request.uncertainty >= 0.60:
+            required.update({"evidence", "probabilistic"})
+        missing = sorted(required - selected_names)
+        if missing:
+            raise RuntimeError("intelligence fabric mandatory guards missing: " + ", ".join(missing))
+
+        route: dict[str, object] = {
+            "status": "ROUTED_NOT_METHOD_EXECUTION_PROOF",
+            "stage": stage,
+            "event_id": event.event_id,
+            "event_type": event.event_type.value,
+            "subject": event.subject,
+            "request": {
+                "signals": sorted(request.signals),
+                "risk": int(request.risk),
+                "uncertainty": request.uncertainty,
+                "requires_execution": request.requires_execution,
+                "persistent": request.persistent,
+                "claimed_improvement": request.claimed_improvement,
+            },
+            "selected": [
+                {
+                    "family": item.family,
+                    "methods": list(item.methods),
+                    "score": item.score,
+                    "reasons": list(item.reasons),
+                    "mandatory": item.mandatory,
+                }
+                for item in selected
+            ],
+            "composition": list(composition_plan(request)),
+        }
+        self.state.set_state(self._intelligence_key(event.event_id, stage), route)
+        return route
+
+    def intelligence_route(self, event_id: str, stage: str = "execution") -> dict[str, object] | None:
+        raw = self.state.get_state(self._intelligence_key(event_id, stage))
+        return dict(raw) if isinstance(raw, dict) else None
 
     def _mission_decision(self, registered: RegisteredAction, claim: Claim):
         authority = AuthorityLevel.CONSEQUENTIAL if registered.requires_human_approval else AuthorityLevel.MODERATE
@@ -143,8 +277,10 @@ class RecoveryGovernor:
         return True, "governance and mission gates passed"
 
     def candidates(self, event: ContinuationEvent) -> list[ActionCandidate]:
+        registered_actions = tuple(self.registry.matching(event))
+        self._route_intelligence(event, registered_actions, stage="selection")
         candidates: list[ActionCandidate] = []
-        for registered in self.registry.matching(event):
+        for registered in registered_actions:
             if self.failure_count(event.event_id, registered.name) >= self.max_failures_per_path:
                 continue
             allowed, _ = self._authorize(registered, event)
@@ -162,6 +298,15 @@ class RecoveryGovernor:
 
     def execute(self, candidate: ActionCandidate, event: ContinuationEvent) -> None:
         action = self.registry.get(candidate.name)
+
+        # Re-route at the last possible boundary. Include every event-matching
+        # action so the execution route cannot silently lower the risk profile
+        # observed during selection; also include the direct action for forged or
+        # out-of-band executor entry.
+        matching = list(self.registry.matching(event))
+        if all(item.name != action.name for item in matching):
+            matching.append(action)
+        self._route_intelligence(event, tuple(matching), stage="execution")
 
         # Selection-time authorization is not a capability token. Re-evaluate
         # both kernels at the last possible point before any real side effect.
