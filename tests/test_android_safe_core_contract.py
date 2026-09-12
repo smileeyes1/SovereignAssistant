@@ -11,7 +11,7 @@ def read(rel: str) -> str:
 def test_safe_core_version_and_package_stay_update_compatible():
     gradle = read("build.gradle.kts")
     assert 'applicationId = "org.hakim.omega.companion"' in gradle
-    assert 'versionCode = 8' in gradle
+    assert 'versionCode = 20018' in gradle
     assert 'versionName = "0.5.0-canonical-phone-interface-native-adb"' in gradle
 
 
