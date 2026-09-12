@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -5,6 +6,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def test_install_script_is_valid_bash():
+    script = ROOT / "scripts/install-android-companion-local.sh"
+    result = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 def test_release_is_unsigned_and_repository_has_no_signing_secret():
@@ -26,6 +33,28 @@ def test_phone_owns_stable_signing_key_and_verifies_source_hash():
     assert "keytool -genkeypair" in script
     assert "secrets.token_urlsafe" in script
     assert "LOCAL_DEVICE_ONLY" in script
+
+
+def test_existing_install_requires_same_signing_lineage_before_handoff():
+    script = text("scripts/install-android-companion-local.sh")
+    assert 'PACKAGE_ID="org.hakim.omega.companion"' in script
+    assert 'PM_BIN="/system/bin/pm"' in script
+    assert 'list packages "$PACKAGE_ID"' in script
+    assert 'path "$PACKAGE_ID"' in script
+    assert "Signer #1 certificate SHA-256 digest:" in script
+    assert "INSTALLED_SIGNATURE_MISMATCH" in script
+    assert "SIGNATURE_CONTINUITY=PROVEN" in script
+    assert "refusing to create a replacement key" in script
+    assert "parallel_signing_lineage_forbidden" in script
+    assert script.index("INSTALLED_SIGNATURE_MISMATCH") < script.index('PUBLIC_DOWNLOADS="$HOME_DIR/storage/downloads"')
+
+
+def test_first_install_may_create_owned_key_but_existing_install_cannot_replace_it():
+    script = text("scripts/install-android-companion-local.sh")
+    guard = 'if [ -n "$INSTALLED_APK" ]; then\n    echo \'ERROR: Hakim is already installed but the owned signing key is missing; refusing to create a replacement key\''
+    assert guard in script
+    assert "SIGNATURE_CONTINUITY=FIRST_INSTALL" in script
+    assert "FIRST_INSTALL_NO_EXISTING_PACKAGE" in script
 
 
 def test_install_handoff_uses_verified_public_downloads_not_silent_install():
