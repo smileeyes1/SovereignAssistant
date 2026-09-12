@@ -106,10 +106,11 @@ def test_transition_records_fail_closed_without_proof(tmp_path):
     assert shield.valid_transition(invalid, tmp_path) is False
 
 
-def test_governance_workflow_runs_shield_before_regression_suite():
-    workflow = (ROOT / ".github/workflows/governance.yml").read_text(encoding="utf-8")
+def test_independent_continuity_workflow_is_fail_closed_and_has_full_history():
+    workflow = (ROOT / ".github/workflows/continuity-shield.yml").read_text(encoding="utf-8")
+    assert "push:" in workflow and "pull_request:" in workflow
+    assert "contents: read" in workflow
     assert "fetch-depth: 0" in workflow
-    shield_pos = workflow.index("python scripts/hakim_continuity_shield.py")
-    pytest_pos = workflow.index("python -m pytest -q")
-    assert shield_pos < pytest_pos
+    assert "python scripts/hakim_continuity_shield.py" in workflow
+    assert "python -m pytest -q tests/test_hakim_continuity_shield.py" in workflow
     assert "HAKIM_SHIELD_BASE_REF" in workflow
