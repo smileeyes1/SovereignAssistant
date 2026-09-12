@@ -22,6 +22,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("org.conscrypt:conscrypt-android:2.5.3")
 }
