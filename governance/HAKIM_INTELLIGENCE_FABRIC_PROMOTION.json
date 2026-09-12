@@ -1,15 +1,28 @@
 {
   "name": "HAKIM_INTELLIGENCE_FABRIC_PROMOTION",
-  "version": "1.0",
+  "version": "1.1",
   "status": "ACTIVE_VERIFIED",
-  "promoted_main_sha": "fed7afae33281cc636f27db302fe412a4c875a28",
+  "initial_promoted_main_sha": "fed7afae33281cc636f27db302fe412a4c875a28",
+  "live_gate_promoted_main_sha": "28f75c11f61b8fbf14563760af47d30f466f89d9",
   "conditions": {
-    "merged_to_main": "PASS",
-    "governance_regression_main": "PASS",
-    "omega_autonomy_certification_main": "PASS",
-    "production_container_build_main": "PASS",
-    "live_smoke_main": "PASS",
-    "omega_apex_reality_gate_main": "PASS"
+    "initial_merged_to_main": "PASS",
+    "initial_governance_regression_main": "PASS",
+    "initial_omega_apex_reality_gate_main": "PASS",
+    "live_gate_merged_to_main": "PASS",
+    "live_gate_governance_regression_main": "PASS",
+    "live_gate_omega_autonomy_certification_main": "PASS",
+    "live_gate_production_container_build_main": "PASS",
+    "live_gate_smoke_main": "PASS",
+    "live_gate_omega_apex_reality_gate_main": "PASS"
+  },
+  "live_execution_gate": {
+    "status": "ACTIVE_VERIFIED",
+    "selection_route_before_candidate_choice": true,
+    "execution_route_before_authorization_and_side_effect": true,
+    "direct_executor_entry_routes_intelligence": true,
+    "risk_and_uncertainty_raise_mandatory_guards": true,
+    "durable_selection_and_execution_evidence": true,
+    "routing_is_not_method_execution_proof": true
   },
   "scope": "INTELLIGENCE_FABRIC_EXTENSION_ONLY",
   "preserves": [
@@ -21,5 +34,5 @@
   ],
   "phone_field_verified": false,
   "physical_phone_round_trip": "NOT_PROVEN",
-  "rule": "Promotion proves the intelligence-fabric governance/runtime extension on main; it does not prove physical phone field activation or literal possession of every possible intelligence method."
+  "rule": "Promotion proves the intelligence-fabric routing gate in the governed production runtime on main; routing evidence proves selection and composition were invoked, not that every named reasoning method was executed. It does not prove physical phone field activation or literal possession of every possible intelligence capability."
 }
