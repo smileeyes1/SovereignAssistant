@@ -38,9 +38,9 @@ def test_one_command_flow_is_resumable_and_fail_closed() -> None:
     pair = text.index('bash "$REPO/scripts/pair-android-companion.sh"')
     gate = text.index('python "$REPO/scripts/android-physical-field-gate.py"')
     assert profile < install < pair < gate
-    assert '"field_verified": False' in text
-    assert '"promotion_allowed": False' in text
-    assert '"secrets_recorded": False' in text
+    assert "'field_verified': False" in text
+    assert "'promotion_allowed': False" in text
+    assert "'secrets_recorded': False" in text
     assert "WAITING_ANDROID_INSTALL_APPROVAL" in text
     assert "PAIR_RETRY_REQUIRED" in text
     assert "PRE_FIELD_PASS" in text
