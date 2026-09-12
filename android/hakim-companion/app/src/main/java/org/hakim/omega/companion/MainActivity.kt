@@ -62,15 +62,23 @@ class MainActivity : Activity() {
         if (uri.scheme != "hakim" || uri.host != "pair") return
         val token = uri.getQueryParameter("token").orEmpty()
         if (token.length !in 32..256) return
-        val configured = HakimDirectRelay.configure(
-            this,
-            uri.getQueryParameter("relay_topic"),
-            uri.getQueryParameter("result_topic"),
-            uri.getQueryParameter("relay_key"),
-            uri.getQueryParameter("relay_base"),
-        )
-        if (!configured) return
+
+        // Local pairing is a valid capability on its own. Remote transport is optional
+        // and must never make the loopback control plane unavailable.
         getSharedPreferences("hakim", MODE_PRIVATE).edit().putString("pair_token", token).apply()
+
+        val relayTopic = uri.getQueryParameter("relay_topic")
+        val resultTopic = uri.getQueryParameter("result_topic")
+        val relayKey = uri.getQueryParameter("relay_key")
+        if (!relayTopic.isNullOrBlank() || !resultTopic.isNullOrBlank() || !relayKey.isNullOrBlank()) {
+            HakimDirectRelay.configure(
+                this,
+                relayTopic,
+                resultTopic,
+                relayKey,
+                uri.getQueryParameter("relay_base"),
+            )
+        }
         if (!FinancialSafeMode.isEnabled(this)) HakimForegroundService.restart(this)
     }
 
