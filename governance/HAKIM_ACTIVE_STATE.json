@@ -6,13 +6,13 @@
   "last_verified_baseline": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "latest_observed_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
-  "governance_verified_main": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4",
-  "governance_verified_main_semantics": "LATEST_SIGNED_SUBSTANTIVE_MAIN_VERIFIED_BY_GOVERNANCE_REALITY_AND_CONTINUITY_GATES__STATE_METADATA_REFRESH_MAY_FOLLOW__NOT_PHYSICAL_FIELD_VERIFICATION",
-  "freshness_observed_main": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4",
+  "governance_verified_main": "e7d2e372b8738f69365216cd790a4241b3b4468a",
+  "governance_verified_main_semantics": "LATEST_SIGNED_SUBSTANTIVE_MAIN_VERIFIED_BY_GOVERNANCE_REALITY_CONTINUITY_AND_CLOUD_CONTINUATION_GATES__STATE_METADATA_REFRESH_MAY_FOLLOW__NOT_PHYSICAL_FIELD_VERIFICATION",
+  "freshness_observed_main": "e7d2e372b8738f69365216cd790a4241b3b4468a",
   "freshness_observed_main_semantics": "LATEST_SIGNED_SUBSTANTIVE_MAIN_VERIFIED_BUT_NOT_REINTERPRETED_AS_PHYSICAL_FIELD_PROMOTION",
   "state_refresh_source_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__VERIFIED_PROMOTION_SOURCE_POINTER_PRESERVED_UNTIL_NEW_CANDIDATE_PASSES_GATES",
-  "freshness_state_refresh_source_main": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4",
+  "freshness_state_refresh_source_main": "e7d2e372b8738f69365216cd790a4241b3b4468a",
   "candidate_branch": "main",
   "field_architecture_candidate_branch": "MERGED_PR_140",
   "promotion_lineage": {
@@ -25,7 +25,8 @@
     "public_relay_supervisor_fail_closed_v1": "f65704e1a53fe9c9f3988a2c815e800b63fb9e21",
     "public_relay_bootstrap_retirement_v1": "40e5fca4f25f9879b62881280bcfad7cfa56500c",
     "one_command_interactive_pairing_v1": "54caf62acee179f3ad6e00f3bbe2b9525b6b31d6",
-    "max_value_intent_rule_restore_contract_v2_3": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4"
+    "max_value_intent_rule_restore_contract_v2_3": "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4",
+    "cloud_runtime_continuity_v1": "e7d2e372b8738f69365216cd790a4241b3b4468a"
   },
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -92,6 +93,11 @@
     "max_value_intent_rule_v1_1_governance_main": "PASS",
     "max_value_intent_rule_v1_1_continuity_main": "PASS",
     "max_value_intent_rule_v1_1_reality_main": "PASS",
+    "cloud_runtime_continuity_v1_governance_main": "PASS",
+    "cloud_runtime_continuity_v1_continuity_main": "PASS",
+    "cloud_runtime_continuity_v1_reality_main": "PASS",
+    "cloud_runtime_continuity_v1_autonomous_continuation_main": "PASS",
+    "cloud_runtime_continuity_v1_prepare_seal_cache_main": "PASS",
     "latest_main_signature_verified": "PASS",
     "public_ntfy_plain_sender": "REJECTED_AND_INACTIVE",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
@@ -102,6 +108,8 @@
   "sovereign_constraint": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "max_value_intent_rule": "governance/HAKIM_MAX_VALUE_INTENT_RULE_AR.md",
   "max_value_intent_rule_enforcement": "ACTIVE_VERIFIED__RESTORE_AND_PROMOTION_GATE_ENFORCED_ON_MAIN",
+  "cloud_runtime_continuity": "governance/HAKIM_CLOUD_CONTINUITY_AR.md",
+  "cloud_runtime_continuity_enforcement": "ACTIVE_VERIFIED__P0_PROTECTED__PREPARE_PROCESS_SEAL_CACHE_SAVE_PROVEN_ON_MAIN",
   "value_gates_spec": "governance/HAKIM_VALUE_GATES_AR.md",
   "physical_field_preflight_gate": "scripts/android-physical-field-gate.py",
   "one_tap_field_qualification_promotion": "governance/HAKIM_ONE_TAP_FIELD_QUALIFICATION_PROMOTION.json",
@@ -139,7 +147,8 @@
     "public_relay_supervisor_fail_closed_v1",
     "public_relay_bootstrap_retired_v1",
     "one_command_interactive_pairing_v1",
-    "max_value_intent_rule_v1_1_restored_governing_contract"
+    "max_value_intent_rule_v1_1_restored_governing_contract",
+    "cloud_runtime_continuity_v1"
   ],
   "protected_prior_success_not_reinterpreted_as_current_field_path": [
     "phone_sovereign_no_developer_options_lock",
@@ -211,5 +220,5 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_MAX_VALUE_INTENT_RULE; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; USE_ONE_COMMAND_INTERACTIVE_LOCAL_PAIRING_FOR_FIRST_ADB_TRUST_IF_REQUIRED; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; LEGACY_PUBLIC_RELAY_RETIRED_FAIL_CLOSED; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
+  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; LOAD_AND_ENFORCE_MAX_VALUE_INTENT_RULE; LOAD_AND_ENFORCE_CONTINUITY_SHIELD_BEFORE_MATERIAL_CHANGES; PRESERVE_CLOUD_RUNTIME_CONTINUITY_AND_VERIFY_STATE_BEFORE_CACHE_SAVE; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; KEEP_ONE_COMMAND_PHONE_FIELD_AS_PRE_FIELD_ORCHESTRATOR_ONLY; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; USE_ONE_COMMAND_INTERACTIVE_LOCAL_PAIRING_FOR_FIRST_ADB_TRUST_IF_REQUIRED; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; LEGACY_PUBLIC_RELAY_RETIRED_FAIL_CLOSED; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
 }
