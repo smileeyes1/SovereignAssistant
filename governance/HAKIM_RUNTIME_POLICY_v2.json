@@ -42,11 +42,19 @@
   "agents": ["INTENT_CONTRACT","EVIDENCE","PLANNER","EXECUTOR","VALIDATOR","ADVERSARIAL_RED_TEAM","SAFETY_RIGHTS","STATE_RECOVERY","ARTIFACT_USER_EYE","DOMAIN_EXPERTS"],
   "release_pipeline": ["RELEASE_BUILD","VALIDATOR_GATE","FINALIZE","DELIVER"],
   "p0_fail": "NO_RELEASE",
+  "sovereign_constraints": {
+    "phone_policy_file": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
+    "load_before_runtime_tool_selection": true,
+    "generic_autonomy_cannot_override": true,
+    "only_later_explicit_user_instruction_may_change": true
+  },
   "device_control": {
-    "normal_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
-    "developer_options_required_for_normal_operation": true,
-    "adb_policy": "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL",
-    "developer_options_policy": "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH",
+    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "developer_options_required_for_normal_operation": false,
+    "wireless_debugging_required_for_normal_operation": false,
+    "adb_policy": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "developer_options_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
+    "wireless_debugging_policy": "MUST_REMAIN_OFF_FOR_NORMAL_OPERATION",
     "financial_safe_mode": {
       "available": true,
       "persistent_until_user_exit": true,
@@ -63,7 +71,8 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["TERMUX_WIRELESS_ADB_LOCAL","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "preferred": ["ANDROID_COMPANION_OUTBOUND_RELAY","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "maintenance_only": ["TERMUX_WIRELESS_ADB"],
     "public_command_transport": false,
     "public_github_command_relay": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
@@ -93,8 +102,9 @@
     "checkpoint_after_material_stage": true,
     "active_state_path": "governance/HAKIM_ACTIVE_STATE.json",
     "adaptive_spec_path": "governance/HAKIM_NSTAR_SPEC_AR.md",
+    "phone_sovereign_constraints_path": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
     "bridge_policy_path": "governance/HAKIM_BRIDGE_POLICY_v2.json",
-    "resume": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_NSTAR_SPEC","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
+    "resume": ["LOAD_ACTIVE_POINTER","LOAD_CANONICAL","LOAD_NSTAR_SPEC","LOAD_PHONE_SOVEREIGN_CONSTRAINTS","LOAD_RUNTIME_POLICY","LOAD_BRIDGE_POLICY","LOAD_ACTIVE_STATE","LOAD_BRIDGE_HEALTH","VERIFY_FRESHNESS","RESUME_FROM_LAST_PROVEN_POINT"]
   },
   "change_policy": {
     "core_frozen_by_default": true,
