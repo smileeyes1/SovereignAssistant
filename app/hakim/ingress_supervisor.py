@@ -20,7 +20,63 @@ class IngressEvent:
 
 
 class GitHubEventAdapter:
-    """Normalizes selected GitHub webhook events into Ω continuation events."""
+    """Normalizes selected GitHub events into minimal durable continuation data.
+
+    GitHub event envelopes can contain far more metadata than HAKIM needs to
+    continue work. Durable state is intentionally allow-listed here, before it
+    reaches SQLite or any persistence/cache layer. Downstream components fetch
+    richer repository data from GitHub only when an authorized action actually
+    needs it.
+    """
+
+    @staticmethod
+    def _positive_int(value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        try:
+            result = int(value)
+        except (TypeError, ValueError):
+            return None
+        return result if result > 0 else None
+
+    @classmethod
+    def _minimal_pull_requests(cls, value: object) -> list[dict[str, int]]:
+        if not isinstance(value, list):
+            return []
+        result: list[dict[str, int]] = []
+        seen: set[int] = set()
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            number = cls._positive_int(item.get("number"))
+            if number is None or number in seen:
+                continue
+            seen.add(number)
+            result.append({"number": number})
+        return result
+
+    @classmethod
+    def _workflow_run_payload(cls, run: dict[str, object]) -> dict[str, object]:
+        minimal: dict[str, object] = {
+            "conclusion": str(run.get("conclusion", "")),
+            "head_sha": str(run.get("head_sha", "")),
+            "pull_requests": cls._minimal_pull_requests(run.get("pull_requests", [])),
+        }
+        run_id = cls._positive_int(run.get("id"))
+        if run_id is not None:
+            minimal["id"] = run_id
+        return {"action": "completed", "workflow_run": minimal}
+
+    @classmethod
+    def _pull_request_payload(cls, pr: dict[str, object]) -> dict[str, object]:
+        minimal: dict[str, object] = {"merged": True}
+        number = cls._positive_int(pr.get("number"))
+        if number is not None:
+            minimal["number"] = number
+        merge_commit_sha = pr.get("merge_commit_sha")
+        if isinstance(merge_commit_sha, str) and merge_commit_sha.strip():
+            minimal["merge_commit_sha"] = merge_commit_sha.strip()
+        return {"action": "closed", "pull_request": minimal}
 
     def translate(self, delivery_id: str, event_name: str, payload: dict[str, object]) -> IngressEvent | None:
         if not delivery_id.strip():
@@ -33,12 +89,22 @@ class GitHubEventAdapter:
             conclusion = str(run.get("conclusion", ""))
             event_type = EventType.CI_SUCCEEDED if conclusion == "success" else EventType.CI_FAILED
             subject = str(run.get("head_sha") or run.get("id") or "workflow-run")
-            return IngressEvent(delivery_id, event_type, subject, payload)
+            return IngressEvent(
+                delivery_id,
+                event_type,
+                subject,
+                self._workflow_run_payload(run),
+            )
         if event_name == "pull_request" and action == "closed":
             pr = payload.get("pull_request", {})
             if isinstance(pr, dict) and bool(pr.get("merged")):
                 subject = str(pr.get("number") or pr.get("id") or "pull-request")
-                return IngressEvent(delivery_id, EventType.PR_MERGED, subject, payload)
+                return IngressEvent(
+                    delivery_id,
+                    EventType.PR_MERGED,
+                    subject,
+                    self._pull_request_payload(pr),
+                )
         return None
 
 
