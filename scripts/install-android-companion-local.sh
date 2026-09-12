@@ -175,6 +175,7 @@ if [ -d "$PUBLIC_DOWNLOADS" ] && [ -w "$PUBLIC_DOWNLOADS" ]; then
     echo "OPEN_FILES_APP_AND_TAP=HAKIM-Companion.apk"
   fi
 else
-  echo "PUBLIC_DOWNLOADS_UNAVAILABLE=1"
+  echo "PUBLIC_DOWNLOADS_UNAVAILABLE=1" >&2
   echo "Run termux-setup-storage once, allow storage access, then rerun this script." >&2
+  exit 6
 fi
