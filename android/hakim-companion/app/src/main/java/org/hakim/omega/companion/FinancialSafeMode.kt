@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * وضع مالي آمن يفصل قناة حكيم وخدمة التحكم قبل استخدام التطبيقات المالية.
- * النسخة الحالية لا تستخدم Accessibility ولا Notification Listener أصلًا.
+ * وضع مالي آمن يفصل خدمة التحكم المحلية قبل استخدام التطبيقات المالية.
+ * الإصدار السيادي المحلي لا يستخدم Accessibility ولا Notification Listener ولا ناقلًا خلفيًا أصلًا.
  */
 object FinancialSafeMode {
     const val KEY = "financial_safe_mode"
@@ -25,12 +25,15 @@ object FinancialSafeMode {
     }
 
     fun exit(context: Context) {
-        context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
-            .edit()
+        val prefs = context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
+        prefs.edit()
             .putBoolean(KEY, false)
             .putString("companion_mode", "REACTIVATING")
             .apply()
-        HakimForegroundService.start(context)
+        // Do not create an unpaired control service merely because safe mode was exited.
+        if (!prefs.getString("pair_token", null).isNullOrBlank()) {
+            HakimForegroundService.start(context)
+        }
     }
 }
 
