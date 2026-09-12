@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.2-companion-primary-pre-field",
+  "version": "2.3-e2e-encrypted-carrier-pre-field",
   "status": "ACTIVE_OVERRIDE",
   "priority": [
     "ANDROID_COMPANION_OUTBOUND_RELAY",
@@ -18,6 +18,10 @@
   "self_healing_supervisor": true,
   "security": {
     "outbound_only_preferred": true,
+    "carrier_protocol": "HC1",
+    "carrier_content_encryption": "AES-256-GCM",
+    "carrier_key_derivation": "SHA-256-DOMAIN-SEPARATED-FROM-RELAY-KEY",
+    "public_carrier_payload": "CIPHERTEXT_ONLY",
     "signed_commands": true,
     "hmac_sha256": true,
     "expiry_required": true,
@@ -32,14 +36,17 @@
   },
   "qualification": {
     "cloud_send_path": "VERIFIED",
-    "android15_pre_field_runtime": "VERIFIED",
-    "installable_field_apk": "VERIFIED_PRE_FIELD",
+    "android15_pre_field_runtime": "VERIFIED_BASELINE",
+    "encrypted_carrier_ci": "PENDING",
+    "encrypted_field_apk": "PENDING",
     "physical_phone": "PENDING_LOCAL_COMPANION_ACTIVATION_AND_REAL_ROUND_TRIP",
     "wireless_debugging_pairing": "NOT_REQUIRED_FOR_NORMAL_OPERATION",
     "field_verified_requires_real_round_trip": true,
     "required_field_evidence": [
       "deep_link_pair_config",
-      "signed_status_round_trip",
+      "encrypted_signed_status_round_trip",
+      "plaintext_carrier_rejection",
+      "bad_gcm_tag_rejection",
       "bad_signature_rejection",
       "replay_rejection",
       "expiry_rejection",
@@ -51,5 +58,5 @@
       "offline_recovery"
     ]
   },
-  "rule": "Companion is the normal-operation phone path. ADB and Remote Desktop are maintenance fallbacks only. Never claim physical-phone FIELD_VERIFIED before real-device evidence passes the applicable matrix."
+  "rule": "Companion is the normal-operation phone path. Public carrier content must be ciphertext-only. ADB and Remote Desktop are maintenance fallbacks only. Never claim physical-phone FIELD_VERIFIED before real-device evidence passes the applicable matrix."
 }
