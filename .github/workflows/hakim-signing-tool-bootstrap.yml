@@ -1,0 +1,46 @@
+name: HAKIM Signing Tool Bootstrap
+
+on:
+  push:
+    branches:
+      - hakim/signing-tool-bootstrap-20260912
+    paths:
+      - '.github/workflows/hakim-signing-tool-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  acquire-verified-signer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download exact signer release and verify SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar'
+          expected='e1299fd6fcf4da527dd53735b56127e8ea922a321128123b9c32d619bba1d835'
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output uber-apk-signer-1.3.0.jar
+          printf '%s  %s\n' "$expected" 'uber-apk-signer-1.3.0.jar' | sha256sum --check --strict
+          jarsigner -verify -verbose -certs uber-apk-signer-1.3.0.jar > signer-jarsigner-verification.txt
+          sha256sum uber-apk-signer-1.3.0.jar > signer-sha256.txt
+          cat > signer-source.txt <<'EOF'
+          source=https://github.com/patrickfav/uber-apk-signer/releases/tag/v1.3.0
+          version=1.3.0
+          expected_sha256=e1299fd6fcf4da527dd53735b56127e8ea922a321128123b9c32d619bba1d835
+          purpose=private local APK signing bootstrap; no HAKIM signing key is present in this artifact
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hakim-verified-apk-signer-bootstrap
+          path: |
+            uber-apk-signer-1.3.0.jar
+            signer-sha256.txt
+            signer-jarsigner-verification.txt
+            signer-source.txt
+          if-no-files-found: error
+          retention-days: 7
