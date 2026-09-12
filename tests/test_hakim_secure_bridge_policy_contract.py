@@ -16,18 +16,19 @@ def test_active_pointer_loads_secure_bridge_policy():
     assert "LOAD_BRIDGE_HEALTH" in active["restore_sequence"]
 
 
-def test_runtime_preserves_nstar_and_prefers_private_make_transport():
+def test_runtime_preserves_nstar_and_governing_termux_private_transport():
     runtime = load_json("governance/HAKIM_RUNTIME_POLICY_v2.json")
     assert runtime["adaptive_intelligence"]["name"] == "NSTAR"
     assert runtime["adaptive_intelligence"]["extension_version"] == "2.1"
     bridges = runtime["bridges"]
     assert bridges["preferred"] == [
-        "LOCAL_DEVICE_BRIDGE",
+        "TERMUX_WIRELESS_ADB_LOCAL",
         "MAKE_PRIVATE_RELAY",
         "RESULT_CHANNEL",
         "REMOTE_DESKTOP_MAINTENANCE",
     ]
     assert bridges["public_command_transport"] is False
+    assert bridges["public_github_command_relay"] is False
     assert bridges["fallback_command_transport"] == "PRIVATE_OR_ENCRYPTED_ONLY"
     assert "GITHUB_OWNER_RELAY" not in bridges["preferred"]
 
@@ -35,14 +36,20 @@ def test_runtime_preserves_nstar_and_prefers_private_make_transport():
 def test_secure_bridge_override_is_fail_closed():
     policy = load_json("governance/HAKIM_BRIDGE_POLICY_v2.json")
     assert policy["status"] == "ACTIVE_OVERRIDE"
+    assert policy["phone_execution"] == "TERMUX_WIRELESS_ADB_PRIMARY_LOCAL"
+    assert policy["adb_role"] == "PRIMARY_LOCAL_ALLOWLISTED_CONTROL"
     assert policy["public_command_transport"] is False
     assert policy["public_github_command_relay"] == "DISABLED"
     assert policy["fallback_command_transport"] == "PRIVATE_OR_ENCRYPTED_ONLY"
     assert policy["security"]["signed_commands"] is True
     assert policy["security"]["anti_replay"] is True
+    assert policy["security"]["expiry_required"] is True
+    assert policy["security"]["allowlist_only"] is True
     assert policy["security"]["mutating_actions_fail_closed"] is True
     assert policy["security"]["general_remote_shell"] is False
     assert policy["security"]["platform_protection_bypass"] is False
+    assert policy["qualification"]["field_verified_requires_real_round_trip"] is True
+    assert policy["qualification"]["wireless_debugging_pairing"] == "LOCAL_ANDROID_GATE_REQUIRED_ONCE_FOR_THIS_PATH"
 
 
 def test_bootstrap_matches_private_bridge_policy():

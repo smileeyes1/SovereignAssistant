@@ -1,20 +1,19 @@
 {
   "name": "HAKIM_SECURE_BRIDGE_POLICY",
-  "version": "2.2-companion-primary-pre-field",
+  "version": "2.3-termux-primary-live-field",
   "status": "ACTIVE_OVERRIDE",
   "priority": [
-    "ANDROID_COMPANION_OUTBOUND_RELAY",
+    "TERMUX_WIRELESS_ADB_LOCAL",
     "MAKE_PRIVATE_RELAY",
     "RESULT_CHANNEL",
-    "TERMUX_WIRELESS_ADB_MAINTENANCE",
     "REMOTE_DESKTOP_MAINTENANCE"
   ],
   "public_command_transport": false,
   "public_github_command_relay": "DISABLED",
   "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
-  "phone_execution": "ANDROID_COMPANION_PRIMARY",
-  "developer_options_required_for_normal_operation": false,
-  "adb_role": "TEMPORARY_MAINTENANCE_ONLY",
+  "phone_execution": "TERMUX_WIRELESS_ADB_PRIMARY_LOCAL",
+  "developer_options_required_for_normal_operation": true,
+  "adb_role": "PRIMARY_LOCAL_ALLOWLISTED_CONTROL",
   "self_healing_supervisor": true,
   "security": {
     "outbound_only_preferred": true,
@@ -26,30 +25,28 @@
     "general_remote_shell": false,
     "mutating_actions_fail_closed": true,
     "mutating_actions_require_local_approval": true,
-    "financial_safe_mode_available": true,
     "platform_protection_bypass": false,
     "secrets_in_public_repository": false
   },
   "qualification": {
-    "cloud_send_path": "VERIFIED",
-    "android15_pre_field_runtime": "VERIFIED",
-    "installable_field_apk": "VERIFIED_PRE_FIELD",
-    "physical_phone": "PENDING_LOCAL_COMPANION_ACTIVATION_AND_REAL_ROUND_TRIP",
-    "wireless_debugging_pairing": "NOT_REQUIRED_FOR_NORMAL_OPERATION",
+    "cloud_send_path": "PRIVATE_MAKE_RELAY_REQUIRED",
+    "physical_phone": "PENDING_FIRST_ANDROID_WIRELESS_DEBUGGING_PAIRING_AND_REAL_ROUND_TRIP",
+    "wireless_debugging_pairing": "LOCAL_ANDROID_GATE_REQUIRED_ONCE_FOR_THIS_PATH",
     "field_verified_requires_real_round_trip": true,
     "required_field_evidence": [
-      "deep_link_pair_config",
       "signed_status_round_trip",
       "bad_signature_rejection",
       "replay_rejection",
       "expiry_rejection",
-      "ui_and_screenshot_when_accessibility_enabled",
-      "notifications_when_listener_enabled",
-      "local_approval_for_mutation",
+      "status_ui_screenshot_notifications",
+      "allowed_navigation_action_launch_under_local_control_gate",
       "screen_off_background",
-      "reboot_recovery",
-      "offline_recovery"
+      "reconnect",
+      "reboot_continuity",
+      "offline_recovery",
+      "idempotency_lkg",
+      "backup_restore_containment"
     ]
   },
-  "rule": "Companion is the normal-operation phone path. ADB and Remote Desktop are maintenance fallbacks only. Never claim physical-phone FIELD_VERIFIED before real-device evidence passes the applicable matrix."
+  "rule": "Termux Wireless ADB local is the governing phone execution path for the current FIELD qualification. Make private on-demand relay is the cloud command channel, result mailbox is the return path, and Remote Desktop Commander is optional maintenance only. Public command transports and public GitHub relays are forbidden. Never claim physical-phone FIELD_VERIFIED without direct device evidence."
 }

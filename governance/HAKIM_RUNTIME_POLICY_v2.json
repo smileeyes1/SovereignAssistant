@@ -43,10 +43,10 @@
   "release_pipeline": ["RELEASE_BUILD","VALIDATOR_GATE","FINALIZE","DELIVER"],
   "p0_fail": "NO_RELEASE",
   "device_control": {
-    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
-    "developer_options_required_for_normal_operation": false,
-    "adb_policy": "MAINTENANCE_ONLY_TEMPORARY_THEN_OFF",
-    "developer_options_policy": "OFF_BY_DEFAULT_AND_AFTER_MAINTENANCE",
+    "normal_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "developer_options_required_for_normal_operation": true,
+    "adb_policy": "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL",
+    "developer_options_policy": "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH",
     "financial_safe_mode": {
       "available": true,
       "persistent_until_user_exit": true,
@@ -63,8 +63,9 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["LOCAL_DEVICE_BRIDGE","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "preferred": ["TERMUX_WIRELESS_ADB_LOCAL","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
     "public_command_transport": false,
+    "public_github_command_relay": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
   "security": {
