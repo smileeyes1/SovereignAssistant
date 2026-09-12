@@ -52,6 +52,20 @@ def test_qualification_report_does_not_persist_pair_or_relay_secrets():
     assert 'report.put("pair_token"' not in text
 
 
+def test_status_exposes_only_sanitized_qualification_summary_for_remote_closed_loop():
+    server = (ANDROID / "LocalControlServer.kt").read_text(encoding="utf-8")
+    assert 'qualificationSummary(prefs)' in server
+    assert '.put("field_qualification", qualificationSummary(prefs))' in server
+    assert '.put("field_verified", false)' in server
+    assert '.put("encrypted_status_round_trip", roundTrip)' in server
+    assert '.put("next_gate", report.optString("next_gate", "UNKNOWN"))' in server
+    # لا يُعاد التقرير الخام ولا أسرار الاقتران/القناة في ملخص الحالة البعيد.
+    summary_body = server.split("private fun qualificationSummary", 1)[1].split("private fun route", 1)[0]
+    assert 'put("pair_token"' not in summary_body
+    assert 'put("relay_key"' not in summary_body
+    assert 'put("relay_topic"' not in summary_body
+
+
 def test_repository_field_claim_remains_fail_closed_until_real_physical_matrix_passes():
     state = json.loads((GOV / "HAKIM_ACTIVE_STATE.json").read_text(encoding="utf-8"))
     assert state["field_phone"]["field_verified"] is False
