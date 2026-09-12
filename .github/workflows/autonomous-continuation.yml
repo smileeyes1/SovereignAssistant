@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [closed]
   workflow_run:
-    workflows: ["HAKIM Governance Gate"]
+    workflows: ["HAKIM Governance Gate", "HAKIM Continuity Shield"]
     types: [completed]
   workflow_dispatch:
   schedule:
