@@ -35,11 +35,12 @@ jobs:
       OMEGA_GITHUB_WEBHOOK_SECRET: event-bridge-local-only
       OMEGA_RUNTIME_TOKEN: event-bridge-local-only
       OMEGA_DB_PATH: ${{ github.workspace }}/.omega/omega.db
+      OMEGA_CONTINUITY_SNAPSHOT_DIR: ${{ github.workspace }}/.omega/cloud-continuity
+      OMEGA_CONTINUITY_RETENTION: '8'
       OMEGA_ALLOW_BRANCH_CREATE: 'true'
       OMEGA_ALLOW_COMMENT: 'true'
       OMEGA_ALLOW_MERGE: 'false'
       # Deterministic infra-only recovery remains available even without any model.
-      # It may rerun failed jobs once only when logs contain explicit transient evidence.
       OMEGA_ALLOW_PROVIDERLESS_CI_RERUN: 'true'
       OMEGA_ALLOW_FILE_WRITE: ${{ secrets.OMEGA_OPENAI_API_KEY != '' && secrets.OMEGA_OPENAI_MODEL != '' }}
       OMEGA_OPENAI_API_KEY: ${{ secrets.OMEGA_OPENAI_API_KEY }}
@@ -53,8 +54,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .omega
-          key: omega-apex-state-${{ github.run_id }}-${{ github.run_attempt }}
+          key: omega-apex-state-v2-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            omega-apex-state-v2-
             omega-apex-state-
 
       - name: Set up Python
@@ -65,15 +67,23 @@ jobs:
       - name: Install Ω APEX
         run: python -m pip install .
 
+      - name: Verify or recover cloud continuity state
+        run: python -m app.hakim.run_cloud_continuity prepare
+
       - name: Process event immediately
         run: python -m app.hakim.run_event_once
 
-      - name: Save durable autonomy state
+      - name: Seal verified cloud continuity snapshot
+        id: continuity_seal
         if: always()
+        run: python -m app.hakim.run_cloud_continuity seal
+
+      - name: Save durable autonomy state
+        if: always() && steps.continuity_seal.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: .omega
-          key: omega-apex-state-${{ github.run_id }}-${{ github.run_attempt }}
+          key: omega-apex-state-v2-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Enforce no-silent-stall capability gate
         if: env.OMEGA_ALLOW_FILE_WRITE != 'true'
