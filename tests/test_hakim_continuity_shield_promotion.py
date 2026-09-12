@@ -3,7 +3,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "governance"
-SOURCE_MAIN = "cfd894239c2c6be7e5a423311a96e60588da2db8"
+SHIELD_SOURCE_MAIN = "cfd894239c2c6be7e5a423311a96e60588da2db8"
+CURRENT_GOVERNANCE_MAIN = "ae22a0c676ffbd5ea461fbfb9dcdfd806a62f1f4"
 
 
 def load(name: str):
@@ -13,7 +14,7 @@ def load(name: str):
 def test_continuity_shield_promotion_is_source_bound_and_verified():
     promotion = load("HAKIM_CONTINUITY_SHIELD_PROMOTION.json")
     assert promotion["status"] == "ACTIVE_VERIFIED"
-    assert promotion["source_main"] == SOURCE_MAIN
+    assert promotion["source_main"] == SHIELD_SOURCE_MAIN
     assert all(value == "PASS" for value in promotion["proven"].values())
 
 
@@ -21,13 +22,13 @@ def test_shield_is_active_and_self_protected():
     policy = load("HAKIM_CONTINUITY_SHIELD.json")
     state = load("HAKIM_ACTIVE_STATE.json")
     assert policy["status"] == "ACTIVE_VERIFIED"
-    assert policy["activated_main"] == SOURCE_MAIN
+    assert policy["activated_main"] == SHIELD_SOURCE_MAIN
     assert "continuity_shield_v1" in policy["protected_success_ids"]
     assert "continuity_transition_gate_v1" in policy["protected_success_ids"]
     assert "continuity_shield_v1" in policy["protected_promotion_lineage_ids"]
     assert "continuity_shield_v1" in state["proven_success"]
     assert "continuity_transition_gate_v1" in state["proven_success"]
-    assert state["promotion_lineage"]["continuity_shield_v1"] == SOURCE_MAIN
+    assert state["promotion_lineage"]["continuity_shield_v1"] == SHIELD_SOURCE_MAIN
     assert state["continuity_shield_promotion"] == "governance/HAKIM_CONTINUITY_SHIELD_PROMOTION.json"
 
 
@@ -57,6 +58,6 @@ def test_shield_promotion_never_falsifies_physical_phone_status():
 
 def test_current_governance_freshness_advances_without_rewriting_historical_promotion_baseline():
     state = load("HAKIM_ACTIVE_STATE.json")
-    assert state["governance_verified_main"] == SOURCE_MAIN
-    assert state["freshness_observed_main"] == SOURCE_MAIN
+    assert state["governance_verified_main"] == CURRENT_GOVERNANCE_MAIN
+    assert state["freshness_observed_main"] == CURRENT_GOVERNANCE_MAIN
     assert state["last_verified_baseline"] == "a6225e4118d68871ed00c8328f072fd8bd15bfc6"
