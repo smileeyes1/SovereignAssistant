@@ -42,7 +42,7 @@ def test_notification_has_one_tap_financial_safe_mode_action():
     assert "FinancialSafeMode.ACTION_ENTER" in service
 
 
-def test_normal_companion_control_does_not_require_developer_options_or_adb():
+def test_companion_path_itself_does_not_silently_enable_adb():
     all_text = "\n".join(read(path) for path in APP.rglob("*") if path.is_file() and path.suffix in {".kt", ".xml"})
     assert "WIRELESS_DEBUGGING_SETTINGS" not in all_text
     assert "APPLICATION_DEVELOPMENT_SETTINGS" not in all_text
@@ -50,7 +50,7 @@ def test_normal_companion_control_does_not_require_developer_options_or_adb():
     assert "adb connect" not in all_text.lower()
 
 
-def test_accessibility_control_remains_available_without_adb():
+def test_accessibility_component_remains_available_as_non_governing_component():
     t = read(JAVA / "HakimAccessibilityService.kt")
     assert "performGlobalAction" in t
     assert "dispatchGesture" in t
@@ -58,13 +58,16 @@ def test_accessibility_control_remains_available_without_adb():
     assert "takeScreenshot" in t
 
 
-def test_runtime_policy_locks_no_developer_options_for_normal_phone_control():
+def test_runtime_policy_locks_termux_wireless_adb_as_governing_field_path():
     p = json.loads(read(POLICY))
     control = p["device_control"]
-    assert control["normal_phone_path"] == "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY"
-    assert control["developer_options_required_for_normal_operation"] is False
-    assert control["adb_policy"] == "MAINTENANCE_ONLY_TEMPORARY_THEN_OFF"
-    assert control["developer_options_policy"] == "OFF_BY_DEFAULT_AND_AFTER_MAINTENANCE"
+    assert control["normal_phone_path"] == "TERMUX_WIRELESS_ADB_LOCAL"
+    assert control["developer_options_required_for_normal_operation"] is True
+    assert control["adb_policy"] == "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL"
+    assert control["developer_options_policy"] == "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH"
     assert control["financial_safe_mode"]["persistent_until_user_exit"] is True
     assert control["financial_safe_mode"]["disable_accessibility_service"] is True
     assert p["bridges"]["public_command_transport"] is False
+    assert p["bridges"]["public_github_command_relay"] is False
+    assert p["security"]["no_general_remote_shell"] is True
+    assert p["security"]["do_not_disable_platform_protection"] is True
