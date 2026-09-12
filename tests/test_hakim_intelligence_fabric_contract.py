@@ -44,7 +44,7 @@ def test_machine_matrix_and_runtime_registry_are_in_lockstep():
 def test_runtime_routes_fabric_under_nstar_and_preserves_evidence_gate():
     runtime = _json("HAKIM_RUNTIME_POLICY_v2.json")
     fabric = runtime["intelligence_fabric"]
-    assert runtime["version"] == "2.0"
+    assert runtime["version"] == "2.1"
     assert fabric["enabled"] is True
     assert fabric["nstar_controls_depth"] is True
     assert fabric["method_claim_requires_execution_evidence"] is True
