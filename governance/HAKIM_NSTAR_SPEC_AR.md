@@ -67,3 +67,10 @@ ACTUAL_OUTPUT هو الحكم النهائي. نجاح الأداة أو الب�
 قبل كل تسليم مهم:
 لكل شرط حرج: المطلوب→المتوقع→الدليل→الاختبار→الحكم.
 أي فشل حاكم أو مجهول جوهري يمنع وصف الناتج بالمكتمل.
+
+## ١٤. تكامل المنهج الأعلى
+المرجع الموسع: `governance/HAKIM_META_METHOD_AR.md`. ن★ هي منظم العمق للمنهج الأعلى: كل شيء⁶ يوسّع الشمول، كيف السباعية★ تعمّق «كيف»، ابتكر★ يوسّع فضاء البدائل، الحكمة★ ترجّح، وبكل شيء★ يمنع الإغفال. ن★ وحدها تقرر فتح مستوى أعمق أو إغلاقه بحسب DELTA المادي الصافي.
+
+في كل دورة: FIND_WEAKEST_LINK → FIND_HIGHEST_LEVERAGE → HOW7 → DIVERSE_OPTIONS → WISDOM_GATE → EXECUTE → ACTUAL_OUTPUT → INDEPENDENT_VERIFY → ADVERSARIAL/COUNTEREVIDENCE → ROOT_CAUSE_FIX → RETEST/REGRESSION/INTEGRATION → COMPOUND_LEARNING → ASSETIZE_IF_VALUABLE → REASSESS_DELTA.
+
+لا يُسمح بتحويل التطبيق الذاتي إلى انفجار تكراري؛ إذا لم تضف دورة جديدة معرفة أو صحة أو ثقة أو إغلاق فجوة أو خفض خطر/عبء/كلفة أو رفع استقلالية/استدامة بقيمة تتجاوز كلفتها، فالحكم NO_OP على المستوى الأعمق واختبار نقطة الثبات.
