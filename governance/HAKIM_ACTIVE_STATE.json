@@ -6,16 +6,20 @@
   "last_verified_baseline": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "latest_observed_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
-  "freshness_observed_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
-  "freshness_observed_main_semantics": "LATEST_MAIN_OBSERVED_BUT_NOT_PROMOTED_OVER_LAST_VERIFIED_BASELINE_WITHOUT_GATES",
+  "governance_verified_main": "461cfc973338ef37def0d6f6ecd0014e9f399663",
+  "governance_verified_main_semantics": "LATEST_SIGNED_MAIN_VERIFIED_BY_GOVERNANCE_REALITY_AND_ANDROID_RELEASE_GATES__NOT_PHYSICAL_FIELD_VERIFICATION",
+  "freshness_observed_main": "461cfc973338ef37def0d6f6ecd0014e9f399663",
+  "freshness_observed_main_semantics": "LATEST_SIGNED_MAIN_VERIFIED_BUT_NOT_REINTERPRETED_AS_PHYSICAL_FIELD_PROMOTION",
   "state_refresh_source_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
   "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__VERIFIED_PROMOTION_SOURCE_POINTER_PRESERVED_UNTIL_NEW_CANDIDATE_PASSES_GATES",
-  "freshness_state_refresh_source_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
+  "freshness_state_refresh_source_main": "461cfc973338ef37def0d6f6ecd0014e9f399663",
   "candidate_branch": "main",
-  "field_architecture_candidate_branch": "hakim/field-architecture-reconcile-20260912",
+  "field_architecture_candidate_branch": "MERGED_PR_140",
   "promotion_lineage": {
     "adaptive_best_route_optimizer_v1": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
-    "one_tap_field_qualification_v1": "a6225e4118d68871ed00c8328f072fd8bd15bfc6"
+    "one_tap_field_qualification_v1": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
+    "field_architecture_reconcile_v1": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
+    "android_safe_core_0_4_1": "461cfc973338ef37def0d6f6ecd0014e9f399663"
   },
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -54,7 +58,13 @@
     "one_tap_field_qualification_sanitized_remote_summary": "PASS",
     "one_tap_field_qualification_financial_fail_closed": "PASS",
     "field_architecture_policy_drift_detected": "PASS",
-    "field_architecture_reconcile_candidate": "PENDING_GOVERNANCE_AND_REGRESSION",
+    "field_architecture_reconcile_candidate": "PASS_MERGED_PR_140",
+    "field_architecture_post_merge_governance_gate": "PASS",
+    "field_architecture_post_merge_reality_gate": "PASS",
+    "android_safe_core_0_4_1_governance_gate": "PASS",
+    "android_safe_core_0_4_1_reality_gate": "PASS",
+    "android_safe_core_0_4_1_release_gate": "PASS",
+    "latest_main_signature_verified": "PASS",
     "public_ntfy_plain_sender": "REJECTED_AND_INACTIVE",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
     "physical_phone_round_trip": "NOT_PROVEN"
@@ -87,7 +97,9 @@
     "public_command_transport_disabled",
     "fail_closed_sensitive_mutations",
     "arabic_first",
-    "goal_does_not_fail_when_a_means_fails"
+    "goal_does_not_fail_when_a_means_fails",
+    "field_architecture_reconcile_v1_governance_verified",
+    "android_safe_core_0_4_1_verified"
   ],
   "protected_prior_success_not_reinterpreted_as_current_field_path": [
     "phone_sovereign_no_developer_options_lock",
@@ -95,10 +107,13 @@
     "hc1_aes256gcm_ciphertext_only_carrier",
     "make_hc1_ciphertext_send"
   ],
-  "known_failures": [
+  "resolved_failures": [
     "OLDER_COMPANION_PRIMARY_POLICY_CONFLICTED_WITH_LATEST_EXPLICIT_USER_FIELD_ARCHITECTURE",
-    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED",
+    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED"
+  ],
+  "known_failures": [
     "REMOTE_DESKTOP_COMMANDER_OFFLINE_AT_LAST_DIRECT_CHECK",
+    "PRIVATE_MAKE_COMMAND_CHANNEL_TO_REAL_PHONE_NOT_YET_PROVEN_CONNECTED",
     "PHYSICAL_PHONE_ROUND_TRIP_NOT_YET_PROVEN"
   ],
   "field_phone": {
@@ -152,5 +167,5 @@
     "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
+  "resume_rule": "VERIFY_FRESHNESS_FIRST; PRESERVE_LAST_VERIFIED_BASELINE_AND_PROVEN_SUCCESS; USE_GOVERNANCE_VERIFIED_MAIN_FOR_CURRENT_REPOSITORY_TRUTH; USE_TERMUX_WIRELESS_ADB_LOCAL_AS_GOVERNING_FIELD_PATH; MAKE_PRIVATE_ON_DEMAND_RELAY_PLUS_RESULT_MAILBOX; REMOTE_DESKTOP_OPTIONAL_MAINTENANCE_ONLY; PUBLIC_COMMAND_TRANSPORT_AND_PUBLIC_GITHUB_RELAY_FORBIDDEN; FALLBACK_PRIVATE_OR_ENCRYPTED_ONLY; NEVER_CLAIM_FIELD_VERIFIED_WITHOUT_DIRECT_REAL_PHONE_EVIDENCE; IF_ANDROID_FIRST_WIRELESS_ADB_PAIRING_IS_THE_ONLY_REMAINING_BLOCKER_DO_NOT_PRETEND_TO_BYPASS_IT"
 }
