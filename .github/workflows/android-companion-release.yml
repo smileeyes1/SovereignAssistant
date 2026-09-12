@@ -27,12 +27,15 @@ jobs:
       - name: Build unsigned release APK
         working-directory: android/hakim-companion
         run: gradle --no-daemon :app:assembleRelease
-      - name: Stage and hash unsigned APK
+      - name: Stage build, hash, and official apksig tool
         shell: bash
         run: |
           set -euo pipefail
           cp android/hakim-companion/app/build/outputs/apk/release/app-release-unsigned.apk hakim-companion-unsigned.apk
           sha256sum hakim-companion-unsigned.apk > hakim-companion-unsigned.apk.sha256
+          APKSIG_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/com.android.tools.build/apksig" -type f -name 'apksig-*.jar' | head -n 1)"
+          test -n "$APKSIG_JAR"
+          cp "$APKSIG_JAR" apksig.jar
       - name: Upload CI artifact
         uses: actions/upload-artifact@v4
         with:
@@ -40,6 +43,7 @@ jobs:
           path: |
             hakim-companion-unsigned.apk
             hakim-companion-unsigned.apk.sha256
+            apksig.jar
           if-no-files-found: error
       - name: Publish immutable source-build release
         env:
