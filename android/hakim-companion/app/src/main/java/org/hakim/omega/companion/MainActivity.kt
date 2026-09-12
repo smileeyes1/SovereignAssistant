@@ -16,11 +16,13 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var browser: WebView
     private lateinit var address: EditText
+    private val qualificationExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +51,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        qualificationExecutor.shutdownNow()
         if (::browser.isInitialized) {
             HakimBrowserController.detach(browser)
             browser.destroy()
@@ -74,9 +77,7 @@ class MainActivity : Activity() {
 
     private fun handleTaskIntent(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme == "hakim" && uri.host == "task") {
-            HakimSignedTask.accept(this, uri)
-        }
+        if (uri.scheme == "hakim" && uri.host == "task") HakimSignedTask.accept(this, uri)
     }
 
     /** إزالة بقايا الناقلات القديمة مرةً آمنةً دون المساس بمفتاح الاقتران المحلي. */
@@ -101,17 +102,14 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = "حكيم"; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "القلب السيادي المحلي: لا ناقل خارجي، لا قناة خلفية، لا رصيد عمليات. التحكم المحلي على الجهاز فقط، وأي مهمة قادمة من المحادثة تصل كرابط موقّع يفتحه المستخدم صراحة ثم ينفذها حكيم داخل متصفحه المملوك."
+            text = "القلب السيادي المحلي: لا ناقل خارجي، لا قناة خلفية، لا رصيد عمليات. نطاق التحكم: متصفح حكيم المملوك فقط. أي مهمة قادمة من المحادثة تصل كرابط موقّع يفتحه المستخدم صراحة."
             textSize = 15f
         })
 
         status = TextView(this).apply { textSize = 14f; setPadding(0, 16, 0, 12) }
         root.addView(status)
 
-        address = EditText(this).apply {
-            hint = "اكتب عنوان الموقع"
-            isSingleLine = true
-        }
+        address = EditText(this).apply { hint = "اكتب عنوان الموقع"; isSingleLine = true }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
@@ -119,6 +117,10 @@ class MainActivity : Activity() {
         nav.addView(button("رجوع") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_back")) })
         nav.addView(button("تحديث") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_reload")) })
         root.addView(nav)
+
+        val assurance = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        assurance.addView(button("تأهيل حكيم محليًا") { runLocalQualification() })
+        root.addView(assurance)
 
         val safe = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         safe.addView(button("الوضع المالي الآمن") { FinancialSafeMode.enter(this); refreshStatus() })
@@ -143,6 +145,15 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
+    private fun runLocalQualification() {
+        if (FinancialSafeMode.isEnabled(this)) { refreshStatus(); return }
+        status.text = "جارٍ تأهيل حكيم محليًا…"
+        qualificationExecutor.execute {
+            LocalQualification.run(applicationContext)
+            runOnUiThread { if (!isFinishing) refreshStatus() }
+        }
+    }
+
     private fun button(label: String, block: () -> Unit) = Button(this).apply {
         text = label
         setOnClickListener { block() }
@@ -154,12 +165,15 @@ class MainActivity : Activity() {
         val financial = FinancialSafeMode.isEnabled(this)
         val url = HakimBrowserController.currentUrl().orEmpty()
         val lastTask = prefs.getString("last_signed_task", "لا توجد مهمة بعد")
+        val qualification = LocalQualification.summary(this)
         status.text = "النمط: سيادي محلي مستقل\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
             "الاقتران المحلي: ${if (paired) "مفعّل" else "غير مفعّل"}\n" +
             "اتصال خلفي خارجي: غير موجود\n" +
             "ناقل خارجي: غير موجود\n" +
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
+            "التأهيل المحلي: ${qualification.optString("status", "NOT_RUN")}\n" +
+            "التحقق الميداني الكامل: لم يُثبت بعد\n" +
             "آخر مهمة موقعة: $lastTask\n" +
             "متصفح حكيم: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}" +
             if (url.isNotBlank()) "\nالموقع الحالي: $url" else ""
