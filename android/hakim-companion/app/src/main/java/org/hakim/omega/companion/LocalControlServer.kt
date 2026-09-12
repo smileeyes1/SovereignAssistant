@@ -120,10 +120,10 @@ class LocalControlServer(private val context: Context) {
                     val requestId = headers["x-hakim-request-id"]
                     if (requestId == null || !REQUEST_ID.matches(requestId)) {
                         respond(c, 400, JSONObject().put("error", "request_id_required"))
-                    } else if (!claimRequest("browser:$requestId")) {
-                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
                     } else if (!HakimBrowserController.isAttached()) {
                         respond(c, 409, JSONObject().put("ok", false).put("error", "browser_unavailable"))
+                    } else if (!claimRequest("browser:$requestId")) {
+                        respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
                     } else {
                         val ok = HakimBrowserController.action(JSONObject(body))
                         respond(c, if (ok) 200 else 409, JSONObject()
