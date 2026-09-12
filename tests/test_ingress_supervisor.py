@@ -97,6 +97,41 @@ def test_github_workflow_payload_is_allowlisted_before_durable_ingress():
         assert forbidden not in durable_json
 
 
+def test_sqlite_queue_persists_only_minimized_github_payload(tmp_path):
+    event = GitHubEventAdapter().translate(
+        "delivery-db",
+        "workflow_run",
+        {
+            "action": "completed",
+            "workflow_run": {
+                "id": 501,
+                "conclusion": "failure",
+                "head_sha": "sha501",
+                "actor": {"email": "never-store@example.invalid"},
+                "pull_requests": [{"number": 31, "body": "never-store-body"}],
+            },
+            "sender": {"token": "never-store-token"},
+        },
+    )
+    queue = DurableWorkQueue(tmp_path / "omega.db")
+    assert EventIngress(queue).accept(event)
+    stored = queue.get("delivery-db")
+    assert stored is not None
+    assert stored.payload == {
+        "action": "completed",
+        "workflow_run": {
+            "id": 501,
+            "conclusion": "failure",
+            "head_sha": "sha501",
+            "pull_requests": [{"number": 31}],
+        },
+    }
+    persisted_json = json.dumps(stored.payload, sort_keys=True)
+    assert "never-store@example.invalid" not in persisted_json
+    assert "never-store-body" not in persisted_json
+    assert "never-store-token" not in persisted_json
+
+
 def test_github_merged_pr_is_normalized():
     event = GitHubEventAdapter().translate(
         "delivery-2",
