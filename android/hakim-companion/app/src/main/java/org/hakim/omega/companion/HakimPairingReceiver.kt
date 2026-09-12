@@ -1,9 +1,9 @@
 package org.hakim.omega.companion
 
-import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.app.RemoteInput
 
 class HakimPairingReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
