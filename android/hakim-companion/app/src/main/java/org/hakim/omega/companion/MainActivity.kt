@@ -18,11 +18,15 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
+    private lateinit var qualification: TextView
     private lateinit var browser: WebView
     private lateinit var address: EditText
+    private val qualificationExecutor = Executors.newSingleThreadExecutor()
+    @Volatile private var qualificationRunning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +49,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        qualificationExecutor.shutdownNow()
         if (::browser.isInitialized) {
             HakimBrowserController.detach(browser)
             browser.destroy()
@@ -97,6 +102,9 @@ class MainActivity : Activity() {
         status = TextView(this).apply { textSize = 13f; setPadding(0, 12, 0, 8) }
         root.addView(status)
 
+        qualification = TextView(this).apply { textSize = 13f; setPadding(0, 4, 0, 8) }
+        root.addView(qualification)
+
         address = EditText(this).apply { hint = "اكتب عنوان الموقع"; isSingleLine = true }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
@@ -134,6 +142,10 @@ class MainActivity : Activity() {
         })
         root.addView(serviceControls)
 
+        val qualificationControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        qualificationControls.addView(button("تأهيل حكيم") { runFieldQualification() })
+        root.addView(qualificationControls)
+
         browser = WebView(this).apply {
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
@@ -159,6 +171,24 @@ class MainActivity : Activity() {
         setOnClickListener { block() }
     }
 
+    private fun runFieldQualification() {
+        if (qualificationRunning) return
+        if (FinancialSafeMode.isEnabled(this)) {
+            qualification.text = "التأهيل الذاتي متوقف: الوضع المالي الآمن مفعّل ولن يعطّله حكيم تلقائيًا"
+            return
+        }
+        qualificationRunning = true
+        qualification.text = "التأهيل الذاتي: جارٍ فحص الخادم والتشفير والجولة المشفّرة..."
+        HakimForegroundService.start(this)
+        qualificationExecutor.execute {
+            runCatching { FieldQualification.run(applicationContext) }
+            runOnUiThread {
+                qualificationRunning = false
+                refreshStatus()
+            }
+        }
+    }
+
     private fun refreshStatus() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
         val paired = prefs.getString("pair_token", null) != null
@@ -182,6 +212,9 @@ class MainActivity : Activity() {
             "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}\n" +
             "متصفح حكيم: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}" +
             if (url.isNotBlank()) "\nالموقع الحالي: $url" else ""
+        if (::qualification.isInitialized && !qualificationRunning) {
+            qualification.text = FieldQualification.lastSummary(this)
+        }
     }
 
     private fun ensureNotificationPermission() {
