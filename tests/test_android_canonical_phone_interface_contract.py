@@ -29,12 +29,12 @@ def test_phone_ui_declares_same_canonical_hakim_identity():
     assert "HAKIM Ω Companion" not in manifest
 
 
-def test_active_pointer_loads_phone_interface_identity_and_blocks_parallel_hakim():
+def test_active_pointer_names_phone_interface_identity_without_mutating_frozen_restore_contract():
     active = json.loads(text("governance/HAKIM_ACTIVE.json"))
     spec = json.loads(text(active["phone_interface_identity"]))
-    assert active["version"] == "2.4"
-    assert "LOAD_PHONE_INTERFACE_IDENTITY" in active["restore_sequence"]
-    assert "PHONE_INTERFACE_IDENTITY_CONTRACT_PASS" in active["promotion_gate"]
+    assert active["version"] == "2.3"
+    assert "LOAD_PHONE_INTERFACE_IDENTITY" not in active["restore_sequence"]
+    assert "PHONE_INTERFACE_IDENTITY_CONTRACT_PASS" not in active["promotion_gate"]
     assert spec["canonical_instance_id"] == "HAKIM_ORIGINAL_PHONE_APP"
     assert spec["android_application_id"] == "org.hakim.omega.companion"
     assert spec["upgrade_in_place_required"] is True
