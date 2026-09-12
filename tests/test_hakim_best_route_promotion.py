@@ -14,8 +14,9 @@ def test_best_route_promotion_is_verified_and_durable():
     state = load("HAKIM_ACTIVE_STATE.json")
     assert promotion["status"] == "ACTIVE_VERIFIED"
     assert all(value == "PASS" for value in promotion["conditions"].values())
-    assert promotion["promoted_main_sha"] == state["last_verified_baseline"]
-    assert state["latest_observed_main"] == promotion["promoted_main_sha"]
+    # الترقية التاريخية تبقى مرتبطة برأسها الذي ثُبتت عليه، ولا تُجبر
+    # last_verified_baseline على التوقف عن التقدم مع ترقيات لاحقة مثبتة.
+    assert state["promotion_lineage"]["adaptive_best_route_optimizer_v1"] == promotion["promoted_main_sha"]
     assert "adaptive_best_route_optimizer_v1" in state["proven_success"]
     assert state["promotion_evidence"]["best_route_optimizer_v1_governance_main"] == "PASS"
     assert state["promotion_evidence"]["best_route_optimizer_v1_reality_gate_main"] == "PASS"
