@@ -1,0 +1,31 @@
+{
+  "name": "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS",
+  "version": "1.0",
+  "status": "ACTIVE_USER_SOVEREIGN_CONSTRAINT",
+  "source": "LATEST_EXPLICIT_USER_INSTRUCTION",
+  "effective_date": "2026-09-12",
+  "priority": "P0",
+  "constraints": {
+    "developer_options_normal_operation": "MUST_REMAIN_OFF",
+    "wireless_debugging_normal_operation": "MUST_REMAIN_OFF",
+    "normal_phone_control_must_not_require_developer_options": true,
+    "normal_phone_control_must_not_require_wireless_debugging": true,
+    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
+    "termux_wireless_adb_role": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "financial_app_compatibility_is_governing_constraint": true,
+    "financial_safe_mode": "FAIL_CLOSED_ONE_TAP_ISOLATION",
+    "platform_protection_bypass": false
+  },
+  "precedence": {
+    "generic_autonomy_cannot_override": true,
+    "optimization_cannot_override": true,
+    "older_user_instruction_cannot_override": true,
+    "only_later_explicit_user_instruction_may_change": true
+  },
+  "release_gate": {
+    "reject_if_primary_path_requires_developer_options": true,
+    "reject_if_primary_path_requires_wireless_debugging": true,
+    "reject_if_termux_wireless_adb_is_promoted_above_maintenance": true,
+    "reject_if_financial_safe_mode_is_weakened": true
+  }
+}

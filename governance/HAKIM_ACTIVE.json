@@ -4,6 +4,7 @@
   "activation": "ACTIVE_ONLY_AFTER_GOVERNANCE_PASS_AND_MERGE",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
   "adaptive_intelligence_spec": "governance/HAKIM_NSTAR_SPEC_AR.md",
+  "phone_sovereign_constraints": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
   "bridge_policy": "governance/HAKIM_BRIDGE_POLICY_v2.json",
   "active_state": "governance/HAKIM_ACTIVE_STATE.json",
@@ -13,6 +14,7 @@
     "LOAD_ACTIVE_POINTER",
     "LOAD_CANONICAL",
     "LOAD_NSTAR_SPEC",
+    "LOAD_PHONE_SOVEREIGN_CONSTRAINTS",
     "LOAD_RUNTIME_POLICY",
     "LOAD_BRIDGE_POLICY",
     "LOAD_ACTIVE_STATE",
@@ -22,6 +24,7 @@
   ],
   "rule": "new environments remain UNQUALIFIED for critical functions until actual behavior is verified",
   "promotion_gate": [
+    "PHONE_SOVEREIGN_CONSTRAINTS_PASS",
     "GOVERNANCE_TESTS_PASS",
     "REGRESSION_PASS",
     "NO_SECRET_LEAK_IN_GOVERNANCE",
