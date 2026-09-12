@@ -1,49 +1,64 @@
 {
   "name": "HAKIM_ACTIVE_STATE",
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "active_extension_version": "2.1",
-  "status": "ACTIVE_VERIFIED_PRE_FIELD_PHONE_ACTIVATION_PENDING",
+  "status": "ACTIVE_VERIFIED_BASELINE_PRESERVED__TERMUX_FIELD_POLICY_CANDIDATE_PENDING_GATES",
   "last_verified_baseline": "423ac89a1721a6727556d196e247329ee8498b10",
-  "verified_tree_sha": "c58f8f544eb66d99eb4bed1e4c006a85cd7e9aab",
+  "latest_observed_main": "fe45ed61237d0e872db077914164c7bab15c33ad",
+  "candidate_branch": "hakim/restore-termux-field-primary-20260912",
   "promotion_evidence": {
-    "governance_gate": "PASS",
-    "reality_gate": "PASS",
-    "android_companion_release_build": "PASS",
-    "android15_pre_field_runtime_gate": "PASS",
-    "installable_debug_apk_build": "PASS",
-    "field_apk_v2_signature_independently_verified": "PASS",
-    "field_apk_content_digest_independently_verified": "PASS",
-    "make_private_send_path": "PASS",
-    "physical_phone_round_trip": "NOT_PROVEN"
+    "previous_governance_gate": "PASS",
+    "previous_reality_gate": "PASS",
+    "make_private_send_path_previous_evidence": "PASS",
+    "physical_phone_round_trip": "NOT_PROVEN",
+    "candidate_governance_gate": "PENDING",
+    "candidate_regression": "PENDING"
   },
   "trigger": "EXPLICIT_USER_SOVEREIGN_CHANGE",
-  "intent": "قيادة ذاتية مستمرة ومستدامة مع ن★ تكيفية، وتشغيل هاتف فعلي آمن قابل للاستعادة دون تجاوز بوابات أندرويد المحلية",
+  "intent": "تأهيل حي للهاتف عبر Termux Wireless ADB محلي، وقناة Make خاصة عند الطلب، وصندوق نتائج خاص، مع Remote Desktop للصيانة الاختيارية فقط ودون أي ناقل أوامر عام",
   "proven_success": [
     "canonical_governance_v2_frozen",
     "nstar_adaptive_intelligence_extension_v2_1",
     "durable_active_state_recovery",
-    "financial_safe_android_companion_pre_field",
-    "make_private_send_path",
+    "private_bridge_policy",
+    "public_command_transport_disabled",
+    "make_private_send_path_previous_evidence",
     "fail_closed_sensitive_mutations",
     "arabic_first",
     "goal_does_not_fail_when_a_means_fails"
   ],
+  "known_failures": [
+    "make_sender_7368010_uses_public_ntfy_and_is_inactive",
+    "make_sender_7368153_public_transport_fallback_inactive",
+    "remote_desktop_commander_offline",
+    "no_current_compliant_private_command_path_confirmed_connected_to_physical_phone"
+  ],
   "field_phone": {
-    "primary_path": "ANDROID_COMPANION_DEEP_LINK_PAIRING",
-    "developer_options_required_for_normal_operation": false,
-    "maintenance_fallback": "TERMUX_WIRELESS_ADB",
-    "current_blocker": "LOCAL_ANDROID_INSTALL_OR_EXISTING_APP_PAIR_DEEP_LINK",
+    "primary_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "cloud_command_path": "MAKE_PRIVATE_ON_DEMAND_RELAY",
+    "result_path": "MAKE_RESULT_MAILBOX",
+    "maintenance_fallback": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
+    "current_blocker": "ANDROID_FIRST_WIRELESS_DEBUGGING_PAIRING_IF_NOT_ALREADY_PAIRED",
     "field_verified": false,
-    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP"
-  },
-  "known_live_constraint": {
-    "remote_desktop_commander": "OFFLINE_AT_LAST_DIRECT_CHECK_2026-09-12",
-    "effect": "NOT_PRIMARY; DOES_NOT_BLOCK_COMPANION_ACTIVATION",
-    "goal_rule": "DO_NOT_TREAT_BRIDGE_FAILURE_AS_GOAL_FAILURE"
+    "next_gate": "REAL_SIGNED_STATUS_ROUND_TRIP",
+    "matrix": [
+      "SIGNED_STATUS_ROUND_TRIP",
+      "BAD_SIGNATURE_REJECTION",
+      "REPLAY_REJECTION",
+      "EXPIRY_REJECTION",
+      "STATUS_UI_SCREENSHOT_NOTIFICATIONS",
+      "ALLOWED_NAVIGATION_ACTION_LAUNCH_LOCAL_GATE",
+      "SCREEN_OFF_BACKGROUND",
+      "RECONNECT",
+      "REBOOT_CONTINUITY",
+      "OFFLINE_RECOVERY",
+      "IDEMPOTENCY_LKG",
+      "BACKUP_RESTORE_CONTAINMENT"
+    ]
   },
   "secrets": {
-    "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY",
+    "policy": "DO_NOT_STORE_SECRETS_HERE_OR_IN_PUBLIC_REPOSITORY_OR_CONTEXT_SEED",
     "present": false
   },
-  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT"
+  "resume_rule": "LOAD_ACTIVE_POINTER_THEN_VERIFY_FRESHNESS_AND_RESUME_FROM_LAST_PROVEN_POINT; DO_NOT_PROMOTE_CANDIDATE_UNTIL_GOVERNANCE_AND_REGRESSION_PASS"
 }
