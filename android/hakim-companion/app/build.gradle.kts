@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.4.1-safe-browser-core"
+        versionCode = 7
+        versionName = "0.4.2-native-local-adb-bootstrap"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
@@ -19,4 +19,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
 }
