@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1-relay-recovery"
+        versionCode = 4
+        versionName = "0.3.0-zero-cost-independent"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
