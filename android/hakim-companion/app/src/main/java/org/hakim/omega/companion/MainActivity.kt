@@ -79,12 +79,15 @@ class MainActivity : Activity() {
         }
     }
 
+    /** إزالة بقايا الناقلات القديمة مرةً آمنةً دون المساس بمفتاح الاقتران المحلي. */
     private fun purgeLegacyTransport() {
         val prefs = getSharedPreferences("hakim", MODE_PRIVATE)
         val editor = prefs.edit()
         prefs.all.keys.filter { it.startsWith("relay_") }.forEach { editor.remove(it) }
         editor.apply()
-        getSharedPreferences("hakim_remote_pending", MODE_PRIVATE).edit().clear().apply()
+        for (name in arrayOf("hakim_remote_pending", "hakim_direct_pending", "hakim_direct_idempotency")) {
+            getSharedPreferences(name, MODE_PRIVATE).edit().clear().apply()
+        }
     }
 
     private fun isPaired(): Boolean =
