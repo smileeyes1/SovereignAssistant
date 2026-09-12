@@ -56,3 +56,9 @@ def test_continuity_shield_keeps_mutation_guard_as_p0_capability():
     assert "app/hakim/development_actions.py" in capability["paths"]
     assert "tests/test_github_control.py" in capability["tests"]
     assert "tests/test_development_actions.py" in capability["tests"]
+
+
+def test_autonomous_continuation_retries_when_either_governing_workflow_completes_without_enabling_merge():
+    workflow = (ROOT / ".github/workflows/autonomous-continuation.yml").read_text(encoding="utf-8")
+    assert 'workflows: ["HAKIM Governance Gate", "HAKIM Continuity Shield"]' in workflow
+    assert "OMEGA_ALLOW_MERGE: 'false'" in workflow
