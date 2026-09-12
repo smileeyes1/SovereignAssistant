@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "governance" / "HAKIM_BRIDGE_POLICY_v2.json"
 MAIN = ROOT / "android" / "hakim-companion" / "app" / "src" / "main" / "java" / "org" / "hakim" / "omega" / "companion" / "MainActivity.kt"
+LOCAL_SERVER = ROOT / "android" / "hakim-companion" / "app" / "src" / "main" / "java" / "org" / "hakim" / "omega" / "companion" / "LocalControlServer.kt"
 BOOTSTRAP = ROOT / "scripts" / "hakim-complete-phone-bootstrap.sh"
 CLOSE = ROOT / "scripts" / "hakim-close-adb-maintenance.sh"
 FIELD_START = ROOT / "scripts" / "hakim-field-start.sh"
@@ -33,6 +34,14 @@ def test_android_ui_has_single_next_step_orchestrator_without_bypassing_sensitiv
     assert "requestPermissions" in text
     assert "enabled_accessibility_services" not in text
     assert "ACCESS_RESTRICTED_SETTINGS" not in text
+
+
+def test_local_control_uses_deterministic_ipv4_loopback_across_network_transitions():
+    text = LOCAL_SERVER.read_text(encoding="utf-8")
+    assert 'const val LOOPBACK_HOST = "127.0.0.1"' in text
+    assert "InetAddress.getByName(LOOPBACK_HOST)" in text
+    assert "InetAddress.getLoopbackAddress()" not in text
+    assert "0.0.0.0" not in text
 
 
 def test_bootstrap_signs_installs_configures_waits_approvals_and_retires_maintenance():
