@@ -48,6 +48,15 @@ def test_signed_task_channel_is_local_expiring_and_replay_protected():
     assert "HakimBrowserController.action(step)" in task
 
 
+def test_offline_local_proof_exists_for_field_verification_without_external_carrier():
+    browser = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimBrowserController.kt")
+    task = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimSignedTask.kt")
+    assert '"local_proof" -> showLocalProof' in browser
+    assert 'loadDataWithBaseURL("https://hakim.local/"' in browser
+    assert "دون ناقل خارجي أو طلب شبكة" in browser
+    assert '"local_proof"' in task
+
+
 def test_manifest_exposes_only_pair_and_signed_task_links_not_remote_receiver():
     manifest = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
     assert 'android:host="pair"' in manifest
