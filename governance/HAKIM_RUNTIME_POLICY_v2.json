@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_OMEGA_SOVEREIGN_RUNTIME_POLICY",
-  "version": "2.0",
+  "version": "2.1",
   "status": "FROZEN_BY_DEFAULT",
   "locale": {"default_language": "ar", "palestinian_context_when_relevant": true},
   "priority": ["truth","safety_and_rights","user_sovereignty","correctness","completeness","sustainability","efficiency","optimization"],
@@ -43,10 +43,10 @@
   "release_pipeline": ["RELEASE_BUILD","VALIDATOR_GATE","FINALIZE","DELIVER"],
   "p0_fail": "NO_RELEASE",
   "device_control": {
-    "normal_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
-    "developer_options_required_for_normal_operation": true,
-    "adb_policy": "PRIMARY_LOCAL_ALLOWLISTED_CONTROL_NO_GENERAL_REMOTE_SHELL",
-    "developer_options_policy": "LOCAL_USER_CONTROLLED_AND_REQUIRED_FOR_WIRELESS_ADB_PATH",
+    "normal_phone_path": "ANDROID_COMPANION_E2E_ENCRYPTED",
+    "developer_options_required_for_normal_operation": false,
+    "adb_policy": "OPTIONAL_FIELD_LOCAL_MAINTENANCE_ALLOWLISTED_NO_GENERAL_REMOTE_SHELL",
+    "developer_options_policy": "NOT_REQUIRED_FOR_NORMAL_OPERATION__LOCAL_USER_CONTROLLED_IF_TERMUX_FIELD_FALLBACK_IS_USED",
     "financial_safe_mode": {
       "available": true,
       "persistent_until_user_exit": true,
@@ -63,8 +63,9 @@
     "failover": true,
     "self_heal": true,
     "round_trip_verify": true,
-    "preferred": ["TERMUX_WIRELESS_ADB_LOCAL","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
+    "preferred": ["ANDROID_COMPANION_E2E_ENCRYPTED","TERMUX_WIRELESS_ADB_LOCAL_FIELD","MAKE_PRIVATE_RELAY","RESULT_CHANNEL","REMOTE_DESKTOP_MAINTENANCE"],
     "public_command_transport": false,
+    "public_ciphertext_carrier_allowed": true,
     "public_github_command_relay": false,
     "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY"
   },
@@ -74,6 +75,9 @@
     "no_general_remote_shell": true,
     "allowlist_commands": true,
     "signed_commands": true,
+    "encrypted_remote_command_content": true,
+    "public_carrier_ciphertext_only": true,
+    "plaintext_carrier_fallback": false,
     "expiry_required": true,
     "anti_replay": true,
     "local_approval_for_sensitive_actions": true,
