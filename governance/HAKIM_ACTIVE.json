@@ -1,6 +1,6 @@
 {
   "name": "HAKIM_ACTIVE_CANONICAL",
-  "version": "2.1",
+  "version": "2.2",
   "activation": "ACTIVE_ONLY_AFTER_GOVERNANCE_PASS_AND_MERGE",
   "core": "governance/HAKIM_CANONICAL_CORE_AR.md",
   "adaptive_intelligence_spec": "governance/HAKIM_NSTAR_SPEC_AR.md",
@@ -8,6 +8,7 @@
   "intelligence_fabric_spec": "governance/HAKIM_INTELLIGENCE_FABRIC_AR.md",
   "intelligence_matrix": "governance/HAKIM_INTELLIGENCE_MATRIX.json",
   "meta_method_spec": "governance/HAKIM_META_METHOD_AR.md",
+  "value_gates_spec": "governance/HAKIM_VALUE_GATES_AR.md",
   "phone_sovereign_constraints": "governance/HAKIM_PHONE_SOVEREIGN_CONSTRAINTS.json",
   "runtime_policy": "governance/HAKIM_RUNTIME_POLICY_v2.json",
   "bridge_policy": "governance/HAKIM_BRIDGE_POLICY_v2.json",
@@ -22,6 +23,7 @@
     "LOAD_INTELLIGENCE_FABRIC_SPEC",
     "LOAD_INTELLIGENCE_MATRIX",
     "LOAD_META_METHOD_SPEC",
+    "LOAD_VALUE_GATES_SPEC",
     "LOAD_PHONE_SOVEREIGN_CONSTRAINTS",
     "LOAD_RUNTIME_POLICY",
     "LOAD_BRIDGE_POLICY",
@@ -34,6 +36,7 @@
   "promotion_gate": [
     "PHONE_SOVEREIGN_CONSTRAINTS_PASS",
     "INTELLIGENCE_FABRIC_CONTRACT_PASS",
+    "VALUE_GATES_CONTRACT_PASS",
     "GOVERNANCE_TESTS_PASS",
     "REGRESSION_PASS",
     "NO_SECRET_LEAK_IN_GOVERNANCE",
