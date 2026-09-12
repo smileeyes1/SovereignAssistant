@@ -1,48 +1,30 @@
 #!/system/bin/sh
-# Disposable Android 15 proof that non-idempotent Companion UI actions cannot replay.
-# Pre-field evidence only; never qualifies physical TECNO/HiOS behavior.
+# Disposable Android 15 proof that sovereign-local browser actions cannot replay.
+# Pre-field evidence only; never qualifies physical-device behavior.
 set -eu
 
 PKG="org.hakim.omega.companion"
-ACCESSIBILITY_SERVICE="${PKG}/.HakimAccessibilityService"
 PORT="47651"
 PAIR_TOKEN="emulator-only-qualification-token-0123456789"
 BASE_URL="http://127.0.0.1:${PORT}"
 AUTH="Authorization: Bearer ${PAIR_TOKEN}"
 RID="emulator-replay-proof-0001"
-ACTION='{"action":"tap","x":540,"y":1200}'
+ACTION='{"action":"local_proof","message":"اختبار منع إعادة التنفيذ"}'
 
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
-
-# Earlier gates intentionally exercise reboot/revocation and may leave
-# Accessibility disconnected. Establish this gate's own explicit precondition
-# instead of depending on mutable state from another test.
-adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
-adb shell settings put secure accessibility_enabled 1
-i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-idempotency-status.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Accessibility did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
-done
-echo 'STAGE_IDEMPOTENCY_ACCESSIBILITY_PRECONDITION=PROVEN'
-
-# Accessibility connection alone does not prove that a stable active window
-# exists for gesture dispatch. Earlier gates may leave HOME/system UI active.
-# Make this gate own that mutable precondition as well: launch Companion and
-# observe its package in the Accessibility tree before issuing the first tap.
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-i=0
-until code=$(curl -sS -o /tmp/hakim-idempotency-ui.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui") && [ "$code" = '200' ] && grep -F "\"package\":\"${PKG}\"" /tmp/hakim-idempotency-ui.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 20 ] || { echo 'Stable Companion active window not observed for replay proof' >&2; cat /tmp/hakim-idempotency-ui.json >&2 || true; exit 1; }; sleep 1
-done
-echo 'STAGE_IDEMPOTENCY_ACTIVE_WINDOW_PRECONDITION=PROVEN'
 
-# Use a bounded gesture rather than BACK: BACK success depends on whatever
-# screen a previous gate happened to leave active, while dispatching a tap is
-# itself the non-idempotent side effect whose replay protection we need to prove.
-# Without a durable identity it must fail closed before dispatch.
+i=0
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-status.json 2>/dev/null && grep -F '"attached":true' /tmp/hakim-idempotency-status.json >/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Owned browser did not become ready for replay proof' >&2; cat /tmp/hakim-idempotency-status.json >&2 || true; exit 1; }; sleep 1
+done
+grep -F '"external_transport_enabled":false' /tmp/hakim-idempotency-status.json >/dev/null
+echo 'STAGE_IDEMPOTENCY_BROWSER_PRECONDITION=PROVEN'
+
+# Without a durable identity it must fail closed before execution.
 code=$(curl -sS -o /tmp/hakim-no-rid.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "$ACTION" "${BASE_URL}/v1/action")
 [ "$code" = '400' ] || { echo "missing request identity expected 400 got $code" >&2; cat /tmp/hakim-no-rid.json >&2; exit 1; }
-grep -F '"error":"request_id_required"' /tmp/hakim-no-rid.json >/dev/null || { echo 'missing request identity response lacked request_id_required' >&2; cat /tmp/hakim-no-rid.json >&2; exit 1; }
+grep -F '"error":"request_id_required"' /tmp/hakim-no-rid.json >/dev/null || { cat /tmp/hakim-no-rid.json >&2; exit 1; }
 echo 'STAGE_IDEMPOTENCY_MISSING_ID_FAIL_CLOSED=PROVEN'
 
 # Execute once with an explicit durable request identity.
@@ -57,14 +39,9 @@ adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 adb shell pidof "$PKG" >/dev/null
 adb forward "tcp:${PORT}" "tcp:${PORT}" >/dev/null
 
-# A replay proof must not depend on a race between process restart and
-# Accessibility service rebinding. Re-establish and observe the same authority
-# precondition before asserting that duplicate rejection wins before execution.
-adb shell settings put secure enabled_accessibility_services "$ACCESSIBILITY_SERVICE"
-adb shell settings put secure accessibility_enabled 1
 i=0
-until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null && grep -F '"accessibility":true' /tmp/hakim-idempotency-after-restart.json >/dev/null; do
-  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Companion/Accessibility did not recover for replay proof' >&2; cat /tmp/hakim-idempotency-after-restart.json >&2 || true; exit 1; }; sleep 1
+until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-idempotency-after-restart.json 2>/dev/null && grep -F '"attached":true' /tmp/hakim-idempotency-after-restart.json >/dev/null; do
+  i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Companion/browser did not recover for replay proof' >&2; cat /tmp/hakim-idempotency-after-restart.json >&2 || true; exit 1; }; sleep 1
 done
 echo 'STAGE_IDEMPOTENCY_POST_RESTART_PRECONDITION=PROVEN'
 
@@ -81,4 +58,4 @@ fi
 
 echo 'EMULATOR_ACTION_IDEMPOTENCY=PROVEN'
 echo 'EMULATOR_ACTION_REPLAY_AFTER_PROCESS_DEATH=PROVEN'
-echo 'PHYSICAL_TECNO_IDEMPOTENCY_QUALIFICATION=NOT_PROVEN'
+echo 'PHYSICAL_PHONE_IDEMPOTENCY_QUALIFICATION=NOT_PROVEN'
