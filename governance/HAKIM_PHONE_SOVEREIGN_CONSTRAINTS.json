@@ -1,20 +1,28 @@
 {
   "name": "HAKIM_PHONE_SOVEREIGN_CONSTRAINTS",
-  "version": "1.0",
+  "version": "1.1",
   "status": "ACTIVE_USER_SOVEREIGN_CONSTRAINT",
   "source": "LATEST_EXPLICIT_USER_INSTRUCTION",
   "effective_date": "2026-09-12",
   "priority": "P0",
   "constraints": {
-    "developer_options_normal_operation": "MUST_REMAIN_OFF",
-    "wireless_debugging_normal_operation": "MUST_REMAIN_OFF",
-    "normal_phone_control_must_not_require_developer_options": true,
-    "normal_phone_control_must_not_require_wireless_debugging": true,
-    "normal_phone_path": "ANDROID_COMPANION_ACCESSIBILITY_WITH_PRIVATE_RELAY",
-    "termux_wireless_adb_role": "TEMPORARY_MAINTENANCE_ONLY_AFTER_EXPLICIT_USER_REQUEST_THEN_OFF",
+    "governing_phone_path": "TERMUX_WIRELESS_ADB_LOCAL",
+    "cloud_command_relay": "MAKE_PRIVATE_ON_DEMAND_RELAY",
+    "result_path": "RESULT_MAILBOX",
+    "maintenance_bridge": "REMOTE_DESKTOP_COMMANDER_OPTIONAL_ONLY",
+    "wireless_debugging_role": "LOCAL_PAIRING_AND_GOVERNED_ADB_ONLY",
+    "developer_options_role": "ONLY_AS_REQUIRED_BY_ANDROID_FOR_LOCAL_WIRELESS_ADB",
+    "android_companion_role": "NON_GOVERNING_OPTIONAL_FALLBACK_ONLY_IF_PRIVATE_OR_E2E_ENCRYPTED_AND_EXPLICITLY_COMPATIBLE",
+    "public_command_transport": "FORBIDDEN",
+    "public_github_command_relay": "FORBIDDEN",
+    "fallback_command_transport": "PRIVATE_OR_ENCRYPTED_ONLY",
+    "general_remote_shell": "FORBIDDEN",
     "financial_app_compatibility_is_governing_constraint": true,
     "financial_safe_mode": "FAIL_CLOSED_ONE_TAP_ISOLATION",
-    "platform_protection_bypass": false
+    "platform_protection_bypass": false,
+    "play_protect_disable": false,
+    "secrets_in_public_repository": false,
+    "secrets_in_context_seed": false
   },
   "precedence": {
     "generic_autonomy_cannot_override": true,
@@ -23,9 +31,13 @@
     "only_later_explicit_user_instruction_may_change": true
   },
   "release_gate": {
-    "reject_if_primary_path_requires_developer_options": true,
-    "reject_if_primary_path_requires_wireless_debugging": true,
-    "reject_if_termux_wireless_adb_is_promoted_above_maintenance": true,
-    "reject_if_financial_safe_mode_is_weakened": true
+    "reject_if_governing_path_is_not_termux_wireless_adb_local": true,
+    "reject_if_cloud_relay_is_not_private_on_demand": true,
+    "reject_if_public_command_transport_exists": true,
+    "reject_if_public_github_command_relay_exists": true,
+    "reject_if_general_remote_shell_exists": true,
+    "reject_if_platform_protection_is_weakened": true,
+    "reject_if_financial_safe_mode_is_weakened": true,
+    "field_verified_requires_direct_phone_evidence": true
   }
 }
