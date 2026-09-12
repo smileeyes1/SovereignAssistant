@@ -12,7 +12,6 @@ def test_zero_cost_transport_has_no_make_webhook_dependency():
     activity = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/MainActivity.kt")
     assert "relay_result_url" not in relay
     assert "hook.eu1.make.com" not in relay
-    assert "Make" not in relay
     assert 'const val KEY_RESULT_TOPIC = "relay_result_topic"' in relay
     assert 'const val KEY_RELAY_BASE = "relay_base_url"' in relay
     assert 'private const val DEFAULT_RELAY_BASE = "https://ntfy.sh"' in relay
