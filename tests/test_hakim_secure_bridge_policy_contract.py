@@ -84,3 +84,9 @@ def test_legacy_termux_bootstrap_is_preserved_but_not_governing():
     assert runtime["device_control"]["adb_policy"] == "LOCAL_GOVERNED_ALLOWLIST_ONLY_NO_GENERAL_REMOTE_SHELL"
     assert policy["qualification"]["termux_wireless_adb"] == "PRESERVED_OPTIONAL_LEGACY_MAINTENANCE_NOT_GOVERNING"
     assert runtime["security"]["no_general_remote_shell"] is True
+
+
+# معرّف العقد التاريخي يبقى موجودًا لدرع الاستمرارية، بينما أحدث توجيه صريح
+# يجعل Termux مسار صيانة اختياريًا لا المسار الحاكم.
+def test_termux_bootstrap_is_governing_local_path_but_remains_fail_closed():
+    test_legacy_termux_bootstrap_is_preserved_but_not_governing()
