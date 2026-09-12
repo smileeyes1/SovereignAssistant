@@ -21,7 +21,9 @@ class LocalControlServer(private val context: Context) {
             try {
                 val s = ServerSocket()
                 s.reuseAddress = true
-                s.bind(InetSocketAddress(InetAddress.getLoopbackAddress(), PORT))
+                // Fixed IPv4 loopback matches the relay/probe address exactly and
+                // avoids ::1/127.0.0.1 family drift during Android network changes.
+                s.bind(InetSocketAddress(InetAddress.getByName(LOOPBACK_HOST), PORT))
                 socket = s
                 while (!s.isClosed) runCatching { s.accept() }.getOrNull()?.let { client -> pool.execute { handle(client) } }
             } catch (_: Exception) { socket = null }
@@ -145,6 +147,7 @@ class LocalControlServer(private val context: Context) {
     }
 
     companion object {
+        const val LOOPBACK_HOST = "127.0.0.1"
         const val PORT = 47651
         private val REQUEST_ID = Regex("^[A-Za-z0-9._:-]{8,128}$")
     }
