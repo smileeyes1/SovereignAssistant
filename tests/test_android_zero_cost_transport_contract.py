@@ -1,54 +1,63 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "android/hakim-companion/app/src/main"
 
 
 def text(path):
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_zero_cost_transport_has_no_make_webhook_dependency():
-    relay = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt")
-    activity = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/MainActivity.kt")
-    assert "relay_result_url" not in relay
-    assert "hook.eu1.make.com" not in relay
-    assert 'const val KEY_RESULT_TOPIC = "relay_result_topic"' in relay
-    assert 'const val KEY_RELAY_BASE = "relay_base_url"' in relay
-    assert 'private const val DEFAULT_RELAY_BASE = "https://ntfy.sh"' in relay
-    assert 'uri.getQueryParameter("result_topic")' in activity
-    assert 'uri.getQueryParameter("relay_base")' in activity
+def all_runtime_text():
+    chunks = []
+    for p in SRC.rglob("*"):
+        if p.is_file() and p.suffix in {".kt", ".xml", ".java"} and p.name != "HakimRemoteRelay.kt":
+            chunks.append(p.read_text(encoding="utf-8"))
+    return "\n".join(chunks)
 
 
-def test_commands_and_results_are_both_encrypted():
-    relay = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt")
-    assert 'private const val CARRIER_PREFIX = "HC1."' in relay
-    assert 'private const val RESULT_PREFIX = "HR1."' in relay
-    assert 'private const val CARRIER_AAD = "HAKIM-CARRIER-v1"' in relay
-    assert 'private const val RESULT_AAD = "HAKIM-RESULT-v1"' in relay
-    assert "AES/GCM/NoPadding" in relay
-    assert "HmacSHA256" in relay
-    assert "encryptResult" in relay
-    assert 'conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")' in relay
+def test_runtime_has_no_external_background_transport_dependency():
+    runtime = all_runtime_text()
+    forbidden = ["ntfy.sh", "hook.eu1.make.com", "TinyFish", "HakimRemoteRelay("]
+    for marker in forbidden:
+        assert marker not in runtime
 
 
-def test_relay_is_replaceable_and_https_only():
-    relay = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt")
-    assert "validRelayBase" in relay
-    assert 'Regex("^https://' in relay
-    assert 'URL("$relayBase/$topic/json?poll=1&since=$since")' in relay
-    assert 'URL("$relayBase/$resultTopic")' in relay
-
-
-def test_state_changing_remote_ops_still_require_explicit_approval():
-    relay = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimRemoteRelay.kt")
-    assert 'private val READ_ONLY_OPS = setOf("status", "ui", "notifications", "screenshot")' in relay
-    assert 'private val ALLOWED_OPS = READ_ONLY_OPS + setOf("action", "launch")' in relay
-    assert "showApproval(context, requestId, op)" in relay
-    assert '"موافقة"' in relay
-    assert '"رفض"' in relay
-
-
-def test_version_is_higher_than_relay_recovery_release():
+def test_legacy_relay_is_excluded_from_android_build():
     gradle = text("android/hakim-companion/app/build.gradle.kts")
-    assert "versionCode = 4" in gradle
-    assert 'versionName = "0.3.0-zero-cost-independent"' in gradle
+    assert 'java.exclude("**/HakimRemoteRelay.kt")' in gradle
+    service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt")
+    assert "HakimRemoteRelay" not in service
+    assert "LocalControlServer" in service
+    assert 'putBoolean("external_transport_enabled", false)' in service
+
+
+def test_local_control_is_loopback_only():
+    server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
+    assert "InetAddress.getLoopbackAddress()" in server
+    assert '.put("loopback_only", true)' in server
+
+
+def test_signed_task_channel_is_local_expiring_and_replay_protected():
+    task = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimSignedTask.kt")
+    assert 'uri.scheme != "hakim" || uri.host != "task"' in task
+    assert 'Mac.getInstance("HmacSHA256")' in task
+    assert 'private const val MAX_FUTURE_MS' in task
+    assert "task_duplicate" in task
+    assert 'getSharedPreferences("hakim_signed_task_ids"' in task
+    assert "HakimBrowserController.action(step)" in task
+
+
+def test_manifest_exposes_only_pair_and_signed_task_links_not_remote_receiver():
+    manifest = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
+    assert 'android:host="pair"' in manifest
+    assert 'android:host="task"' in manifest
+    assert "RemoteApprovalReceiver" not in manifest
+    assert "AccessibilityService" not in manifest
+    assert "NotificationListenerService" not in manifest
+
+
+def test_version_is_sovereign_local_release():
+    gradle = text("android/hakim-companion/app/build.gradle.kts")
+    assert "versionCode = 5" in gradle
+    assert 'versionName = "0.4.0-sovereign-local"' in gradle
