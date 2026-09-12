@@ -62,3 +62,17 @@ def test_meta_method_does_not_claim_physical_field_success():
     meta = (GOV / "HAKIM_META_METHOD_AR.md").read_text(encoding="utf-8")
     assert "FIELD_VERIFIED=true" not in meta
     assert "physical_phone_round_trip=PASS" not in meta
+
+
+def test_hayya_loop_is_bound_to_hakim_nstar_and_actual_execution():
+    meta = (GOV / "HAKIM_META_METHOD_AR.md").read_text(encoding="utf-8")
+    nstar = (GOV / "HAKIM_NSTAR_SPEC_AR.md").read_text(encoding="utf-8")
+    seed = (GOV / "HAKIM_CONTEXT_SEED_AR.txt").read_text(encoding="utf-8")
+    sequence = "و؟ → و؟ → و؟ → لِمَ؟ → و؟ → و؟ → اعتمد → أصلح → أكمل → هَيّا"
+    assert sequence in meta
+    assert sequence in nstar
+    assert "هَيّا = انتقل من القرار إلى الفعل الفعلي فورًا" in meta
+    assert "ليست منظومة موازية" in meta
+    assert "NO_OP/FREEZE_BASELINE" in meta
+    assert "حلقة هَيّا★ الحاكمة داخل حكيم" in seed
+    assert "موافقة أو صلاحية لازمة" in seed
