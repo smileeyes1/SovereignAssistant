@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.4.2-native-local-adb-bootstrap"
+        versionCode = 20018
+        versionName = "0.4.3-native-local-adb-bootstrap"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
