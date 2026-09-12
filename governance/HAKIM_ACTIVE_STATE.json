@@ -1,21 +1,22 @@
 {
   "name": "HAKIM_ACTIVE_STATE",
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "active_extension_version": "2.2",
   "status": "PRE_FIELD_VERIFIED__PHYSICAL_PHONE_ACTIVATION_PENDING",
-  "last_verified_baseline": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
-  "latest_observed_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
-  "latest_observed_main_semantics": "VERIFIED_PROMOTION_BASELINE_POINTER__MUST_EQUAL_LAST_VERIFIED_BASELINE",
-  "freshness_observed_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
-  "freshness_observed_main_semantics": "LATEST_MAIN_OBSERVED_BUT_NOT_PROMOTED_OVER_LAST_VERIFIED_BASELINE_WITHOUT_GATES",
-  "state_refresh_source_main": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
-  "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__VERIFIED_PROMOTION_SOURCE_POINTER_PRESERVED_UNTIL_NEW_CANDIDATE_PASSES_GATES",
-  "freshness_state_refresh_source_main": "5b21e7d511f38463eb09af2c6c5044f3b187bff0",
+  "last_verified_baseline": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
+  "latest_observed_main": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
+  "latest_observed_main_semantics": "LATEST_MAIN_VERIFIED_BY_POST_MERGE_GOVERNANCE_AND_REALITY_GATES",
+  "freshness_observed_main": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
+  "freshness_observed_main_semantics": "LATEST_SIGNED_MAIN_VERIFIED_AND_PROMOTED_AS_GOVERNANCE_BASELINE_ONLY_NOT_PHYSICAL_FIELD",
+  "state_refresh_source_main": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
+  "state_refresh_source_main_semantics": "SOURCE_MAIN_AT_STATE_REFRESH__POST_MERGE_GATES_PASS__FIELD_REMAINS_FAIL_CLOSED",
+  "freshness_state_refresh_source_main": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e",
   "candidate_branch": "main",
-  "field_architecture_candidate_branch": "hakim/field-architecture-reconcile-20260912",
+  "field_architecture_candidate_branch": "MERGED_PR_140",
   "promotion_lineage": {
     "adaptive_best_route_optimizer_v1": "b9500a384ef842a6b231f1727570d036f7ad8c7e",
-    "one_tap_field_qualification_v1": "a6225e4118d68871ed00c8328f072fd8bd15bfc6"
+    "one_tap_field_qualification_v1": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
+    "field_architecture_reconcile_v1": "a6994b15f18130a0a221c3e0563f8a4bd93ff13e"
   },
   "promotion_evidence": {
     "phone_sovereign_lock_main": "PASS",
@@ -54,7 +55,10 @@
     "one_tap_field_qualification_sanitized_remote_summary": "PASS",
     "one_tap_field_qualification_financial_fail_closed": "PASS",
     "field_architecture_policy_drift_detected": "PASS",
-    "field_architecture_reconcile_candidate": "PENDING_GOVERNANCE_AND_REGRESSION",
+    "field_architecture_reconcile_candidate": "PASS_MERGED_PR_140",
+    "field_architecture_post_merge_governance_gate": "PASS",
+    "field_architecture_post_merge_reality_gate": "PASS",
+    "latest_main_signature_verified": "PASS",
     "public_ntfy_plain_sender": "REJECTED_AND_INACTIVE",
     "remote_desktop_commander": "OFFLINE_OPTIONAL_NOT_BLOCKING",
     "physical_phone_round_trip": "NOT_PROVEN"
@@ -87,7 +91,8 @@
     "public_command_transport_disabled",
     "fail_closed_sensitive_mutations",
     "arabic_first",
-    "goal_does_not_fail_when_a_means_fails"
+    "goal_does_not_fail_when_a_means_fails",
+    "field_architecture_reconcile_v1_governance_verified"
   ],
   "protected_prior_success_not_reinterpreted_as_current_field_path": [
     "phone_sovereign_no_developer_options_lock",
@@ -95,10 +100,13 @@
     "hc1_aes256gcm_ciphertext_only_carrier",
     "make_hc1_ciphertext_send"
   ],
-  "known_failures": [
+  "resolved_failures": [
     "OLDER_COMPANION_PRIMARY_POLICY_CONFLICTED_WITH_LATEST_EXPLICIT_USER_FIELD_ARCHITECTURE",
-    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED",
+    "LEGACY_PUBLIC_PLAINTEXT_CARRIER_REJECTED"
+  ],
+  "known_failures": [
     "REMOTE_DESKTOP_COMMANDER_OFFLINE_AT_LAST_DIRECT_CHECK",
+    "PRIVATE_MAKE_COMMAND_CHANNEL_TO_REAL_PHONE_NOT_YET_PROVEN_CONNECTED",
     "PHYSICAL_PHONE_ROUND_TRIP_NOT_YET_PROVEN"
   ],
   "field_phone": {
