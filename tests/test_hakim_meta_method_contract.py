@@ -37,7 +37,7 @@ def test_nstar_controls_depth_and_prevents_recursive_explosion():
     nstar = (GOV / "HAKIM_NSTAR_SPEC_AR.md").read_text(encoding="utf-8")
     assert "governance/HAKIM_META_METHOD_AR.md" in nstar
     assert "DELTA المادي الصافي" in nstar
-    assert "الانفجار التكراري" in nstar
+    assert "انفجار تكراري" in nstar
     assert "NO_OP" in nstar
 
 
