@@ -11,7 +11,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 20018
-        versionName = "0.6.0-governed-ai-browser-pre-field"
+        versionName = "0.5.0-canonical-phone-interface-native-adb"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
