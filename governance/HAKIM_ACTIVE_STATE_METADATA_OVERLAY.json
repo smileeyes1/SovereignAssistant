@@ -4,7 +4,7 @@
   "status": "ACTIVE_VERIFIED",
   "base_active_state": "governance/HAKIM_ACTIVE_STATE.json",
   "scope": "REPOSITORY_FRESHNESS_AND_SOFTWARE_PROMOTION_ONLY__NO_PHYSICAL_FIELD_STATUS_OVERRIDE",
-  "governance_verified_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
+  "governance_verified_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
   "freshness_observed_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
   "freshness_state_refresh_source_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
   "promotion_lineage_additions": {
@@ -41,5 +41,5 @@
     "physical_phone_round_trip": "NOT_PROVEN",
     "physical_financial_app_compatibility": "NOT_PROVEN"
   },
-  "merge_rule": "Apply only repository-freshness and software-promotion additions after the base active state. Never use this overlay to promote or reinterpret physical-phone field evidence. Base physical-field invariants remain authoritative until direct real-phone evidence passes the required matrix."
+  "merge_rule": "Apply only repository-freshness and software-promotion additions after the base active state. Keep governance_verified_main aligned with the canonical phone-interface promotion truth; use freshness_* only for later repository observation. Never use this overlay to promote or reinterpret physical-phone field evidence. Base physical-field invariants remain authoritative until direct real-phone evidence passes the required matrix."
 }
