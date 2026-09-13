@@ -1,0 +1,40 @@
+{
+  "name": "HAKIM_ZERO_BURDEN_AUTONOMY_RELEASE_v2",
+  "date": "2026-09-13",
+  "mode": "ADDITIVE_OVER_FROZEN_BASELINE",
+  "core_rule": "governance/HAKIM_ZERO_BURDEN_SELF_SOVEREIGN_RULE_v1.md",
+  "core_rule_sha256": "57de22830770bf8a4af4dfe111f6b3fbb8d8cfac8ad9bff1a87803230fbaad22",
+  "capability_matrix": "governance/HAKIM_CAPABILITY_OWNERSHIP_MATRIX_v1.md",
+  "decision_order": "governance/HAKIM_AUTONOMY_DECISION_ORDER_v1.txt",
+  "phone_bootstrap": "scripts/hakim-zero-burden-bootstrap.sh",
+  "supervisor": "scripts/hakim-multibridge-supervisor.sh",
+  "result_policy": "governance/HAKIM_RESULT_TELEMETRY_POLICY_v1.md",
+  "proven": {
+    "rule_written_and_mirrored": true,
+    "free_core_separation": true,
+    "governance_ci_on_functional_head_f011241eed1778ad409d6ffc4f7cf29a8a713a0d": "PASS",
+    "continuity_shield_on_functional_head_f011241eed1778ad409d6ffc4f7cf29a8a713a0d": "PASS",
+    "reality_gate_on_functional_head_f011241eed1778ad409d6ffc4f7cf29a8a713a0d": "PASS",
+    "wireless_adb_connection_seen_on_phone": true,
+    "supervisor_running_seen_on_phone": true
+  },
+  "not_yet_proven": {
+    "latest_runtime_deployed_to_phone": true,
+    "reconnect_after_disconnect_and_kill_server": true,
+    "phone_result_persistence_to_google_drive_via_make": true,
+    "remote_desktop_online": true,
+    "private_command_relay_security_qualification": true,
+    "full_absolute_independence_from_platform_or_os": true
+  },
+  "durable_surfaces": [
+    "GitHub governance and tests",
+    "ChatGPT Library /HAKIM_CANONICAL",
+    "ChatGPT Library /HAKIM",
+    "Google Drive /Ω ChatGPT Autonomy Backup/v25",
+    "Google Drive /HAKIM Ω DNA — Google Control Plane",
+    "Google Drive /حكيم"
+  ],
+  "authority_boundary": "All autonomy is bounded by platform, safety, rights, user intent, explicit permissions, no hidden cost expansion, and irreducible Android/OS local approvals.",
+  "manual_burden_policy": "ZERO_WHEN_AUTOMATABLE; otherwise request only the smallest irreducible local or sovereign action, then resume automatically.",
+  "release_claim": "Portable autonomy governance is qualified; full phone runtime field qualification remains pending the actual device reconnect regression after deployment."
+}
