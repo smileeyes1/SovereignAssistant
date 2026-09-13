@@ -35,6 +35,24 @@ def test_bootstrap_runs_reconnect_regression():
     assert 'FIELD_VERIFIED_LOCAL_ADB_RECONNECT=PASS' in t
 
 
+def test_bootstrap_prepares_reboot_recovery_without_claiming_it_is_active():
+    t = s()
+    assert '99-hakim-multibridge' in t
+    assert 'tmux has-session -t hakim-multibridge-supervisor' in t
+    assert 'absence of it never weakens the' in t
+    assert 'is not reported as a PASS' in t
+
+
+def test_bootstrap_installs_single_hakim_entrypoint():
+    t = s()
+    assert 'cat > "$BIN/hakim"' in t
+    assert "case \"${1:-status}\" in" in t
+    assert 'status)' in t
+    assert 'recover)' in t
+    assert 'update)' in t
+    assert 'ln -sfn "$BIN/hakim" "$PREFIX/bin/hakim"' in t
+
+
 def test_bootstrap_does_not_uninstall_or_clear_apps():
     t = s()
     for forbidden in ['pm clear', 'uninstall', 'rm -rf /data/user', 'adb install']:
