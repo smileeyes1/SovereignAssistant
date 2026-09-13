@@ -24,8 +24,11 @@ object HakimBrowserController {
 
     private class GovernanceBridge(private val context: Context) {
         @JavascriptInterface
-        fun prepare(text: String?, pageUrl: String?): String =
-            HakimAiGovernance.prepare(context, text.orEmpty(), pageUrl)
+        fun prepare(text: String?, pageUrl: String?): String {
+            val raw = text.orEmpty()
+            val governed = HakimAiGovernance.prepare(context, raw, pageUrl)
+            return HakimWisdomLayer.enrich(governed, raw)
+        }
 
         @JavascriptInterface
         fun isSupported(pageUrl: String?): Boolean = HakimAiGovernance.isSupportedUrl(pageUrl)
@@ -114,9 +117,6 @@ object HakimBrowserController {
         .put("governance_version", HakimAiGovernance.VERSION)
 
     fun screenshotBase64(): String? = onMain<String?>(null, 5_000L) { w ->
-        // A URL can already be committed while Android is still finishing the first layout pass.
-        // Use the measured/display bounds as a fail-safe so the control plane does not report a
-        // false "screenshot unavailable" merely because width/height have not propagated yet.
         val dm = w.resources.displayMetrics
         val width = sequenceOf(w.width, w.measuredWidth, dm.widthPixels)
             .firstOrNull { it > 0 } ?: return@onMain null
@@ -197,10 +197,6 @@ object HakimBrowserController {
         return out
     }
 
-    /**
-     * اعتراض محلي قبل الإرسال فقط على منصات الذكاء المسموحة. لا يمنع المنصة من
-     * تطبيق تعليماتها الأعلى، ولا يقرأ كلمات المرور أو الحقول غير النصية.
-     */
     private const val GOVERNANCE_HOOK_JS = """
 (function(){
   try {
