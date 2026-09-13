@@ -16,7 +16,6 @@ def test_rule_exists_and_has_core_contract():
         'PROVEN_SUCCESS',
         'ROLLBACK',
         'FIELD_VERIFIED',
-        'فشل أداة لا يوقف الغاية',
     ]:
         assert token in s
 
@@ -37,7 +36,9 @@ def test_manual_burden_is_minimized_not_faked():
 def test_tool_failure_has_fallback_behavior():
     s = text()
     assert 'إذا فشلت وسيلة' in s
+    assert 'شخّص الجذر' in s
     assert 'بديل مشروع وآمن ومتاح' in s
+    assert 'لا توقف الغاية' in s
 
 
 def test_success_requires_evidence():
