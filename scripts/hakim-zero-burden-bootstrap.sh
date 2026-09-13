@@ -26,18 +26,19 @@ else
   git -C "$ROOT" pull --ff-only origin main
 fi
 
-for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh hakim-conceal-developer-options.sh bootstrap-hakim-termux-adb.sh hakim-zero-burden-bootstrap.sh; do
+for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh hakim-conceal-developer-options.sh hakim-dev-mode-guardian.sh bootstrap-hakim-termux-adb.sh hakim-zero-burden-bootstrap.sh; do
   [[ -f "$ROOT/scripts/$f" ]] || { echo "ERROR: missing scripts/$f" >&2; exit 3; }
 done
 
 # GitHub contents updates may leave shell files without the executable bit.
-chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh" "$ROOT/scripts/hakim-zero-burden-bootstrap.sh" "$ROOT/scripts/hakim-conceal-developer-options.sh"
+chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh" "$ROOT/scripts/hakim-zero-burden-bootstrap.sh" "$ROOT/scripts/hakim-conceal-developer-options.sh" "$ROOT/scripts/hakim-dev-mode-guardian.sh"
 
 cp -f "$ROOT/scripts/hakim-adb-pair.sh" "$BIN/hakim-adb-pair"
 cp -f "$ROOT/scripts/hakim-control-window.sh" "$BIN/hakim-control-window"
 cp -f "$ROOT/scripts/hakim-multibridge-supervisor.sh" "$BIN/hakim-multibridge-supervisor"
 cp -f "$ROOT/scripts/hakim-bridges-status.sh" "$BIN/hakim-bridges-status"
 cp -f "$ROOT/scripts/hakim-conceal-developer-options.sh" "$BIN/hakim-conceal-dev-options"
+cp -f "$ROOT/scripts/hakim-dev-mode-guardian.sh" "$BIN/hakim-dev-mode-guardian.sh"
 chmod 700 "$BIN/"*
 ln -sfn "$BIN/hakim-adb-pair" "$PREFIX/bin/hakim-adb-pair"
 ln -sfn "$BIN/hakim-control-window" "$PREFIX/bin/hakim-control-window"
@@ -69,8 +70,11 @@ case "${1:-status}" in
   conceal-dev)
     exec "$OMEGA/bin/hakim-conceal-dev-options"
     ;;
+  reveal-dev)
+    exec "$OMEGA/bin/hakim-conceal-dev-options" --release
+    ;;
   *)
-    echo 'الاستخدام: hakim [status|recover|update|conceal-dev]'
+    echo 'الاستخدام: hakim [status|recover|update|conceal-dev|reveal-dev]'
     exit 2
     ;;
 esac
@@ -97,7 +101,7 @@ python - "$OMEGA/hakim-termux-adb.json" <<'PY' >/dev/null 2>&1
 import json,sys
 try:
     d=json.load(open(sys.argv[1],encoding='utf-8'))
-    raise SystemExit(0 if d.get('conceal_developer_options') and d.get('conceal_developer_options_field_verified') else 1)
+    raise SystemExit(0 if d.get('conceal_developer_options') and d.get('developer_master_off_wireless_adb_on_field_verified') else 1)
 except Exception:
     raise SystemExit(1)
 PY
@@ -120,7 +124,8 @@ if [[ ! -f "$CFG" ]]; then
   "public_github_command_relay": false,
   "legacy_public_relay_installed": false,
   "conceal_developer_options": false,
-  "conceal_developer_options_field_verified": false
+  "conceal_developer_options_field_verified": false,
+  "developer_master_off_wireless_adb_on_field_verified": false
 }
 JSON
   chmod 600 "$CFG"
