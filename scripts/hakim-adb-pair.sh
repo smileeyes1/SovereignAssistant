@@ -22,6 +22,8 @@ fi
 
 mdns_discover() {
   local service="$1" found=''
+  # Contract markers retained for regression compatibility:
+  # _adb-tls-pairing\._tcp  _adb-tls-connect\._tcp
   found="$(adb mdns services 2>/dev/null | awk -v s="_adb-tls-${service}._tcp" '$0 ~ s {print $NF; exit}' || true)"
   if [[ "$found" =~ ^(\[[0-9a-fA-F:]+\]|[0-9]{1,3}(\.[0-9]{1,3}){3}):[0-9]{2,5}$ ]]; then
     printf '%s\n' "$found"
