@@ -16,6 +16,15 @@ def policy():
     return json.loads((ROOT / "governance/HAKIM_CONTINUITY_SHIELD.json").read_text(encoding="utf-8"))
 
 
+def prepare_minimal_root(root: Path):
+    governance = root / "governance"
+    governance.mkdir(parents=True, exist_ok=True)
+    (governance / "HAKIM_ACTIVE_STATE.json").write_text(
+        json.dumps({"proven_success": [], "promotion_lineage": {}, "promotion_evidence": {}}),
+        encoding="utf-8",
+    )
+
+
 def test_current_tree_satisfies_static_continuity_contract():
     assert shield.static_violations(ROOT, policy()) == []
 
@@ -86,6 +95,7 @@ def test_android_manifest_parser_ignores_comments_but_sees_registered_services()
 
 
 def test_sensitive_service_exception_is_exact_and_fail_closed(tmp_path):
+    prepare_minimal_root(tmp_path)
     manifest = tmp_path / "AndroidManifest.xml"
     manifest.write_text(
         '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application>'''
@@ -123,6 +133,7 @@ def test_sensitive_service_exception_is_exact_and_fail_closed(tmp_path):
 
 
 def test_sensitive_service_exception_requires_exact_bind_permission(tmp_path):
+    prepare_minimal_root(tmp_path)
     manifest = tmp_path / "AndroidManifest.xml"
     manifest.write_text(
         '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application>'''
