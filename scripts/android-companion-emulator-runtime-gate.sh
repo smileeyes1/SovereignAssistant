@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# POSIX-compatible Android 15 emulator qualification for the safe browser core.
+# POSIX-compatible Android 15 emulator qualification for Hakim safe core + locally user-authorized device layer.
 # Pre-field evidence only; never qualifies the physical TECNO/HiOS device.
 set -eu
 
@@ -41,9 +41,9 @@ status=$(cat /tmp/hakim-status.json)
 require_json "$status" '"evidence_state":"NOT_PROVEN"' 'status semantics'
 require_json "$status" '"loopback_only":true' 'status semantics'
 require_json "$status" '"safe_core":true' 'safe core semantics'
-require_json "$status" '"control_scope":"OWNED_BROWSER_ONLY"' 'safe core scope'
-require_json "$status" '"device_wide_accessibility":false' 'safe core scope'
-require_json "$status" '"notification_access":false' 'safe core scope'
+require_json "$status" '"control_scope":"OWNED_BROWSER_ONLY"' 'safe core scope before local user enablement'
+require_json "$status" '"device_wide_accessibility":false' 'accessibility must be off by default'
+require_json "$status" '"notification_access":false' 'notification access must be off by default'
 require_json "$status" '"control_server_listening":true' 'status semantics'
 require_json "$status" '"persistent_model":null' 'status semantics'
 require_json "$status" '"persistent_model_evidence":"NOT_PROVEN"' 'status semantics'
@@ -56,15 +56,19 @@ printf '%s\n' "$listen" | grep -E '127\.0\.0\.1|\[::1\]|::1' >/dev/null || { ech
 if printf '%s\n' "$listen" | grep -E '0\.0\.0\.0|\[::\]:|:::47651' >/dev/null; then echo 'Companion control plane is wildcard-bound' >&2; exit 1; fi
 echo 'STAGE_KERNEL_LOOPBACK=PROVEN'
 
-# The safe core must not expose device-wide sensitive services in package metadata.
-if adb shell dumpsys package "$PKG" | grep -E 'HakimAccessibilityService|HakimNotificationListener' >/dev/null; then
-  echo 'Sensitive device-wide service unexpectedly registered in safe core' >&2
-  exit 1
-fi
-echo 'STAGE_SENSITIVE_SERVICES_ABSENT=PROVEN'
+# Sensitive services must be registered exactly, yet remain inactive until Android-local user enablement.
+pkg_dump=$(adb shell dumpsys package "$PKG")
+printf '%s\n' "$pkg_dump" | grep -F 'HakimAccessibilityService' >/dev/null || { echo 'HakimAccessibilityService not registered' >&2; exit 1; }
+printf '%s\n' "$pkg_dump" | grep -F 'HakimNotificationListener' >/dev/null || { echo 'HakimNotificationListener not registered' >&2; exit 1; }
+code=$(curl -sS -o /tmp/hakim-device-ui-disabled.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/device/ui")
+[ "$code" = '409' ] || fail_http 'device UI before user accessibility enablement' 409 "$code" /tmp/hakim-device-ui-disabled.json
+grep -F '"error":"accessibility_unavailable"' /tmp/hakim-device-ui-disabled.json >/dev/null
+code=$(curl -sS -o /tmp/hakim-notifications-disabled.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/notifications")
+[ "$code" = '409' ] || fail_http 'notifications before local user enablement' 409 "$code" /tmp/hakim-notifications-disabled.json
+grep -F '"error":"notification_access_unavailable"' /tmp/hakim-notifications-disabled.json >/dev/null
+echo 'STAGE_SENSITIVE_SERVICES_REGISTERED_DISABLED=PROVEN'
 
-# Owned browser is attached even before navigation. Compatibility UI endpoint must
-# resolve to the owned browser rather than device-wide Accessibility.
+# Owned browser is attached even before navigation. Compatibility endpoint remains browser-only.
 code=$(curl -sS -o /tmp/hakim-ui-initial.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/ui")
 [ "$code" = '200' ] || fail_http 'owned browser UI endpoint' 200 "$code" /tmp/hakim-ui-initial.json
 grep -F '"scope":"OWNED_BROWSER_ONLY"' /tmp/hakim-ui-initial.json >/dev/null || { cat /tmp/hakim-ui-initial.json >&2; exit 1; }
@@ -107,12 +111,6 @@ code=$(curl -sS -o /tmp/hakim-reload-replay.json -w '%{http_code}' -H "$AUTH" -H
 grep -F '"error":"duplicate_request"' /tmp/hakim-reload-replay.json >/dev/null
 echo 'STAGE_OWNED_BROWSER_ACTION_IDEMPOTENCY=PROVEN'
 
-# Notification data is intentionally unavailable in the safe core.
-code=$(curl -sS -o /tmp/hakim-notifications-disabled.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/notifications")
-[ "$code" = '410' ] || fail_http 'safe-core notifications disabled' 410 "$code" /tmp/hakim-notifications-disabled.json
-grep -F '"error":"disabled_in_safe_core"' /tmp/hakim-notifications-disabled.json >/dev/null
-echo 'STAGE_NOTIFICATION_ACCESS_ABSENT=PROVEN'
-
 # Bounded launch remains request-ID protected.
 code=$(curl -sS -o /tmp/hakim-launch-missing-id.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' -d "{\"package\":\"${PKG}\"}" "${BASE_URL}/v1/launch")
 [ "$code" = '400' ] || fail_http 'bounded launch missing request identity' 400 "$code" /tmp/hakim-launch-missing-id.json
@@ -136,8 +134,7 @@ grep -F '"error":"duplicate_request"' /tmp/hakim-launch-replay.json >/dev/null
 echo 'STAGE_PROCESS_RECOVERY_AND_REPLAY_LEDGER=PROVEN'
 if adb shell ps -A | grep -E 'llama-server|llama\.cpp'; then echo 'Unexpected resident local-model process' >&2; exit 1; fi
 
-# Reboot recovery is readiness-driven: Android can report boot_completed before
-# ActivityManager/PackageManager is fully ready to launch a third-party activity.
+# Reboot recovery is readiness-driven.
 adb reboot
 adb wait-for-device
 boot=''; i=0
@@ -176,12 +173,14 @@ until curl -fsS -H "$AUTH" "${BASE_URL}/v1/status" >/tmp/hakim-status-after-rebo
 done
 reboot_status=$(cat /tmp/hakim-status-after-reboot.json)
 require_json "$reboot_status" '"safe_core":true' 'post-reboot safe core'
-require_json "$reboot_status" '"control_scope":"OWNED_BROWSER_ONLY"' 'post-reboot safe core'
+require_json "$reboot_status" '"control_scope":"OWNED_BROWSER_ONLY"' 'post-reboot before local user enablement'
+require_json "$reboot_status" '"device_wide_accessibility":false' 'post-reboot local enablement must not appear automatically'
+require_json "$reboot_status" '"notification_access":false' 'post-reboot notification enablement must not appear automatically'
 require_json "$reboot_status" '"persistent_model_allowed":false' 'post-reboot model policy'
 echo 'STAGE_POST_REBOOT_AUTHENTICATED_CONTROL=PROVEN'
 
-echo 'EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY'
-echo 'EMULATOR_ACCESSIBILITY_PERMISSION=NOT_REGISTERED_SAFE_CORE'
+echo 'EMULATOR_NOTIFICATION_PERMISSION=REGISTERED_USER_ENABLEMENT_REQUIRED'
+echo 'EMULATOR_ACCESSIBILITY_PERMISSION=REGISTERED_USER_ENABLEMENT_REQUIRED'
 echo 'EMULATOR_PAIRING=SCAFFOLD_ONLY'
 echo 'EMULATOR_AUTH_FAIL_CLOSED=PROVEN'
 echo 'EMULATOR_LOOPBACK_BINDING=PROVEN'
