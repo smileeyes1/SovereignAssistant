@@ -23,7 +23,15 @@ def test_bootstrap_uses_ff_only_update_and_never_resets_user_repo():
 def test_bootstrap_reuses_existing_pairing_before_interactive_fallback():
     t = s()
     assert 'TARGET="$(wait_online 20 || true)"' in t
-    assert "exec \"$ROOT/scripts/bootstrap-hakim-termux-adb.sh\"" in t
+    assert 'exec bash "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"' in t
+
+
+def test_bootstrap_repairs_script_permissions_and_has_bash_fallback():
+    t = s()
+    assert 'chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"' in t
+    assert '"$ROOT/scripts/hakim-zero-burden-bootstrap.sh"' in t
+    assert 'exec bash "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"' in t
+    assert 'exec bash "$HOME/.omega/hakim-live-src/scripts/hakim-zero-burden-bootstrap.sh"' in t
 
 
 def test_bootstrap_runs_reconnect_regression():
