@@ -1,10 +1,12 @@
 package org.hakim.omega.companion
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import org.json.JSONArray
@@ -18,29 +20,65 @@ import java.util.concurrent.TimeUnit
 object HakimBrowserController {
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var ref: WeakReference<WebView>? = null
+    @Volatile private var appContext: Context? = null
 
-    fun attach(webView: WebView) {
+    private class GovernanceBridge(private val context: Context) {
+        @JavascriptInterface
+        fun prepare(text: String?, pageUrl: String?): String {
+            val raw = text.orEmpty()
+            val governed = HakimAiGovernance.prepare(context, raw, pageUrl)
+            return HakimWisdomLayer.enrich(governed, raw)
+        }
+
+        @JavascriptInterface
+        fun isSupported(pageUrl: String?): Boolean = HakimAiGovernance.isSupportedUrl(pageUrl)
+
+        @JavascriptInterface
+        fun version(): String = HakimAiGovernance.VERSION
+    }
+
+    fun attach(context: Context, webView: WebView) {
         ref = WeakReference(webView)
+        appContext = context.applicationContext
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            databaseEnabled = true
             allowFileAccess = false
             allowContentAccess = false
             setSupportMultipleWindows(false)
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
         if (android.os.Build.VERSION.SDK_INT >= 26) webView.settings.safeBrowsingEnabled = true
+        webView.addJavascriptInterface(GovernanceBridge(context.applicationContext), "HakimNative")
     }
 
-    fun detach(webView: WebView) { if (ref?.get() === webView) ref = null }
+    fun detach(webView: WebView) {
+        if (ref?.get() === webView) {
+            runCatching { webView.removeJavascriptInterface("HakimNative") }
+            ref = null
+            appContext = null
+        }
+    }
+
     fun isAttached(): Boolean = ref?.get() != null
     fun currentUrl(): String? = onMain<String?>(null) { it.url }
     fun currentTitle(): String? = onMain<String?>(null) { it.title }
+    fun governanceStatus(): String = appContext?.let { HakimAiGovernance.status(it) } ?: "حوكمة الذكاء: غير متصلة"
+
+    fun installGovernanceHooks(): Boolean = onMain(false) { webView ->
+        val url = webView.url
+        if (!HakimAiGovernance.isSupportedUrl(url)) return@onMain false
+        webView.evaluateJavascript(GOVERNANCE_HOOK_JS, null)
+        true
+    }
 
     fun openUrl(raw: String): Boolean {
         val url = normalizeUrl(raw) ?: return false
         return onMain(false) { it.loadUrl(url); true }
     }
+
+    fun openChatGpt(): Boolean = openUrl("https://chatgpt.com/")
 
     fun action(obj: JSONObject): Boolean = when (obj.optString("action")) {
         "browser_open", "open_url" -> openUrl(obj.optString("url"))
@@ -75,11 +113,16 @@ object HakimBrowserController {
         .put("attached", isAttached())
         .put("url", currentUrl() ?: JSONObject.NULL)
         .put("title", currentTitle() ?: JSONObject.NULL)
-        .put("mode", "OWNED_BROWSER")
+        .put("mode", "OWNED_BROWSER_GOVERNED_AI")
+        .put("governance_version", HakimAiGovernance.VERSION)
 
-    fun screenshotBase64(): String? = onMain<String?>(null, 4_000L) { w ->
-        if (w.width <= 0 || w.height <= 0) return@onMain null
-        val bmp = Bitmap.createBitmap(w.width, w.height, Bitmap.Config.ARGB_8888)
+    fun screenshotBase64(): String? = onMain<String?>(null, 5_000L) { w ->
+        val dm = w.resources.displayMetrics
+        val width = sequenceOf(w.width, w.measuredWidth, dm.widthPixels)
+            .firstOrNull { it > 0 } ?: return@onMain null
+        val height = sequenceOf(w.height, w.measuredHeight, dm.heightPixels / 2)
+            .firstOrNull { it > 0 } ?: return@onMain null
+        val bmp = Bitmap.createBitmap(width.coerceAtMost(4096), height.coerceAtMost(4096), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         w.draw(canvas)
         val out = ByteArrayOutputStream()
@@ -101,12 +144,12 @@ object HakimBrowserController {
     }
 
     private fun setText(id: String, hint: String, value: String): Boolean {
-        if (value.length > 10_000 || id.length > 500 || hint.length > 500) return false
+        if (value.length > 50_000 || id.length > 500 || hint.length > 500) return false
         val i = JSONObject.quote(id); val h = JSONObject.quote(hint); val v = JSONObject.quote(value)
         return evalBoolean("""
             (function(){const id=$i,h=$h,v=$v;let e=id?document.getElementById(id):null;
             if(!e&&h){e=[...document.querySelectorAll('input,textarea,[contenteditable="true"]')].find(x=>String(x.getAttribute('placeholder')||x.getAttribute('aria-label')||x.getAttribute('name')||x.innerText||'').includes(h));}
-            if(!e)return false;e.focus();if('value' in e){const p=Object.getPrototypeOf(e);const d=p?Object.getOwnPropertyDescriptor(p,'value'):null;if(d&&d.set)d.set.call(e,v);else e.value=v;}else{e.textContent=v;}e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()
+            if(!e)return false;e.focus();if('value' in e){const p=Object.getPrototypeOf(e);const d=p?Object.getOwnPropertyDescriptor(p,'value'):null;if(d&&d.set)d.set.call(e,v);else e.value=v;}else{e.textContent=v;}e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:v}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;})()
         """.trimIndent())
     }
 
@@ -153,4 +196,57 @@ object HakimBrowserController {
         latch.await(timeoutMs, TimeUnit.MILLISECONDS)
         return out
     }
+
+    private const val GOVERNANCE_HOOK_JS = """
+(function(){
+  try {
+    if (!window.HakimNative || !HakimNative.isSupported(String(location.href))) return false;
+    if (window.__hakimGovernanceInstalled === '1.0.0') return true;
+    window.__hakimGovernanceInstalled = '1.0.0';
+    const marker='[[HAKIM::GOVERNED::v1]]';
+    function editor(){
+      const a=document.activeElement;
+      if(a && (a.tagName==='TEXTAREA' || a.getAttribute('contenteditable')==='true')) return a;
+      return document.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+    }
+    function getText(e){
+      if(!e) return '';
+      if('value' in e) return String(e.value||'');
+      return String(e.innerText||e.textContent||'');
+    }
+    function setText(e,v){
+      if(!e) return false;
+      e.focus();
+      if('value' in e){
+        let p=e; let d=null;
+        while(p && !d){ p=Object.getPrototypeOf(p); if(p)d=Object.getOwnPropertyDescriptor(p,'value'); }
+        if(d && d.set)d.set.call(e,v); else e.value=v;
+      } else {
+        e.textContent=v;
+      }
+      e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:v}));
+      e.dispatchEvent(new Event('change',{bubbles:true}));
+      return true;
+    }
+    function govern(){
+      const e=editor(); const raw=getText(e).trim();
+      if(!raw || raw.startsWith(marker)) return false;
+      const wrapped=String(HakimNative.prepare(raw,String(location.href))||'');
+      if(!wrapped || wrapped===raw) return false;
+      return setText(e,wrapped);
+    }
+    document.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter' && !ev.shiftKey && !ev.ctrlKey && !ev.altKey && !ev.metaKey) govern();
+    },true);
+    document.addEventListener('click',function(ev){
+      let n=ev.target;
+      for(let i=0;n&&i<5;i++,n=n.parentElement){
+        const t=String((n.innerText||'')+' '+(n.getAttribute?.('aria-label')||'')+' '+(n.getAttribute?.('data-testid')||'')).toLowerCase();
+        if(/send|submit|إرسال|ارسال|prompt-submit|composer-submit/.test(t)){ govern(); break; }
+      }
+    },true);
+    return true;
+  } catch(e) { return false; }
+})()
+"""
 }
