@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = CanonicalHakimIdentity.DISPLAY_NAME_AR; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك.\nالتحكم الأوسع لا يُدّعى قبل التأهيل الميداني الحقيقي؛ تفعيل الخدمة محليًا لا يساوي FIELD_VERIFIED."
+            text = "حكيم الأصلي — متصفح ذكاء محكوم محليًا. عند استخدام ChatGPT والمنصات المدعومة تمر الرسالة قبل الإرسال عبر عقد حكيم المحلي؛ مع بقاء تعليمات المنصة والسلامة أعلى دائمًا.\nالتحكم الأوسع لا يُدّعى قبل التأهيل الميداني الحقيقي."
             textSize = 14f
         })
 
@@ -126,6 +126,7 @@ class MainActivity : Activity() {
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        nav.addView(button("ChatGPT عبر حكيم") { HakimBrowserController.openChatGpt(); refreshStatus() })
         nav.addView(button("فتح") { HakimBrowserController.openUrl(address.text.toString()); refreshStatus() })
         nav.addView(button("رجوع") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_back")) })
         nav.addView(button("تحديث") { HakimBrowserController.action(org.json.JSONObject().put("action", "browser_reload")) })
@@ -163,14 +164,16 @@ class MainActivity : Activity() {
                 }
                 override fun onPageFinished(view: WebView, url: String) {
                     address.setText(url)
+                    HakimBrowserController.installGovernanceHooks()
                     refreshStatus()
                 }
             }
         }
-        HakimBrowserController.attach(browser)
+        HakimBrowserController.attach(this, browser)
         root.addView(browser, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
         refreshStatus()
+        HakimBrowserController.openChatGpt()
     }
 
     private fun button(label: String, block: () -> Unit) = Button(this).apply {
@@ -213,7 +216,8 @@ class MainActivity : Activity() {
         status.text = "الهوية: ${CanonicalHakimIdentity.INSTANCE_ID}\n" +
             "الدور: الواجهة المثبتة لحكيم الأصلي — ليست حكيمًا ثانيًا\n" +
             "مصدر الحقيقة: ${CanonicalHakimIdentity.RUNTIME_REPOSITORY} / ${CanonicalHakimIdentity.ACTIVE_POINTER}\n" +
-            "النمط: نواة آمنة مستقلة — بلا API مدفوع وبلا تطبيق وسيط للاقتران\n" +
+            "النمط: نواة آمنة مستقلة — بلا API مدفوع\n" +
+            "${HakimBrowserController.governanceStatus()}\n" +
             "$localAdb\n" +
             "التحكم على مستوى الجهاز: ${if (accessibilityConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +
             "وصول إشعارات التطبيقات: ${if (notificationConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +
