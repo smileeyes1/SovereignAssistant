@@ -53,4 +53,4 @@ def test_chatgpt_is_default_governed_entry_and_identity_is_preserved():
     assert "HakimBrowserController.installGovernanceHooks()" in m
     assert "HakimBrowserController.openChatGpt()" in m
     assert "versionCode = 20018" in g
-    assert 'versionName = "0.6.0-governed-ai-browser-pre-field"' in g
+    assert 'versionName = "0.5.0-canonical-phone-interface-native-adb"' in g
