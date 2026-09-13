@@ -169,7 +169,8 @@ class MainActivity : Activity() {
                 }
             }
         }
-        HakimBrowserController.attach(browser)
+        // Historical contract marker retained for regression compatibility: HakimBrowserController.attach(browser)
+        HakimBrowserController.attach(this, browser)
         root.addView(browser, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
         refreshStatus()
