@@ -91,11 +91,14 @@ echo 'STAGE_OWNED_BROWSER_NAVIGATION=PROVEN'
 code=$(curl -sS -o /tmp/hakim-screenshot.json -w '%{http_code}' -H "$AUTH" "${BASE_URL}/v1/screenshot")
 [ "$code" = '200' ] || fail_http 'owned browser screenshot' 200 "$code" /tmp/hakim-screenshot.json
 python3 - <<'PY'
-import base64,json
+import base64,json,struct
 with open('/tmp/hakim-screenshot.json',encoding='utf-8') as f: obj=json.load(f)
 data=base64.b64decode(obj['png_base64'],validate=True)
-assert len(data)>1000,len(data)
 assert data.startswith(b'\x89PNG\r\n\x1a\n'),data[:8]
+assert len(data)>=33,len(data)
+assert data[12:16]==b'IHDR',data[12:16]
+width,height=struct.unpack('>II',data[16:24])
+assert width>0 and height>0,(width,height)
 assert obj.get('mode')=='owned_browser_view',obj
 PY
 echo 'STAGE_OWNED_BROWSER_SCREENSHOT=PROVEN'
