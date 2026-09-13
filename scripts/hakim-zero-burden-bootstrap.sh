@@ -12,8 +12,9 @@ OMEGA="$HOME_DIR/.omega"
 BIN="$OMEGA/bin"
 CFG="$OMEGA/hakim-termux-adb.json"
 SUP="$BIN/hakim-multibridge-supervisor"
-mkdir -p "$OMEGA" "$BIN"
-chmod 700 "$OMEGA" "$BIN"
+BOOT_DIR="$HOME_DIR/.termux/boot"
+mkdir -p "$OMEGA" "$BIN" "$BOOT_DIR"
+chmod 700 "$OMEGA" "$BIN" "$BOOT_DIR"
 
 pkg install -y git python android-tools tmux curl >/dev/null
 
@@ -38,6 +39,52 @@ ln -sfn "$BIN/hakim-adb-pair" "$PREFIX/bin/hakim-adb-pair"
 ln -sfn "$BIN/hakim-control-window" "$PREFIX/bin/hakim-control-window"
 ln -sfn "$BIN/hakim-control-window" "$PREFIX/bin/hakim-control-on"
 ln -sfn "$BIN/hakim-bridges-status" "$PREFIX/bin/hakim-bridges-status"
+ln -sfn "$ROOT/scripts/hakim-zero-burden-bootstrap.sh" "$PREFIX/bin/hakim-bootstrap"
+
+# One stable local entry point. It never broadens authority: status is read-only,
+# recover only restarts the local supervisor, and update runs the qualified
+# bootstrap path with its own regression gates.
+cat > "$BIN/hakim" <<'SH'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+OMEGA="$HOME/.omega"
+SUP="$OMEGA/bin/hakim-multibridge-supervisor"
+case "${1:-status}" in
+  status)
+    exec hakim-bridges-status
+    ;;
+  recover)
+    tmux kill-session -t hakim-relay-worker 2>/dev/null || true
+    tmux kill-session -t hakim-multibridge-supervisor 2>/dev/null || true
+    tmux new-session -d -s hakim-multibridge-supervisor "$SUP"
+    sleep 2
+    exec hakim-bridges-status
+    ;;
+  update)
+    exec hakim-bootstrap
+    ;;
+  *)
+    echo 'الاستخدام: hakim [status|recover|update]'
+    exit 2
+    ;;
+esac
+SH
+chmod 700 "$BIN/hakim"
+ln -sfn "$BIN/hakim" "$PREFIX/bin/hakim"
+
+# Reboot recovery is prepared once. Android still controls whether the optional
+# Termux:Boot companion is installed/allowed; absence of it never weakens the
+# foreground runtime and is not reported as a PASS.
+cat > "$BOOT_DIR/99-hakim-multibridge" <<'SH'
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock >/dev/null 2>&1 || true
+sleep 8
+SUP="$HOME/.omega/bin/hakim-multibridge-supervisor"
+[ -x "$SUP" ] || exit 0
+tmux has-session -t hakim-multibridge-supervisor 2>/dev/null || \
+  tmux new-session -d -s hakim-multibridge-supervisor "$SUP"
+SH
+chmod 700 "$BOOT_DIR/99-hakim-multibridge"
 
 # Ensure a config exists without overwriting any established result URL/target.
 if [[ ! -f "$CFG" ]]; then
