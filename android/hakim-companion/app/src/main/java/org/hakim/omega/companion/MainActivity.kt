@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = CanonicalHakimIdentity.DISPLAY_NAME_AR; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك."
+            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك.\nالتحكم الأوسع لا يُدّعى قبل التأهيل الميداني الحقيقي؛ تفعيل الخدمة محليًا لا يساوي FIELD_VERIFIED."
             textSize = 14f
         })
 
