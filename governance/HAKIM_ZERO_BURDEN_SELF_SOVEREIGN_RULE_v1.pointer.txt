@@ -1,0 +1,4 @@
+ACTIVE_ADDITIVE_RULE=governance/HAKIM_ZERO_BURDEN_SELF_SOVEREIGN_RULE_v1.md
+TEST=tests/test_hakim_zero_burden_self_sovereign_rule_v1.py
+MANIFEST=governance/HAKIM_ZERO_BURDEN_SELF_SOVEREIGN_RULE_v1.manifest.json
+RELEASE=governance/HAKIM_ZERO_BURDEN_SELF_SOVEREIGN_RULE_v1.release.txt
