@@ -8,6 +8,10 @@ LOG="$OMEGA/hakim-multibridge-supervisor.log"
 LAST_REPORT="$OMEGA/hakim-supervisor-last-report"
 INTERVAL="${HAKIM_SUPERVISOR_INTERVAL:-20}"
 LEGACY_PUBLIC_WORKER_SESSION="hakim-relay-worker"
+LOCAL_DEV_GUARD="$OMEGA/bin/hakim-dev-mode-guardian.sh"
+REMOTE_DEV_GUARD="/data/local/tmp/hakim-dev-mode-guardian.sh"
+REMOTE_DEV_FLAG="/data/local/tmp/hakim-dev-mode-guardian.enabled"
+REMOTE_DEV_PID="/data/local/tmp/hakim-dev-mode-guardian.pid"
 
 mkdir -p "$OMEGA"
 chmod 700 "$OMEGA"
@@ -25,6 +29,18 @@ try:
     print(v if isinstance(v,str) else '')
 except Exception:
     print('')
+PY
+}
+
+read_config_bool() {
+  local field="$1"
+  python - "$CONFIG" "$field" <<'PY' 2>/dev/null
+import json,sys
+try:
+    d=json.load(open(sys.argv[1],encoding='utf-8'))
+    print('1' if d.get(sys.argv[2]) is True else '0')
+except Exception:
+    print('0')
 PY
 }
 
@@ -57,6 +73,29 @@ adb_online() {
 
 discover_target_mdns() {
   adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}'
+}
+
+ensure_dev_guardian() {
+  local target="$1" p
+  [ "$(read_config_bool developer_master_off_wireless_adb_on_field_verified)" = 1 ] || return 0
+  [ -f "$LOCAL_DEV_GUARD" ] || { log 'dev_guardian_local_source_missing'; return 0; }
+  adb_online "$target" || return 0
+
+  if ! adb -s "$target" shell "[ -x '$REMOTE_DEV_GUARD' ]" >/dev/null 2>&1; then
+    adb -s "$target" push "$LOCAL_DEV_GUARD" "$REMOTE_DEV_GUARD" >/dev/null 2>&1 || { log 'dev_guardian_push_failed'; return 0; }
+    adb -s "$target" shell chmod 700 "$REMOTE_DEV_GUARD" >/dev/null 2>&1 || true
+  fi
+
+  adb -s "$target" shell touch "$REMOTE_DEV_FLAG" >/dev/null 2>&1 || true
+  if ! adb -s "$target" shell "p=\$(cat '$REMOTE_DEV_PID' 2>/dev/null); [ -n \"\$p\" ] && kill -0 \"\$p\" 2>/dev/null" >/dev/null 2>&1; then
+    adb -s "$target" shell "rm -f '$REMOTE_DEV_PID'; if command -v nohup >/dev/null 2>&1; then nohup sh '$REMOTE_DEV_GUARD' >/dev/null 2>&1 </dev/null & else sh '$REMOTE_DEV_GUARD' >/dev/null 2>&1 </dev/null & fi" >/dev/null 2>&1 || true
+    sleep 1
+    if adb -s "$target" shell "p=\$(cat '$REMOTE_DEV_PID' 2>/dev/null); [ -n \"\$p\" ] && kill -0 \"\$p\" 2>/dev/null" >/dev/null 2>&1; then
+      log 'dev_guardian_restarted'
+    else
+      log 'dev_guardian_restart_failed'
+    fi
+  fi
 }
 
 # Result telemetry is OUTBOUND ONLY. It carries no pairing code, password,
@@ -164,6 +203,7 @@ while true; do
   # to resurrect the retired public worker.
   stop_legacy_public_worker
   if adb_online "$target"; then
+    ensure_dev_guardian "$target"
     write_state "$target" 'device' "$action"
     post_transition_result "$target" 'device' "$action"
   else
