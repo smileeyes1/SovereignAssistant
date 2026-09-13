@@ -27,6 +27,13 @@ def test_missing_owned_browser_fails_closed():
 
 
 def test_device_wide_home_exception_is_not_present_in_safe_core():
+    # الاسم التاريخي محفوظ: home ليس استثناءً يهرب من الحماية؛ كل أفعال الجهاز
+    # تمر من endpoint واحد بنفس الهوية والـidempotency والوضع المالي الآمن.
     s = source()
     assert 'action != "home"' not in s
-    assert 'HakimAccessibilityService' not in s
+    assert 'path == "/v1/device/action"' in s
+    assert 'HakimAccessibilityService.instance' in s
+    assert 'FinancialSafeMode.isEnabled(context)' in s
+    assert 'headers["x-hakim-request-id"]' in s
+    assert '!claimRequest("device:$requestId")' in s
+    assert 'service.action(JSONObject(body))' in s
