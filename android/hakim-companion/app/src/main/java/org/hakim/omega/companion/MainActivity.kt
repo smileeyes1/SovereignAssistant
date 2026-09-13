@@ -169,7 +169,7 @@ class MainActivity : Activity() {
                 }
             }
         }
-        HakimBrowserController.attach(this, browser)
+        HakimBrowserController.attach(browser)
         root.addView(browser, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
         refreshStatus()
