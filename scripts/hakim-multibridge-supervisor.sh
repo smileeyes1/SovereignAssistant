@@ -5,6 +5,7 @@ OMEGA="$HOME/.omega"
 CONFIG="$OMEGA/hakim-termux-adb.json"
 STATE="$OMEGA/hakim-multibridge-state.json"
 LOG="$OMEGA/hakim-multibridge-supervisor.log"
+LAST_REPORT="$OMEGA/hakim-supervisor-last-report"
 INTERVAL="${HAKIM_SUPERVISOR_INTERVAL:-20}"
 LEGACY_PUBLIC_WORKER_SESSION="hakim-relay-worker"
 
@@ -14,16 +15,21 @@ chmod 700 "$OMEGA"
 stamp() { date '+%Y-%m-%dT%H:%M:%S%z'; }
 log() { printf '%s %s\n' "$(stamp)" "$*" >> "$LOG"; }
 
-read_target() {
-  python - "$CONFIG" <<'PY' 2>/dev/null
+read_config_field() {
+  local field="$1"
+  python - "$CONFIG" "$field" <<'PY' 2>/dev/null
 import json,sys
 try:
     d=json.load(open(sys.argv[1],encoding='utf-8'))
-    print(d.get('adb_target',''))
+    v=d.get(sys.argv[2],'')
+    print(v if isinstance(v,str) else '')
 except Exception:
     print('')
 PY
 }
+
+read_target() { read_config_field adb_target; }
+read_result_url() { read_config_field result_url; }
 
 write_target() {
   python - "$CONFIG" "$1" <<'PY'
@@ -49,8 +55,42 @@ adb_online() {
   [ -n "$target" ] && adb -s "$target" get-state 2>/dev/null | grep -qx device
 }
 
-discover_target() {
+discover_target_mdns() {
   adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}'
+}
+
+# Result telemetry is OUTBOUND ONLY. It carries no pairing code, password,
+# token, command, or user content. Failure never blocks local operation.
+post_transition_result() {
+  local target="$1" adb_state="$2" action="$3"
+  local url key previous payload
+  url="$(read_result_url)"
+  [[ "$url" =~ ^https:// ]] || return 0
+  key="$adb_state|$action|$target"
+  previous="$(cat "$LAST_REPORT" 2>/dev/null || true)"
+  [ "$key" = "$previous" ] && return 0
+  payload="$(TARGET="$target" ADB_STATE="$adb_state" LAST_ACTION="$action" python - <<'PY'
+import json,os,time
+now=int(time.time()*1000)
+print(json.dumps({
+  'request_id': f'hakim-supervisor-{now}',
+  'status': 'ok' if os.environ.get('ADB_STATE') == 'device' else 'degraded',
+  'received_at_ms': now,
+  'result': {
+    'source': 'hakim-multibridge-supervisor',
+    'adb': os.environ.get('ADB_STATE','offline'),
+    'action': os.environ.get('LAST_ACTION','none'),
+    'target': os.environ.get('TARGET',''),
+  }
+},separators=(',',':')))
+PY
+)"
+  if curl -fsS -m 5 -H 'Content-Type: application/json' --data-binary "$payload" "$url" >/dev/null 2>&1; then
+    printf '%s' "$key" > "$LAST_REPORT"
+    chmod 600 "$LAST_REPORT" 2>/dev/null || true
+  else
+    log 'result_telemetry_failed'
+  fi
 }
 
 # The historical relay worker consumes a public topic. The current sovereign
@@ -96,14 +136,26 @@ while true; do
   target="$(read_target)"
 
   if ! adb_online "$target"; then
-    found="$(discover_target)"
+    # Highest-value recovery first: retry the last verified endpoint. This
+    # survives adb disconnect / server restart when mDNS discovery is flaky.
+    if [ -n "$target" ]; then
+      adb connect "$target" >/dev/null 2>&1 || true
+      if adb_online "$target"; then
+        action='adb_reconnected_saved_target'
+        log "adb_reconnected_saved target=$target"
+      fi
+    fi
+  fi
+
+  if ! adb_online "$target"; then
+    found="$(discover_target_mdns)"
     if [ -n "$found" ]; then
       adb connect "$found" >/dev/null 2>&1 || true
       if adb_online "$found"; then
         target="$found"
         write_target "$target"
         action='adb_reconnected_via_mdns'
-        log "adb_reconnected target=$target"
+        log "adb_reconnected_mdns target=$target"
       fi
     fi
   fi
@@ -113,8 +165,10 @@ while true; do
   stop_legacy_public_worker
   if adb_online "$target"; then
     write_state "$target" 'device' "$action"
+    post_transition_result "$target" 'device' "$action"
   else
     write_state "$target" 'offline' "$action"
+    post_transition_result "$target" 'offline' "$action"
   fi
 
   sleep "$INTERVAL"
