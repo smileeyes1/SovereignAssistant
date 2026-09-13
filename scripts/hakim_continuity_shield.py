@@ -133,6 +133,54 @@ def manifest_contract(source: str) -> tuple[set[str], set[str]]:
     return permissions, components
 
 
+def manifest_service_permissions(source: str) -> dict[str, str]:
+    try:
+        root = ET.fromstring(source)
+    except ET.ParseError:
+        return {}
+    application = root.find("application")
+    if application is None:
+        return {}
+    result: dict[str, str] = {}
+    for node in application.findall("service"):
+        name = node.attrib.get(f"{ANDROID_NS}name")
+        if not name:
+            continue
+        result[f"service:{name}"] = node.attrib.get(f"{ANDROID_NS}permission", "")
+    return result
+
+
+def approved_sensitive_services(android_policy: dict[str, Any]) -> tuple[dict[tuple[str, str], str], list[Violation]]:
+    approvals: dict[tuple[str, str], str] = {}
+    violations: list[Violation] = []
+    raw = android_policy.get("approved_sensitive_services", [])
+    if not isinstance(raw, list):
+        return {}, [Violation("SENSITIVE_ANDROID_SERVICE_APPROVAL_INVALID", "approved_sensitive_services")]
+    seen: set[tuple[str, str]] = set()
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            violations.append(Violation("SENSITIVE_ANDROID_SERVICE_APPROVAL_INVALID", str(index)))
+            continue
+        token = str(item.get("token", "")).strip()
+        component = str(item.get("component", "")).strip()
+        permission = str(item.get("service_permission", "")).strip()
+        key = (token, component)
+        if (
+            not token
+            or not component.startswith("service:.")
+            or not permission.startswith("android.permission.BIND_")
+            or item.get("requires_local_user_enablement") is not True
+            or item.get("loopback_only") is not True
+            or item.get("financial_safe_mode_gate") is not True
+            or key in seen
+        ):
+            violations.append(Violation("SENSITIVE_ANDROID_SERVICE_APPROVAL_INVALID", component or str(index)))
+            continue
+        seen.add(key)
+        approvals[key] = permission
+    return approvals, violations
+
+
 def static_violations(root: Path, policy: dict[str, Any]) -> list[Violation]:
     violations: list[Violation] = []
     if policy.get("fail_closed") is not True:
@@ -177,17 +225,25 @@ def static_violations(root: Path, policy: dict[str, Any]) -> list[Violation]:
             violations.append(Violation("PROMOTION_LINEAGE_NOT_PRESERVED", promotion_id))
 
     android = policy.get("android_manifest", {})
+    approvals, approval_violations = approved_sensitive_services(android)
+    violations.extend(approval_violations)
     manifest_rel = str(android.get("path", ""))
     manifest_path = root / manifest_rel
     if manifest_path.is_file():
         source = manifest_path.read_text(encoding="utf-8")
         permissions, components = manifest_contract(source)
+        service_permissions = manifest_service_permissions(source)
         for token in android.get("forbidden_tokens", []):
             if token in permissions:
                 violations.append(Violation("FORBIDDEN_ANDROID_PERMISSION", token))
         for token in android.get("forbidden_service_tokens", []):
-            if any(token in component for component in components):
-                violations.append(Violation("FORBIDDEN_ANDROID_SERVICE", token))
+            for component in components:
+                if token not in component:
+                    continue
+                required_permission = approvals.get((str(token), component))
+                if required_permission and service_permissions.get(component) == required_permission:
+                    continue
+                violations.append(Violation("FORBIDDEN_ANDROID_SERVICE", component, f"token={token}"))
 
     for index, record in enumerate(transition_records(policy)):
         if not valid_transition(record, root):
