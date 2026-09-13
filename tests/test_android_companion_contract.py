@@ -17,14 +17,19 @@ def test_companion_is_loopback_and_token_gated():
 
 
 def test_control_service_is_not_exported_and_safe_core_omits_sensitive_bindings():
+    # الاسم التاريخي محفوظ؛ خدمات الجهاز الحساسة أصبحت مسجلة حصراً بصلاحيات BIND
+    # النظامية، ولا يمكن للتطبيق منحها لنفسه أو جعل خادم التحكم عامًا.
     m = text("android/hakim-companion/app/src/main/AndroidManifest.xml")
     assert 'android:name=".HakimForegroundService"' in m
     service_block = m.split('android:name=".HakimForegroundService"', 1)[1].split("</service>", 1)[0]
     assert 'android:exported="false"' in service_block
-    assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in m
-    assert "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" not in m
-    assert ".HakimAccessibilityService" not in m
-    assert ".HakimNotificationListener" not in m
+    assert 'android:name=".HakimAccessibilityService"' in m
+    assert 'android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"' in m
+    assert 'android:name=".HakimNotificationListener"' in m
+    assert 'android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"' in m
+    assert "android.permission.WRITE_SECURE_SETTINGS" not in m
+    assert "android.permission.MANAGE_EXTERNAL_STORAGE" not in m
+    assert "android.permission.QUERY_ALL_PACKAGES" not in m
 
 
 def test_low_resource_model_policy_is_preserved():
@@ -60,9 +65,10 @@ def test_status_separates_runtime_health_from_field_evidence():
     assert '.put("persistent_model_evidence", "NOT_PROVEN")' in server
     assert '.put("persistent_model_allowed", false)' in server
     assert '.put("safe_core", true)' in server
-    assert '.put("control_scope", "OWNED_BROWSER_ONLY")' in server
-    assert '.put("device_wide_accessibility", false)' in server
-    assert '.put("notification_access", false)' in server
+    assert 'if (accessibility) "DEVICE_AND_BROWSER" else "OWNED_BROWSER_ONLY"' in server
+    assert '.put("device_wide_accessibility", accessibility)' in server
+    assert '.put("notification_access", notificationAccess)' in server
+    assert '.put("financial_safe_mode", FinancialSafeMode.isEnabled(context))' in server
     assert '.put("status", "PASS")' not in server
     assert '.put("persistent_model", false)' not in server
 
@@ -73,20 +79,28 @@ def test_ui_endpoint_is_owned_browser_only_and_fails_closed_if_browser_missing()
     assert 'browser_unavailable' in server
     assert 'respond(c, 409' in server
     assert 'HakimBrowserController.uiSnapshot()' in server
-    assert 'HakimAccessibilityService' not in server
+    assert '"scope", "OWNED_BROWSER_ONLY"' in server
+    assert 'path == "/v1/device/ui"' in server
+    assert 'HakimAccessibilityService.instance' in server
 
 
 def test_notification_endpoint_is_explicitly_disabled_in_safe_core():
+    # الاسم التاريخي محفوظ؛ endpoint لا يعيد بيانات إلا بعد منح الوصول محليًا،
+    # ويظل محجوبًا كليًا في الوضع المالي الآمن.
     server = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/LocalControlServer.kt")
     assert 'path == "/v1/notifications"' in server
-    assert '"disabled_in_safe_core"' in server
-    assert '"notification_access_not_registered"' in server
-    assert 'HakimNotificationListener' not in server
+    assert '"notification_access_unavailable"' in server
+    assert 'HakimNotificationListener.isConnected()' in server
+    assert 'HakimNotificationListener.snapshot()' in server
+    assert '"DEVICE_NOTIFICATIONS_USER_AUTHORIZED"' in server
+    assert '"financial_safe_mode"' in server
 
 
 def test_legacy_accessibility_implementation_keeps_package_identity_if_used_in_optional_profile():
     service = text("android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimAccessibilityService.kt")
     assert '.put("package", n.packageName?.toString().orEmpty())' in service
+    assert "performGlobalAction" in service
+    assert "dispatchGesture" in service
 
 
 def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field_pass():
@@ -96,8 +110,8 @@ def test_emulator_gate_runs_as_one_posix_process_and_cannot_claim_physical_field
     assert "set -eu" in gate
     assert "pipefail" not in gate
     assert 'pm grant "$PKG" android.permission.POST_NOTIFICATIONS' in gate
-    assert "EMULATOR_NOTIFICATION_PERMISSION=SCAFFOLD_ONLY" in gate
-    assert "EMULATOR_ACCESSIBILITY_PERMISSION=NOT_REGISTERED_SAFE_CORE" in gate
+    assert "EMULATOR_NOTIFICATION_PERMISSION=REGISTERED_USER_ENABLEMENT_REQUIRED" in gate
+    assert "EMULATOR_ACCESSIBILITY_PERMISSION=REGISTERED_USER_ENABLEMENT_REQUIRED" in gate
     assert "EMULATOR_PAIRING=SCAFFOLD_ONLY" in gate
     assert "EMULATOR_RUNTIME=PROVEN" in gate
     assert "PHYSICAL_TECNO_FIELD_QUALIFICATION=NOT_PROVEN" in gate
@@ -121,7 +135,7 @@ def test_emulator_gate_exercises_authenticated_control_plane_and_safe_core_seman
     assert '"control_server_listening":true' in gate
     assert '"persistent_model":null' in gate
     assert '"persistent_model_allowed":false' in gate
-    assert "STAGE_SENSITIVE_SERVICES_ABSENT=PROVEN" in gate
+    assert "STAGE_SENSITIVE_SERVICES_REGISTERED_DISABLED=PROVEN" in gate
     assert "EMULATOR_AUTH_FAIL_CLOSED=PROVEN" in gate
     assert "EMULATOR_STATUS_SEMANTICS=PROVEN" in gate
     assert "EMULATOR_CONTROL_PLANE=PROVEN" in gate
