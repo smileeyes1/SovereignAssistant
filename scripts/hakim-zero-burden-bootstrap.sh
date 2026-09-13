@@ -26,9 +26,14 @@ else
   git -C "$ROOT" pull --ff-only origin main
 fi
 
-for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh; do
+for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh bootstrap-hakim-termux-adb.sh hakim-zero-burden-bootstrap.sh; do
   [[ -f "$ROOT/scripts/$f" ]] || { echo "ERROR: missing scripts/$f" >&2; exit 3; }
 done
+
+# GitHub contents updates may leave shell files without the executable bit.
+# Repair the local checkout explicitly, while still invoking the pairing fallback
+# through bash so a missing mode bit can never block the user again.
+chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh" "$ROOT/scripts/hakim-zero-burden-bootstrap.sh"
 
 cp -f "$ROOT/scripts/hakim-adb-pair.sh" "$BIN/hakim-adb-pair"
 cp -f "$ROOT/scripts/hakim-control-window.sh" "$BIN/hakim-control-window"
@@ -61,7 +66,7 @@ case "${1:-status}" in
     exec hakim-bridges-status
     ;;
   update)
-    exec hakim-bootstrap
+    exec bash "$HOME/.omega/hakim-live-src/scripts/hakim-zero-burden-bootstrap.sh"
     ;;
   *)
     echo 'الاستخدام: hakim [status|recover|update]'
@@ -138,7 +143,7 @@ if [[ -z "$TARGET" ]]; then
   echo 'HAKIM_ZERO_BURDEN=PAIRING_REQUIRED'
   # Android requires a local user act for first pairing. Existing bootstrap
   # already minimizes this to the wireless-debugging screen + one 6-digit code.
-  exec "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"
+  exec bash "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"
 fi
 
 echo "HAKIM_ZERO_BURDEN=CONNECTED TARGET=$TARGET"
