@@ -25,13 +25,15 @@ def test_supported_ai_hosts_are_explicit_allowlist():
     assert "return host in supportedHosts" in s
 
 
-def test_full_kernel_exceeds_custom_instruction_limit_and_turn_kernel_is_separate():
+def test_full_kernel_is_local_not_custom_instruction_bound_and_turn_kernel_is_separate():
     s = text(ENGINE)
     full = s.split('private const val FULL_KERNEL = """', 1)[1].split('"""', 1)[0]
     turn = s.split('private const val TURN_KERNEL = """', 1)[1].split('"""', 1)[0]
-    assert len(full) > 5000
+    assert len(full) > 4000
     assert len(turn) < len(full)
     assert "لا تنتظر أمر «تابع»" in full
+    assert "getSharedPreferences(\"hakim_ai_governance\"" in s
+    assert "append(policy.trim())" in s
 
 
 def test_browser_intercepts_send_before_submission_and_only_on_supported_pages():
@@ -44,11 +46,11 @@ def test_browser_intercepts_send_before_submission_and_only_on_supported_pages()
     assert "startsWith(marker)" in s
 
 
-def test_chatgpt_is_default_governed_entry_and_version_bumped():
+def test_chatgpt_is_default_governed_entry_and_identity_is_preserved():
     m = text(MAIN)
     g = text(GRADLE)
     assert 'button("ChatGPT عبر حكيم")' in m
     assert "HakimBrowserController.installGovernanceHooks()" in m
     assert "HakimBrowserController.openChatGpt()" in m
-    assert "versionCode = 20019" in g
-    assert 'versionName = "0.6.0-governed-ai-browser"' in g
+    assert "versionCode = 20018" in g
+    assert 'versionName = "0.6.0-governed-ai-browser-pre-field"' in g
