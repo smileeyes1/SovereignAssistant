@@ -113,9 +113,16 @@ object HakimBrowserController {
         .put("mode", "OWNED_BROWSER_GOVERNED_AI")
         .put("governance_version", HakimAiGovernance.VERSION)
 
-    fun screenshotBase64(): String? = onMain<String?>(null, 4_000L) { w ->
-        if (w.width <= 0 || w.height <= 0) return@onMain null
-        val bmp = Bitmap.createBitmap(w.width, w.height, Bitmap.Config.ARGB_8888)
+    fun screenshotBase64(): String? = onMain<String?>(null, 5_000L) { w ->
+        // A URL can already be committed while Android is still finishing the first layout pass.
+        // Use the measured/display bounds as a fail-safe so the control plane does not report a
+        // false "screenshot unavailable" merely because width/height have not propagated yet.
+        val dm = w.resources.displayMetrics
+        val width = sequenceOf(w.width, w.measuredWidth, dm.widthPixels)
+            .firstOrNull { it > 0 } ?: return@onMain null
+        val height = sequenceOf(w.height, w.measuredHeight, dm.heightPixels / 2)
+            .firstOrNull { it > 0 } ?: return@onMain null
+        val bmp = Bitmap.createBitmap(width.coerceAtMost(4096), height.coerceAtMost(4096), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         w.draw(canvas)
         val out = ByteArrayOutputStream()
