@@ -1,0 +1,3 @@
+HAKIM_ZERO_BURDEN_SELF_SOVEREIGN_RULE_v1.md
+Load after the existing canonical baseline and before task-specific planning.
+This rule is additive and does not replace a frozen baseline unless separately qualified.
