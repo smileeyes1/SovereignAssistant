@@ -1,0 +1,49 @@
+name: HAKIM Android Safe Install Build
+
+on:
+  push:
+    branches: [hakim-safe-install]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/hakim-companion/**'
+      - 'tests/test_hakim_safe_install.py'
+      - '.github/workflows/android-safe-install.yml'
+  workflow_dispatch:
+
+jobs:
+  safe-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Safe-install contract tests
+        run: python -m pytest -q tests/test_hakim_safe_install.py tests/test_hakim_ai_browser_governance.py
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build safe install APK
+        working-directory: android/hakim-companion
+        run: ./gradlew --no-daemon :app:assembleSafe
+      - name: Locate and hash APK
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=$(find android/hakim-companion/app/build/outputs/apk/safe -type f -name '*.apk' | head -n1)
+          test -n "$apk"
+          cp "$apk" Hakim-Android-Safe-Install.apk
+          sha256sum Hakim-Android-Safe-Install.apk | tee Hakim-Android-Safe-Install.sha256
+      - name: Upload safe install APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hakim-android-safe-install
+          path: |
+            Hakim-Android-Safe-Install.apk
+            Hakim-Android-Safe-Install.sha256
+          if-no-files-found: error
+          retention-days: 30
