@@ -19,7 +19,7 @@ if [[ -n "$RESULT_URL" && ! "$RESULT_URL" =~ ^https:// ]]; then
   echo 'ERROR: result URL must use HTTPS' >&2
   exit 2
 fi
-for f in scripts/hakim-adb-pair.sh scripts/hakim-control-window.sh scripts/hakim-multibridge-supervisor.sh scripts/hakim-bridges-status.sh; do
+for f in scripts/hakim-adb-pair.sh scripts/hakim-control-window.sh scripts/hakim-multibridge-supervisor.sh scripts/hakim-bridges-status.sh scripts/hakim-adb-mdns-discover.py; do
   [ -f "$ROOT/$f" ] || { echo "ERROR: HAKIM source missing: $f" >&2; exit 3; }
 done
 
@@ -30,6 +30,7 @@ cp -f "$ROOT/scripts/hakim-adb-pair.sh" "$OMEGA/bin/hakim-adb-pair"
 cp -f "$ROOT/scripts/hakim-control-window.sh" "$OMEGA/bin/hakim-control-window"
 cp -f "$ROOT/scripts/hakim-multibridge-supervisor.sh" "$OMEGA/bin/hakim-multibridge-supervisor"
 cp -f "$ROOT/scripts/hakim-bridges-status.sh" "$OMEGA/bin/hakim-bridges-status"
+cp -f "$ROOT/scripts/hakim-adb-mdns-discover.py" "$OMEGA/bin/hakim-adb-mdns-discover.py"
 chmod 700 "$OMEGA/bin/"*
 ln -sfn "$OMEGA/bin/hakim-adb-pair" "$PREFIX/bin/hakim-adb-pair"
 ln -sfn "$OMEGA/bin/hakim-control-window" "$PREFIX/bin/hakim-control-window"
@@ -90,28 +91,45 @@ tmux kill-session -t hakim-relay-worker 2>/dev/null || true
 tmux kill-session -t hakim-multibridge-supervisor 2>/dev/null || true
 tmux new-session -d -s hakim-multibridge-supervisor "$OMEGA/bin/hakim-multibridge-supervisor"
 
-sleep 2
-TARGET="$(python - <<'PY'
+read_target() {
+  python - <<'PY'
 import json
 from pathlib import Path
 p=Path.home()/'.omega'/'hakim-termux-adb.json'
 try: print(json.loads(p.read_text()).get('adb_target',''))
 except Exception: print('')
 PY
-)"
-if [ -n "$TARGET" ] && adb -s "$TARGET" get-state 2>/dev/null | grep -qx device; then
-  echo '✅ حكيم متصل ومشرف عليه ذاتيًا عبر التصحيح اللاسلكي المحلي.'
-  hakim-bridges-status
+}
+
+# A non-empty saved target is evidence of an earlier established local path.
+# Its port may be stale because Android rotates Wireless ADB ports. Never turn
+# a stale port into a repeated pairing burden: give the supervisor a bounded
+# recovery window to rediscover the current endpoint with the existing trust.
+PRIOR_TARGET="$(read_target)"
+for _ in $(seq 1 12); do
+  TARGET="$(read_target)"
+  if [ -n "$TARGET" ] && adb -s "$TARGET" get-state 2>/dev/null | grep -qx device; then
+    echo '✅ حكيم متصل ومشرف عليه ذاتيًا عبر التصحيح اللاسلكي المحلي.'
+    hakim-bridges-status
+    exit 0
+  fi
+  sleep 1
+done
+
+if [ -n "$PRIOR_TARGET" ]; then
+  echo '✅ تم تحديث طبقة التعافي الذاتي وتشغيل المشرف.'
+  echo '↻ الاتصال السابق محفوظ؛ سيواصل حكيم اكتشاف منفذ Wireless ADB المتغير تلقائيًا دون إعادة الاقتران.'
+  hakim-bridges-status || true
   exit 0
 fi
 
-# Android intentionally requires a local user action for first wireless-debug pairing.
+# Android intentionally requires a local user action for first wireless-debug pairing only.
 am start -a android.settings.WIRELESS_DEBUGGING_SETTINGS >/dev/null 2>&1 || \
 am start -a android.settings.APPLICATION_DEVELOPMENT_SETTINGS >/dev/null 2>&1 || true
 
 echo '✅ تم تجهيز مسار حكيم المحلي بدون APK وبدون تجاوز Play Protect.'
 echo '✅ النقل العام متقاعد، والمشرف يحافظ على Wireless ADB المحلي فقط.'
-echo '🔐 بقي حاجز أندرويد الوحيد: الاقتران الأول بالتصحيح اللاسلكي.'
+echo '🔐 لم يُعثر على أي اتصال محلي محفوظ؛ يلزم الاقتران الأول فقط.'
 echo 'اضغط «إقران الجهاز باستخدام رمز الإقران». سيكتشف حكيم عنوان الاقتران تلقائيًا؛ ثم ارجع إلى Termux وأدخل الرمز ذي الستة أرقام فقط.'
 
 # Continue in the same command: bounded local discovery, one ephemeral code,

@@ -2,6 +2,7 @@
 set -u
 
 OMEGA="$HOME/.omega"
+ROOT="${OMEGA_ROOT:-$HOME/.omega/hakim-live-src}"
 CONFIG="$OMEGA/hakim-termux-adb.json"
 STATE="$OMEGA/hakim-multibridge-state.json"
 LOG="$OMEGA/hakim-multibridge-supervisor.log"
@@ -9,6 +10,7 @@ LAST_REPORT="$OMEGA/hakim-supervisor-last-report"
 INTERVAL="${HAKIM_SUPERVISOR_INTERVAL:-20}"
 LEGACY_PUBLIC_WORKER_SESSION="hakim-relay-worker"
 LOCAL_DEV_GUARD="$OMEGA/bin/hakim-dev-mode-guardian.sh"
+DISCOVERY_HELPER="$ROOT/scripts/hakim-adb-mdns-discover.py"
 REMOTE_DEV_GUARD="/data/local/tmp/hakim-dev-mode-guardian.sh"
 REMOTE_DEV_FLAG="/data/local/tmp/hakim-dev-mode-guardian.enabled"
 REMOTE_DEV_PID="/data/local/tmp/hakim-dev-mode-guardian.pid"
@@ -72,7 +74,20 @@ adb_online() {
 }
 
 discover_target_mdns() {
-  adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}'
+  local found=''
+  found="$(adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}' || true)"
+  if [[ "$found" =~ ^(\[[0-9a-fA-F:]+\]|[0-9]{1,3}(\.[0-9]{1,3}){3}):[0-9]{2,5}$ ]]; then
+    printf '%s\n' "$found"
+    return 0
+  fi
+  if [ -f "$DISCOVERY_HELPER" ]; then
+    found="$(python "$DISCOVERY_HELPER" --service connect --timeout 2.5 2>/dev/null | head -n1 || true)"
+    if [[ "$found" =~ ^(\[[0-9a-fA-F:]+\]|[0-9]{1,3}(\.[0-9]{1,3}){3}):[0-9]{2,5}$ ]]; then
+      printf '%s\n' "$found"
+      return 0
+    fi
+  fi
+  return 0
 }
 
 ensure_dev_guardian() {
@@ -111,17 +126,7 @@ post_transition_result() {
   payload="$(TARGET="$target" ADB_STATE="$adb_state" LAST_ACTION="$action" python - <<'PY'
 import json,os,time
 now=int(time.time()*1000)
-print(json.dumps({
-  'request_id': f'hakim-supervisor-{now}',
-  'status': 'ok' if os.environ.get('ADB_STATE') == 'device' else 'degraded',
-  'received_at_ms': now,
-  'result': {
-    'source': 'hakim-multibridge-supervisor',
-    'adb': os.environ.get('ADB_STATE','offline'),
-    'action': os.environ.get('LAST_ACTION','none'),
-    'target': os.environ.get('TARGET',''),
-  }
-},separators=(',',':')))
+print(json.dumps({'request_id':f'hakim-supervisor-{now}','status':'ok' if os.environ.get('ADB_STATE')=='device' else 'degraded','received_at_ms':now,'result':{'source':'hakim-multibridge-supervisor','adb':os.environ.get('ADB_STATE','offline'),'action':os.environ.get('LAST_ACTION','none'),'target':os.environ.get('TARGET','')}},separators=(',',':')))
 PY
 )"
   if curl -fsS -m 5 -H 'Content-Type: application/json' --data-binary "$payload" "$url" >/dev/null 2>&1; then
@@ -147,21 +152,8 @@ write_state() {
   TARGET="$target" ADB_STATE="$adb_state" LAST_ACTION="$action" python - "$STATE" <<'PY'
 import json,os,sys,time,tempfile
 p=sys.argv[1]
-d={
- 'updated_at_ms':int(time.time()*1000),
- 'transport':'termux-wireless-adb',
- 'adb_target':os.environ.get('TARGET',''),
- 'adb':os.environ.get('ADB_STATE','offline'),
- 'public_command_transport':'disabled_by_sovereign_policy',
- 'public_github_command_relay':'disabled',
- 'legacy_public_relay_worker':'stopped',
- 'make_private_command_relay':'required_unproven',
- 'remote_desktop_commander':'optional_maintenance_only',
- 'result_mailbox':'configured_result_path',
- 'last_action':os.environ.get('LAST_ACTION',''),
-}
-fd,tmp=tempfile.mkstemp(prefix='.hakim-state-',dir=os.path.dirname(p) or '.')
-os.close(fd)
+d={'updated_at_ms':int(time.time()*1000),'transport':'termux-wireless-adb','adb_target':os.environ.get('TARGET',''),'adb':os.environ.get('ADB_STATE','offline'),'public_command_transport':'disabled_by_sovereign_policy','public_github_command_relay':'disabled','legacy_public_relay_worker':'stopped','make_private_command_relay':'required_unproven','remote_desktop_commander':'optional_maintenance_only','result_mailbox':'configured_result_path','last_action':os.environ.get('LAST_ACTION','')}
+fd,tmp=tempfile.mkstemp(prefix='.hakim-state-',dir=os.path.dirname(p) or '.'); os.close(fd)
 with open(tmp,'w',encoding='utf-8') as f: json.dump(d,f,ensure_ascii=False,indent=2)
 os.chmod(tmp,0o600); os.replace(tmp,p)
 PY
@@ -175,8 +167,6 @@ while true; do
   target="$(read_target)"
 
   if ! adb_online "$target"; then
-    # Highest-value recovery first: retry the last verified endpoint. This
-    # survives adb disconnect / server restart when mDNS discovery is flaky.
     if [ -n "$target" ]; then
       adb connect "$target" >/dev/null 2>&1 || true
       if adb_online "$target"; then
@@ -199,8 +189,6 @@ while true; do
     fi
   fi
 
-  # Reassert fail-closed policy every cycle in case an older boot/session tries
-  # to resurrect the retired public worker.
   stop_legacy_public_worker
   if adb_online "$target"; then
     ensure_dev_guardian "$target"
