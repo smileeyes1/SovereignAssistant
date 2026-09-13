@@ -76,6 +76,8 @@ class LocalControlServer(private val context: Context) {
             .put("encrypted_status_round_trip", roundTrip)
     }
 
+    private fun sensitiveReadBlocked(): Boolean = FinancialSafeMode.isEnabled(context)
+
     private fun route(c: Socket, method: String, path: String, body: String, headers: Map<String, String>) {
         try {
             when {
@@ -89,6 +91,7 @@ class LocalControlServer(private val context: Context) {
                         .put("runtime_health", prefs.getString("companion_mode", "UNKNOWN"))
                         .put("loopback_only", true)
                         .put("safe_core", true)
+                        .put("financial_safe_mode", FinancialSafeMode.isEnabled(context))
                         .put("control_scope", if (accessibility) "DEVICE_AND_BROWSER" else "OWNED_BROWSER_ONLY")
                         .put("device_wide_accessibility", accessibility)
                         .put("notification_access", notificationAccess)
@@ -112,17 +115,23 @@ class LocalControlServer(private val context: Context) {
 
                 method == "GET" && path == "/v1/device/ui" -> {
                     val service = HakimAccessibilityService.instance
-                    if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
-                    else respond(c, 200, JSONObject()
-                        .put("scope", "DEVICE_UI_USER_AUTHORIZED")
-                        .put("nodes", service.uiSnapshot()))
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        service == null -> respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                        else -> respond(c, 200, JSONObject()
+                            .put("scope", "DEVICE_UI_USER_AUTHORIZED")
+                            .put("nodes", service.uiSnapshot()))
+                    }
                 }
 
                 method == "GET" && path == "/v1/notifications" -> {
-                    if (!HakimNotificationListener.isConnected()) respond(c, 409, JSONObject().put("error", "notification_access_unavailable"))
-                    else respond(c, 200, JSONObject()
-                        .put("scope", "DEVICE_NOTIFICATIONS_USER_AUTHORIZED")
-                        .put("items", HakimNotificationListener.snapshot()))
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        !HakimNotificationListener.isConnected() -> respond(c, 409, JSONObject().put("error", "notification_access_unavailable"))
+                        else -> respond(c, 200, JSONObject()
+                            .put("scope", "DEVICE_NOTIFICATIONS_USER_AUTHORIZED")
+                            .put("items", HakimNotificationListener.snapshot()))
+                    }
                 }
 
                 method == "GET" && (path == "/v1/screenshot" || path == "/v1/browser/screenshot") -> {
@@ -133,11 +142,14 @@ class LocalControlServer(private val context: Context) {
 
                 method == "GET" && path == "/v1/device/screenshot" -> {
                     val service = HakimAccessibilityService.instance
-                    if (service == null) respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
-                    else {
-                        val data = service.screenshotBase64()
-                        if (data == null) respond(c, 409, JSONObject().put("error", "device_screenshot_unavailable"))
-                        else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "device_view_user_authorized"))
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        service == null -> respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                        else -> {
+                            val data = service.screenshotBase64()
+                            if (data == null) respond(c, 409, JSONObject().put("error", "device_screenshot_unavailable"))
+                            else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "device_view_user_authorized"))
+                        }
                     }
                 }
 
