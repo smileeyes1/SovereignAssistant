@@ -7,7 +7,7 @@ BOOT = ROOT / 'scripts' / 'hakim-zero-burden-bootstrap.sh'
 SUP = ROOT / 'scripts' / 'hakim-multibridge-supervisor.sh'
 
 
-def test_conceal_path_changes_only_master_after_wireless_is_proven():
+def test_conceal_path_changes_only_master_visibility_after_wireless_is_proven():
     s = SCRIPT.read_text(encoding='utf-8')
     assert 'WIRELESS_ADB_NOT_ENABLED' in s
     assert 'settings put global development_settings_enabled 0' in s
@@ -36,7 +36,7 @@ def test_guardian_is_proven_by_self_healing_master_flag():
     assert 'settings put global adb_wifi_enabled 1' in g
 
 
-def test_bootstrap_exposes_conceal_and_reversible_release():
+def test_bootstrap_exposes_one_command_and_boot_retry_only_after_field_pass():
     s = BOOT.read_text(encoding='utf-8')
     assert 'conceal-dev)' in s
     assert 'reveal-dev)' in s
