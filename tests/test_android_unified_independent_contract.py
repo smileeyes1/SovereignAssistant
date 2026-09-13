@@ -34,23 +34,29 @@ def test_foreground_runtime_uses_direct_transport_not_legacy_transport():
 
 
 def test_safe_unified_build_keeps_owned_browser_without_sensitive_device_services():
+    # الاسم التاريخي محفوظ؛ البناء الموحد يحتفظ بالمتصفح ويضيف فقط خدمتي حكيم
+    # المحكومتين بموافقة أندرويد المحلية، دون منح صامت أو صلاحيات عامة خطرة.
     manifest = text(MANIFEST)
     activity = text(APP / "MainActivity.kt")
     local = text(APP / "LocalControlServer.kt")
-    assert '.HakimAccessibilityService' not in manifest
-    assert '.HakimNotificationListener' not in manifest
-    assert 'BIND_ACCESSIBILITY_SERVICE' not in manifest
-    assert 'BIND_NOTIFICATION_LISTENER_SERVICE' not in manifest
+    assert '.HakimAccessibilityService' in manifest
+    assert '.HakimNotificationListener' in manifest
+    assert 'android.permission.BIND_ACCESSIBILITY_SERVICE' in manifest
+    assert 'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' in manifest
     assert '.DirectApprovalReceiver' in manifest
     assert 'HakimBrowserController.attach(browser)' in activity
-    assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' not in activity
-    assert 'Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS' not in activity
+    assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' in activity
+    assert 'Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS' in activity
     assert 'HakimDirectRelay.configure' in activity
-    assert 'HakimAccessibilityService.instance' not in local
-    assert 'HakimNotificationListener.isConnected()' not in local
+    assert 'HakimAccessibilityService.instance' in local
+    assert 'HakimNotificationListener.isConnected()' in local
     assert 'HakimBrowserController.uiSnapshot()' in local
     assert 'HakimBrowserController.screenshotBase64()' in local
-    assert '"control_scope", "OWNED_BROWSER_ONLY"' in local
+    assert '"scope", "OWNED_BROWSER_ONLY"' in local
+    assert '"DEVICE_UI_USER_AUTHORIZED"' in local
+    assert 'FinancialSafeMode.isEnabled(context)' in local
+    assert 'WRITE_SECURE_SETTINGS' not in manifest
+    assert 'MANAGE_EXTERNAL_STORAGE' not in manifest
 
 
 def test_pairing_survives_update_key_names_and_release_version_moves_forward():
@@ -68,6 +74,8 @@ def test_pairing_survives_update_key_names_and_release_version_moves_forward():
 def test_financial_safe_mode_remains_a_runtime_gate():
     service = text(APP / "HakimForegroundService.kt")
     activity = text(APP / "MainActivity.kt")
+    local = text(APP / "LocalControlServer.kt")
     assert 'FinancialSafeMode.isEnabled' in service
     assert 'FinancialSafeMode.enter(this)' in activity
     assert 'FinancialSafeMode.exit(this)' in activity
+    assert 'FinancialSafeMode.isEnabled(context)' in local
