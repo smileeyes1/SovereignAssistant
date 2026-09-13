@@ -26,10 +26,13 @@ def test_financial_safe_mode_blocks_restart_paths():
     main = read(JAVA / "MainActivity.kt")
     boot = read(JAVA / "BootReceiver.kt")
     service = read(JAVA / "HakimForegroundService.kt")
+    server = read(JAVA / "LocalControlServer.kt")
     assert main.count("!FinancialSafeMode.isEnabled(this)") >= 3
     assert "if (FinancialSafeMode.isEnabled(context)) return" in boot
     assert "if (FinancialSafeMode.isEnabled(context)) return" in service
     assert "START_NOT_STICKY" in service
+    assert "private fun sensitiveReadBlocked(): Boolean = FinancialSafeMode.isEnabled(context)" in server
+    assert server.count('JSONObject().put("error", "financial_safe_mode")') >= 4
 
 
 def test_notification_has_one_tap_financial_safe_mode_action():
@@ -66,13 +69,21 @@ def test_owned_browser_safe_core_remains_available_independently_of_adb_pairing_
 
 
 def test_accessibility_implementation_remains_legacy_optional_and_is_not_registered_in_safe_core():
+    # الاسم التاريخي محفوظ؛ التعليمات الأحدث رقّت القدرة إلى خدمة مسجلة لكن لا تعمل
+    # إلا بعد تفعيل المستخدم محليًا من أندرويد، وتتعطل في الوضع المالي الآمن.
     t = read(JAVA / "HakimAccessibilityService.kt")
     manifest = read(MANIFEST)
+    main = read(JAVA / "MainActivity.kt")
+    server = read(JAVA / "LocalControlServer.kt")
     assert "performGlobalAction" in t
     assert "dispatchGesture" in t
     assert "ACTION_SET_TEXT" in t
     assert "takeScreenshot" in t
-    assert ".HakimAccessibilityService" not in manifest
+    assert 'android:name=".HakimAccessibilityService"' in manifest
+    assert 'android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"' in manifest
+    assert "Settings.ACTION_ACCESSIBILITY_SETTINGS" in main
+    assert "enabled_accessibility_services" not in main
+    assert "FinancialSafeMode.isEnabled(context)" in server
 
 
 def test_runtime_policy_uses_hakim_native_local_adb_without_weakening_android_protection():
