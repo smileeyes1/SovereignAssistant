@@ -78,9 +78,82 @@ def test_android_manifest_parser_ignores_comments_but_sees_registered_services()
     comment_only = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application><!-- AccessibilityService --></application></manifest>'''
     _, components = shield.manifest_contract(comment_only)
     assert not any("AccessibilityService" in item for item in components)
-    registered = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application><service android:name=".HakimAccessibilityService" /></application></manifest>'''
+    registered = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application><service android:name=".HakimAccessibilityService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" /></application></manifest>'''
     _, components = shield.manifest_contract(registered)
     assert "service:.HakimAccessibilityService" in components
+    permissions = shield.manifest_service_permissions(registered)
+    assert permissions["service:.HakimAccessibilityService"] == "android.permission.BIND_ACCESSIBILITY_SERVICE"
+
+
+def test_sensitive_service_exception_is_exact_and_fail_closed(tmp_path):
+    manifest = tmp_path / "AndroidManifest.xml"
+    manifest.write_text(
+        '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application>'''
+        '''<service android:name=".HakimAccessibilityService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" />'''
+        '''<service android:name=".OtherAccessibilityService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" />'''
+        '''</application></manifest>''',
+        encoding="utf-8",
+    )
+    android = {
+        "path": "AndroidManifest.xml",
+        "forbidden_tokens": [],
+        "forbidden_service_tokens": ["AccessibilityService"],
+        "approved_sensitive_services": [{
+            "token": "AccessibilityService",
+            "component": "service:.HakimAccessibilityService",
+            "service_permission": "android.permission.BIND_ACCESSIBILITY_SERVICE",
+            "requires_local_user_enablement": True,
+            "loopback_only": True,
+            "financial_safe_mode_gate": True,
+        }],
+    }
+    policy_obj = {
+        "fail_closed": True,
+        "preserve_outcomes_not_implementations": True,
+        "required_paths": [],
+        "capabilities": [],
+        "protected_success_ids": [],
+        "protected_promotion_lineage_ids": [],
+        "android_manifest": android,
+        "transition_registry": "missing.json",
+    }
+    violations = shield.static_violations(tmp_path, policy_obj)
+    assert any(v.code == "FORBIDDEN_ANDROID_SERVICE" and v.target == "service:.OtherAccessibilityService" for v in violations)
+    assert not any(v.code == "FORBIDDEN_ANDROID_SERVICE" and v.target == "service:.HakimAccessibilityService" for v in violations)
+
+
+def test_sensitive_service_exception_requires_exact_bind_permission(tmp_path):
+    manifest = tmp_path / "AndroidManifest.xml"
+    manifest.write_text(
+        '''<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application>'''
+        '''<service android:name=".HakimAccessibilityService" android:permission="android.permission.INTERNET" />'''
+        '''</application></manifest>''',
+        encoding="utf-8",
+    )
+    policy_obj = {
+        "fail_closed": True,
+        "preserve_outcomes_not_implementations": True,
+        "required_paths": [],
+        "capabilities": [],
+        "protected_success_ids": [],
+        "protected_promotion_lineage_ids": [],
+        "android_manifest": {
+            "path": "AndroidManifest.xml",
+            "forbidden_tokens": [],
+            "forbidden_service_tokens": ["AccessibilityService"],
+            "approved_sensitive_services": [{
+                "token": "AccessibilityService",
+                "component": "service:.HakimAccessibilityService",
+                "service_permission": "android.permission.BIND_ACCESSIBILITY_SERVICE",
+                "requires_local_user_enablement": True,
+                "loopback_only": True,
+                "financial_safe_mode_gate": True,
+            }],
+        },
+        "transition_registry": "missing.json",
+    }
+    violations = shield.static_violations(tmp_path, policy_obj)
+    assert any(v.code == "FORBIDDEN_ANDROID_SERVICE" and v.target == "service:.HakimAccessibilityService" for v in violations)
 
 
 def test_transition_records_fail_closed_without_proof(tmp_path):
