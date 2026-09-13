@@ -1,15 +1,16 @@
 {
   "name": "HAKIM_ACTIVE_STATE_METADATA_OVERLAY",
-  "version": "1.0",
+  "version": "1.1",
   "status": "ACTIVE_VERIFIED",
   "base_active_state": "governance/HAKIM_ACTIVE_STATE.json",
   "scope": "REPOSITORY_FRESHNESS_AND_SOFTWARE_PROMOTION_ONLY__NO_PHYSICAL_FIELD_STATUS_OVERRIDE",
-  "governance_verified_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
-  "freshness_observed_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
-  "freshness_state_refresh_source_main": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
+  "governance_verified_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
+  "freshness_observed_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
+  "freshness_state_refresh_source_main": "f4ead2d4b61f708741efeac7e085d44509affba1",
   "promotion_lineage_additions": {
     "canonical_phone_interface_v1": "93c1abe9d7a7bfb75ec974b6e8adf91db2cfd4bf",
-    "android_airplane_recovery_resilience_v1": "f054ee0900e8d907b0ce0166b71ab64c83e0d225"
+    "android_airplane_recovery_resilience_v1": "f054ee0900e8d907b0ce0166b71ab64c83e0d225",
+    "adb_dynamic_endpoint_self_heal_v1": "f4ead2d4b61f708741efeac7e085d44509affba1"
   },
   "promotion_evidence_additions": {
     "canonical_phone_interface_continuity_main": "PASS",
@@ -19,14 +20,19 @@
     "canonical_phone_interface_android15_runtime_pr": "PASS",
     "canonical_phone_interface_android_release_feature_main": "PASS",
     "android_airplane_recovery_resilience_contract": "PASS",
-    "android_airplane_recovery_resilience_android15_runtime": "PASS"
+    "android_airplane_recovery_resilience_android15_runtime": "PASS",
+    "adb_dynamic_endpoint_self_heal_governance_main": "PASS",
+    "adb_dynamic_endpoint_self_heal_continuity_main": "PASS",
+    "adb_dynamic_endpoint_self_heal_autonomous_continuation_main": "PASS"
   },
   "proven_success_additions": [
     "canonical_phone_interface_v1",
-    "android_airplane_recovery_resilience_v1"
+    "android_airplane_recovery_resilience_v1",
+    "adb_dynamic_endpoint_self_heal_v1"
   ],
   "resolved_failure_additions": [
-    "ANDROID15_AIRPLANE_RECOVERY_ONE_SHOT_TIMING_FLAKE_ROOT_FIXED"
+    "ANDROID15_AIRPLANE_RECOVERY_ONE_SHOT_TIMING_FLAKE_ROOT_FIXED",
+    "ADB_DYNAMIC_PORT_CHANGE_NO_LONGER_IMPLIES_REPAIRING_OR_REPAIRING_REQUIRED"
   ],
   "field_invariants": {
     "last_verified_baseline": "a6225e4118d68871ed00c8328f072fd8bd15bfc6",
