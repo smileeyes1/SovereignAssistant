@@ -2,6 +2,7 @@
 set -u
 
 OMEGA="$HOME/.omega"
+ROOT="${OMEGA_ROOT:-$HOME/.omega/hakim-live-src}"
 CONFIG="$OMEGA/hakim-termux-adb.json"
 STATE="$OMEGA/hakim-multibridge-state.json"
 LOG="$OMEGA/hakim-multibridge-supervisor.log"
@@ -9,6 +10,7 @@ LAST_REPORT="$OMEGA/hakim-supervisor-last-report"
 INTERVAL="${HAKIM_SUPERVISOR_INTERVAL:-20}"
 LEGACY_PUBLIC_WORKER_SESSION="hakim-relay-worker"
 LOCAL_DEV_GUARD="$OMEGA/bin/hakim-dev-mode-guardian.sh"
+DISCOVERY_HELPER="$ROOT/scripts/hakim-adb-mdns-discover.py"
 REMOTE_DEV_GUARD="/data/local/tmp/hakim-dev-mode-guardian.sh"
 REMOTE_DEV_FLAG="/data/local/tmp/hakim-dev-mode-guardian.enabled"
 REMOTE_DEV_PID="/data/local/tmp/hakim-dev-mode-guardian.pid"
@@ -72,7 +74,20 @@ adb_online() {
 }
 
 discover_target_mdns() {
-  adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}'
+  local found=''
+  found="$(adb mdns services 2>/dev/null | awk '/_adb-tls-connect\._tcp/ {print $NF; exit}' || true)"
+  if [[ "$found" =~ ^(\[[0-9a-fA-F:]+\]|[0-9]{1,3}(\.[0-9]{1,3}){3}):[0-9]{2,5}$ ]]; then
+    printf '%s\n' "$found"
+    return 0
+  fi
+  if [ -f "$DISCOVERY_HELPER" ]; then
+    found="$(python "$DISCOVERY_HELPER" --service connect --timeout 2.5 2>/dev/null | head -n1 || true)"
+    if [[ "$found" =~ ^(\[[0-9a-fA-F:]+\]|[0-9]{1,3}(\.[0-9]{1,3}){3}):[0-9]{2,5}$ ]]; then
+      printf '%s\n' "$found"
+      return 0
+    fi
+  fi
+  return 1
 }
 
 ensure_dev_guardian() {
@@ -187,7 +202,7 @@ while true; do
   fi
 
   if ! adb_online "$target"; then
-    found="$(discover_target_mdns)"
+    found="$(discover_target_mdns || true)"
     if [ -n "$found" ]; then
       adb connect "$found" >/dev/null 2>&1 || true
       if adb_online "$found"; then
