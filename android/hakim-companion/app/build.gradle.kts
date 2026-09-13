@@ -10,8 +10,8 @@ android {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20019
-        versionName = "0.6.0-governed-ai-browser"
+        versionCode = 20018
+        versionName = "0.6.0-governed-ai-browser-pre-field"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
