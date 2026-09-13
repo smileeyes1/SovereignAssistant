@@ -13,7 +13,7 @@ def test_android_ci_executes_notification_safe_core_runtime_gate():
     assert "sh scripts/android-companion-emulator-runtime-gate.sh && sh scripts/android-companion-emulator-notification-gate.sh" in workflow
 
 
-def test_notification_gate_proves_registered_but_disabled_and_endpoint_fail_closed():
+def test_notification_gate_proves_authority_absent_and_endpoint_fail_closed():
     gate = text("scripts/android-companion-emulator-notification-gate.sh")
     assert "set -eu" in gate
     assert '"notification_access":false' in gate
