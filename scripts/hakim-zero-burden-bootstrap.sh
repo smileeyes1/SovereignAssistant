@@ -26,29 +26,27 @@ else
   git -C "$ROOT" pull --ff-only origin main
 fi
 
-for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh bootstrap-hakim-termux-adb.sh hakim-zero-burden-bootstrap.sh; do
+for f in hakim-adb-pair.sh hakim-control-window.sh hakim-multibridge-supervisor.sh hakim-bridges-status.sh hakim-conceal-developer-options.sh bootstrap-hakim-termux-adb.sh hakim-zero-burden-bootstrap.sh; do
   [[ -f "$ROOT/scripts/$f" ]] || { echo "ERROR: missing scripts/$f" >&2; exit 3; }
 done
 
 # GitHub contents updates may leave shell files without the executable bit.
-# Repair the local checkout explicitly, while still invoking the pairing fallback
-# through bash so a missing mode bit can never block the user again.
-chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh" "$ROOT/scripts/hakim-zero-burden-bootstrap.sh"
+chmod 700 "$ROOT/scripts/bootstrap-hakim-termux-adb.sh" "$ROOT/scripts/hakim-zero-burden-bootstrap.sh" "$ROOT/scripts/hakim-conceal-developer-options.sh"
 
 cp -f "$ROOT/scripts/hakim-adb-pair.sh" "$BIN/hakim-adb-pair"
 cp -f "$ROOT/scripts/hakim-control-window.sh" "$BIN/hakim-control-window"
 cp -f "$ROOT/scripts/hakim-multibridge-supervisor.sh" "$BIN/hakim-multibridge-supervisor"
 cp -f "$ROOT/scripts/hakim-bridges-status.sh" "$BIN/hakim-bridges-status"
+cp -f "$ROOT/scripts/hakim-conceal-developer-options.sh" "$BIN/hakim-conceal-dev-options"
 chmod 700 "$BIN/"*
 ln -sfn "$BIN/hakim-adb-pair" "$PREFIX/bin/hakim-adb-pair"
 ln -sfn "$BIN/hakim-control-window" "$PREFIX/bin/hakim-control-window"
 ln -sfn "$BIN/hakim-control-window" "$PREFIX/bin/hakim-control-on"
 ln -sfn "$BIN/hakim-bridges-status" "$PREFIX/bin/hakim-bridges-status"
+ln -sfn "$BIN/hakim-conceal-dev-options" "$PREFIX/bin/hakim-conceal-dev-options"
 ln -sfn "$ROOT/scripts/hakim-zero-burden-bootstrap.sh" "$PREFIX/bin/hakim-bootstrap"
 
-# One stable local entry point. It never broadens authority: status is read-only,
-# recover only restarts the local supervisor, and update runs the qualified
-# bootstrap path with its own regression gates.
+# One stable local entry point. It never broadens authority.
 cat > "$BIN/hakim" <<'SH'
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
@@ -68,8 +66,11 @@ case "${1:-status}" in
   update)
     exec bash "$HOME/.omega/hakim-live-src/scripts/hakim-zero-burden-bootstrap.sh"
     ;;
+  conceal-dev)
+    exec "$OMEGA/bin/hakim-conceal-dev-options"
+    ;;
   *)
-    echo 'الاستخدام: hakim [status|recover|update]'
+    echo 'الاستخدام: hakim [status|recover|update|conceal-dev]'
     exit 2
     ;;
 esac
@@ -77,17 +78,30 @@ SH
 chmod 700 "$BIN/hakim"
 ln -sfn "$BIN/hakim" "$PREFIX/bin/hakim"
 
-# Reboot recovery is prepared once. Android still controls whether the optional
-# Termux:Boot companion is installed/allowed; absence of it never weakens the
-# foreground runtime and is not reported as a PASS.
+# Reboot recovery is prepared once. If Termux:Boot is installed and Android
+# permits it, the supervisor comes back and the already-qualified concealment
+# path is retried with its own rollback barrier.
 cat > "$BOOT_DIR/99-hakim-multibridge" <<'SH'
 #!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock >/dev/null 2>&1 || true
 sleep 8
-SUP="$HOME/.omega/bin/hakim-multibridge-supervisor"
+OMEGA="$HOME/.omega"
+SUP="$OMEGA/bin/hakim-multibridge-supervisor"
 [ -x "$SUP" ] || exit 0
 tmux has-session -t hakim-multibridge-supervisor 2>/dev/null || \
   tmux new-session -d -s hakim-multibridge-supervisor "$SUP"
+sleep 10
+python - "$OMEGA/hakim-termux-adb.json" <<'PY' >/dev/null 2>&1
+import json,sys
+try:
+    d=json.load(open(sys.argv[1],encoding='utf-8'))
+    raise SystemExit(0 if d.get('conceal_developer_options') and d.get('conceal_developer_options_field_verified') else 1)
+except Exception:
+    raise SystemExit(1)
+PY
+if [ "$?" = 0 ] && [ -x "$OMEGA/bin/hakim-conceal-dev-options" ]; then
+  "$OMEGA/bin/hakim-conceal-dev-options" >> "$OMEGA/hakim-boot-conceal.log" 2>&1 || true
+fi
 SH
 chmod 700 "$BOOT_DIR/99-hakim-multibridge"
 
@@ -102,7 +116,9 @@ if [[ ! -f "$CFG" ]]; then
   "apk_required": false,
   "public_command_transport": false,
   "public_github_command_relay": false,
-  "legacy_public_relay_installed": false
+  "legacy_public_relay_installed": false,
+  "conceal_developer_options": false,
+  "conceal_developer_options_field_verified": false
 }
 JSON
   chmod 600 "$CFG"
@@ -141,8 +157,6 @@ wait_online() {
 TARGET="$(wait_online 20 || true)"
 if [[ -z "$TARGET" ]]; then
   echo 'HAKIM_ZERO_BURDEN=PAIRING_REQUIRED'
-  # Android requires a local user act for first pairing. Existing bootstrap
-  # already minimizes this to the wireless-debugging screen + one 6-digit code.
   exec bash "$ROOT/scripts/bootstrap-hakim-termux-adb.sh"
 fi
 
