@@ -116,7 +116,25 @@
   "android_manifest": {
     "path": "android/hakim-companion/app/src/main/AndroidManifest.xml",
     "forbidden_tokens": ["android.permission.QUERY_ALL_PACKAGES","android.permission.MANAGE_EXTERNAL_STORAGE","android.permission.WRITE_SECURE_SETTINGS","android.permission.READ_SMS","android.permission.SEND_SMS","android.permission.READ_CONTACTS","android.permission.RECORD_AUDIO","android.permission.CAMERA","android.permission.ACCESS_FINE_LOCATION","android.permission.BIND_ACCESSIBILITY_SERVICE","android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"],
-    "forbidden_service_tokens": ["AccessibilityService","NotificationListenerService"]
+    "forbidden_service_tokens": ["AccessibilityService","NotificationListener"],
+    "approved_sensitive_services": [
+      {
+        "token": "AccessibilityService",
+        "component": "service:.HakimAccessibilityService",
+        "service_permission": "android.permission.BIND_ACCESSIBILITY_SERVICE",
+        "requires_local_user_enablement": true,
+        "loopback_only": true,
+        "financial_safe_mode_gate": true
+      },
+      {
+        "token": "NotificationListener",
+        "component": "service:.HakimNotificationListener",
+        "service_permission": "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
+        "requires_local_user_enablement": true,
+        "loopback_only": true,
+        "financial_safe_mode_gate": true
+      }
+    ]
   },
   "transition_registry": "governance/HAKIM_CAPABILITY_TRANSITIONS.json",
   "release_rule": "ANY_UNACCOUNTED_PROTECTED_LOSS_FAILS_CLOSED"

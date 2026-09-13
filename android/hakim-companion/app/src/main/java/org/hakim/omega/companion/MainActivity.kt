@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         }
         root.addView(TextView(this).apply { text = CanonicalHakimIdentity.DISPLAY_NAME_AR; textSize = 27f })
         root.addView(TextView(this).apply {
-            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك."
+            text = "الواجهة الأصلية المثبتة لنفس حكيم: هوية واحدة وحالة واحدة ومصدر حقيقة واحد، مع ADB المحلي الأصلي ومتصفح حكيم المملوك.\nالتحكم الأوسع لا يُدّعى قبل التأهيل الميداني الحقيقي؛ تفعيل الخدمة محليًا لا يساوي FIELD_VERIFIED."
             textSize = 14f
         })
 
@@ -112,6 +112,15 @@ class MainActivity : Activity() {
             refreshStatus()
         })
         root.addView(localAdbControls)
+
+        val deviceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        deviceControls.addView(button("تفعيل التحكم بالجهاز") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        })
+        deviceControls.addView(button("تفعيل قراءة الإشعارات") {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        })
+        root.addView(deviceControls)
 
         address = EditText(this).apply { hint = "اكتب عنوان الموقع"; isSingleLine = true }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -198,14 +207,17 @@ class MainActivity : Activity() {
         val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val localAdb = HakimLocalPairing.currentSummary(this)
+        val accessibilityConnected = HakimAccessibilityService.instance != null
+        val notificationConnected = HakimNotificationListener.isConnected()
         val url = HakimBrowserController.currentUrl().orEmpty()
         status.text = "الهوية: ${CanonicalHakimIdentity.INSTANCE_ID}\n" +
             "الدور: الواجهة المثبتة لحكيم الأصلي — ليست حكيمًا ثانيًا\n" +
             "مصدر الحقيقة: ${CanonicalHakimIdentity.RUNTIME_REPOSITORY} / ${CanonicalHakimIdentity.ACTIVE_POINTER}\n" +
             "النمط: نواة آمنة مستقلة — بلا API مدفوع وبلا تطبيق وسيط للاقتران\n" +
             "$localAdb\n" +
-            "نطاق التحكم الحالي المثبت: متصفح حكيم المملوك؛ التحكم الأوسع لا يُدّعى قبل التأهيل الميداني\n" +
-            "وصول لإشعارات التطبيقات: غير موجود في هذه النسخة\n" +
+            "التحكم على مستوى الجهاز: ${if (accessibilityConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +
+            "وصول إشعارات التطبيقات: ${if (notificationConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +
+            "متصفح حكيم المملوك: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}\n" +
             "الوضع المالي الآمن: ${if (financial) "مفعّل — حكيم مفصول" else "غير مفعّل"}\n" +
             "اقتران القناة القديمة: ${if (cloudPairToken) "مفعّل" else "غير مفعّل"}\n" +
             "القناة المشفّرة: ${if (configured) "مهيأة" else "غير مهيأة"}\n" +
@@ -213,8 +225,7 @@ class MainActivity : Activity() {
             "الخادم المحلي: ${if (HakimForegroundService.running) "يعمل" else "متوقف"}\n" +
             "آخر اتصال بالقناة: ${if (lastPoll > 0L) "تم" else "لم يُثبت بعد"}\n" +
             "خطأ القناة: ${lastError ?: "لا يوجد"}\n" +
-            "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}\n" +
-            "متصفح حكيم: ${if (HakimBrowserController.isAttached()) "جاهز" else "غير جاهز"}" +
+            "خطأ إرسال النتيجة: ${lastResultError ?: "لا يوجد"}" +
             if (url.isNotBlank()) "\nالموقع الحالي: $url" else ""
         if (::qualification.isInitialized && !qualificationRunning) {
             qualification.text = FieldQualification.lastSummary(this)

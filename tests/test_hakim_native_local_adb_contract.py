@@ -14,8 +14,14 @@ def test_native_pairing_is_inside_hakim_and_external_helpers_are_not_required():
     assert "SERVICE_TYPE_TLS_PAIRING" in manager
     assert 'KeyStore.getInstance("AndroidKeyStore")' in manager
     assert "HakimPairingReceiver" in manifest
-    assert "AccessibilityService" not in manifest.replace("does not require AccessibilityService", "")
-    assert "NotificationListenerService" not in manifest.replace("NotificationListenerService", "")
+    # ADB الأصلي لا يعتمد على خدمات الوصولية، لكن الإصدار نفسه قد يسجلها
+    # كقدرات مستقلة لا تعمل إلا بعد موافقة المستخدم المحلية.
+    assert 'android:name=".HakimAccessibilityService"' in manifest
+    assert 'android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"' in manifest
+    assert 'android:name=".HakimNotificationListener"' in manifest
+    assert 'android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"' in manifest
+    assert "AccessibilityService" not in pairing
+    assert "AccessibilityService" not in manager
 
 
 def test_pairing_accepts_only_six_digits_and_auto_discovers_port():

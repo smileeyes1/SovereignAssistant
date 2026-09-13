@@ -24,10 +24,33 @@
         </activity>
 
         <service android:name=".HakimForegroundService" android:exported="false" android:foregroundServiceType="specialUse">
-            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized encrypted relay and owned-browser control" />
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized encrypted relay and owned-browser/device control" />
         </service>
 
-        <!-- Native ADB bootstrap stays inside HAKIM and does not require AccessibilityService or NotificationListenerService. -->
+        <!-- Device-wide capabilities are registered but remain inert until Android grants them locally. -->
+        <service
+            android:name=".HakimAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true"
+            android:label="حكيم — التحكم بالجهاز">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/hakim_accessibility_service" />
+        </service>
+
+        <service
+            android:name=".HakimNotificationListener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true"
+            android:label="حكيم — الإشعارات">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <receiver android:name=".HakimPairingReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".RemoteApprovalReceiver" android:enabled="true" android:exported="false" />
         <receiver android:name=".DirectApprovalReceiver" android:enabled="true" android:exported="false" />

@@ -12,9 +12,10 @@ import java.net.Socket
 import java.util.concurrent.Executors
 
 /**
- * خادم التحكم المحلي للنواة الآمنة.
- * يربط واجهة التوافق القديمة بمتصفح حكيم المملوك فقط، ولا يقرأ شاشة الجهاز
- * أو إشعارات التطبيقات ولا يعتمد على AccessibilityService/NotificationListenerService.
+ * خادم التحكم المحلي لحكيم الأصلي.
+ * يبقى Loopback-only ويتطلب رمز الاقتران المحلي. يحافظ على مسارات المتصفح
+ * الحالية ويضيف مسارات جهاز منفصلة لا تعمل إلا إذا فعّل المستخدم وصولية حكيم
+ * أو وصول الإشعارات من إعدادات أندرويد محليًا.
  */
 class LocalControlServer(private val context: Context) {
     private val pool = Executors.newFixedThreadPool(2)
@@ -75,20 +76,25 @@ class LocalControlServer(private val context: Context) {
             .put("encrypted_status_round_trip", roundTrip)
     }
 
+    private fun sensitiveReadBlocked(): Boolean = FinancialSafeMode.isEnabled(context)
+
     private fun route(c: Socket, method: String, path: String, body: String, headers: Map<String, String>) {
         try {
             when {
                 method == "GET" && path == "/v1/status" -> {
                     val prefs = context.getSharedPreferences("hakim", Context.MODE_PRIVATE)
                     val heartbeat = prefs.getLong("companion_heartbeat_ms", 0L)
+                    val accessibility = HakimAccessibilityService.instance != null
+                    val notificationAccess = HakimNotificationListener.isConnected()
                     respond(c, 200, JSONObject()
                         .put("evidence_state", "NOT_PROVEN")
                         .put("runtime_health", prefs.getString("companion_mode", "UNKNOWN"))
                         .put("loopback_only", true)
                         .put("safe_core", true)
-                        .put("control_scope", "OWNED_BROWSER_ONLY")
-                        .put("device_wide_accessibility", false)
-                        .put("notification_access", false)
+                        .put("financial_safe_mode", FinancialSafeMode.isEnabled(context))
+                        .put("control_scope", if (accessibility) "DEVICE_AND_BROWSER" else "OWNED_BROWSER_ONLY")
+                        .put("device_wide_accessibility", accessibility)
+                        .put("notification_access", notificationAccess)
                         .put("control_server_listening", isListening())
                         .put("heartbeat_age_ms", if (heartbeat > 0L) (System.currentTimeMillis() - heartbeat).coerceAtLeast(0L) else -1L)
                         .put("persistent_model", JSONObject.NULL)
@@ -98,6 +104,7 @@ class LocalControlServer(private val context: Context) {
                         .put("field_qualification", qualificationSummary(prefs))
                         .put("browser", HakimBrowserController.status()))
                 }
+
                 method == "GET" && (path == "/v1/ui" || path == "/v1/browser/ui") -> {
                     if (!HakimBrowserController.isAttached()) respond(c, 409, JSONObject().put("error", "browser_unavailable"))
                     else respond(c, 200, JSONObject()
@@ -105,17 +112,47 @@ class LocalControlServer(private val context: Context) {
                         .put("url", HakimBrowserController.currentUrl() ?: JSONObject.NULL)
                         .put("nodes", HakimBrowserController.uiSnapshot()))
                 }
-                method == "GET" && path == "/v1/notifications" -> {
-                    respond(c, 410, JSONObject()
-                        .put("ok", false)
-                        .put("error", "disabled_in_safe_core")
-                        .put("reason", "notification_access_not_registered"))
+
+                method == "GET" && path == "/v1/device/ui" -> {
+                    val service = HakimAccessibilityService.instance
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        service == null -> respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                        else -> respond(c, 200, JSONObject()
+                            .put("scope", "DEVICE_UI_USER_AUTHORIZED")
+                            .put("nodes", service.uiSnapshot()))
+                    }
                 }
+
+                method == "GET" && path == "/v1/notifications" -> {
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        !HakimNotificationListener.isConnected() -> respond(c, 409, JSONObject().put("error", "notification_access_unavailable"))
+                        else -> respond(c, 200, JSONObject()
+                            .put("scope", "DEVICE_NOTIFICATIONS_USER_AUTHORIZED")
+                            .put("items", HakimNotificationListener.snapshot()))
+                    }
+                }
+
                 method == "GET" && (path == "/v1/screenshot" || path == "/v1/browser/screenshot") -> {
                     val data = HakimBrowserController.screenshotBase64()
                     if (data == null) respond(c, 409, JSONObject().put("error", "browser_screenshot_unavailable"))
                     else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "owned_browser_view"))
                 }
+
+                method == "GET" && path == "/v1/device/screenshot" -> {
+                    val service = HakimAccessibilityService.instance
+                    when {
+                        sensitiveReadBlocked() -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        service == null -> respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                        else -> {
+                            val data = service.screenshotBase64()
+                            if (data == null) respond(c, 409, JSONObject().put("error", "device_screenshot_unavailable"))
+                            else respond(c, 200, JSONObject().put("png_base64", data).put("mode", "device_view_user_authorized"))
+                        }
+                    }
+                }
+
                 method == "POST" && (path == "/v1/action" || path == "/v1/browser/action") -> {
                     val requestId = headers["x-hakim-request-id"]
                     if (requestId == null || !REQUEST_ID.matches(requestId)) {
@@ -132,6 +169,25 @@ class LocalControlServer(private val context: Context) {
                             .put("request_id", requestId))
                     }
                 }
+
+                method == "POST" && path == "/v1/device/action" -> {
+                    val requestId = headers["x-hakim-request-id"]
+                    val service = HakimAccessibilityService.instance
+                    when {
+                        requestId == null || !REQUEST_ID.matches(requestId) -> respond(c, 400, JSONObject().put("error", "request_id_required"))
+                        FinancialSafeMode.isEnabled(context) -> respond(c, 423, JSONObject().put("error", "financial_safe_mode"))
+                        service == null -> respond(c, 409, JSONObject().put("error", "accessibility_unavailable"))
+                        !claimRequest("device:$requestId") -> respond(c, 409, JSONObject().put("error", "duplicate_request").put("request_id", requestId))
+                        else -> {
+                            val ok = service.action(JSONObject(body))
+                            respond(c, if (ok) 200 else 409, JSONObject()
+                                .put("ok", ok)
+                                .put("scope", "DEVICE_UI_USER_AUTHORIZED")
+                                .put("request_id", requestId))
+                        }
+                    }
+                }
+
                 method == "POST" && path == "/v1/launch" -> {
                     val requestId = headers["x-hakim-request-id"]
                     if (requestId == null || !REQUEST_ID.matches(requestId)) {
@@ -151,6 +207,7 @@ class LocalControlServer(private val context: Context) {
                         }
                     }
                 }
+
                 else -> respond(c, 404, JSONObject().put("error", "not_found"))
             }
         } catch (e: Exception) { respond(c, 500, JSONObject().put("error", e.javaClass.simpleName)) }
