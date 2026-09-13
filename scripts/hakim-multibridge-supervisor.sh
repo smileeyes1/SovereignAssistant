@@ -113,6 +113,8 @@ ensure_dev_guardian() {
   fi
 }
 
+# Result telemetry is OUTBOUND ONLY. It carries no pairing code, password,
+# token, command, or user content. Failure never blocks local operation.
 post_transition_result() {
   local target="$1" adb_state="$2" action="$3"
   local url key previous payload
@@ -135,6 +137,9 @@ PY
   fi
 }
 
+# The historical relay worker consumes a public topic. The current sovereign
+# contract forbids public command transport, so the supervisor must never
+# start it and must actively stop any leftover session from an older release.
 stop_legacy_public_worker() {
   if tmux has-session -t "$LEGACY_PUBLIC_WORKER_SESSION" 2>/dev/null; then
     tmux kill-session -t "$LEGACY_PUBLIC_WORKER_SESSION" 2>/dev/null || true
