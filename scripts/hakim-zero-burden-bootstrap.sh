@@ -78,9 +78,11 @@ SH
 chmod 700 "$BIN/hakim"
 ln -sfn "$BIN/hakim" "$PREFIX/bin/hakim"
 
-# Reboot recovery is prepared once. If Termux:Boot is installed and Android
-# permits it, the supervisor comes back and the already-qualified concealment
-# path is retried with its own rollback barrier.
+# Reboot recovery is prepared once. Android still controls whether the optional
+# Termux:Boot companion is installed/allowed; absence of it never weakens the
+# foreground runtime and is not reported as a PASS. If it is available, the
+# supervisor comes back and the already-qualified concealment path is retried
+# with its own rollback barrier.
 cat > "$BOOT_DIR/99-hakim-multibridge" <<'SH'
 #!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock >/dev/null 2>&1 || true
