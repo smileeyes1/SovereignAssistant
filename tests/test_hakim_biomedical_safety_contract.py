@@ -2,8 +2,12 @@ from pathlib import Path
 import json
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "android/hakim-companion/app/src/main/AndroidManifest.xml"
-HEALTH_BRIDGE = ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimHealthConnectBridge.kt"
+ANDROID = ROOT / "android/hakim-companion/app/src/main"
+MANIFEST = ANDROID / "AndroidManifest.xml"
+KOTLIN = ANDROID / "java/org/hakim/omega/companion"
+HEALTH_BRIDGE = KOTLIN / "HakimHealthConnectBridge.kt"
+HEALTH_ACTIVITY = KOTLIN / "HakimHealthActivity.kt"
+HEALTH_QUALIFICATION = KOTLIN / "HakimHealthFieldQualification.kt"
 POLICY = ROOT / "governance/HAKIM_BIOMEDICAL_SAFETY_POLICY_v1.json"
 
 
@@ -44,6 +48,31 @@ def test_health_bridge_has_no_write_or_delete_path():
     assert 'getReadPermission(StepsRecord::class)' in text
 
 
+def test_field_qualification_proves_read_then_revocation_fail_closed():
+    activity = HEALTH_ACTIVITY.read_text(encoding="utf-8")
+    qualification = HEALTH_QUALIFICATION.read_text(encoding="utf-8")
+    assert 'PermissionController.createRequestPermissionResultContract()' in activity
+    assert 'runReadQualification()' in activity
+    assert 'HakimHealthFieldQualification.beginRevocationTest(this)' in activity
+    assert 'HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS' in activity
+    assert '!HakimHealthConnectBridge.hasReadPermissions' in activity
+    assert 'HakimHealthConnectBridge.readLast24Hours' in activity
+    assert '.isFailure' in activity
+    assert 'markRevocationProven' in activity
+    assert 'readProven(context) && revocationProven(context)' in qualification
+
+
+def test_qualification_log_does_not_persist_raw_health_values():
+    text = HEALTH_QUALIFICATION.read_text(encoding="utf-8")
+    assert 'sample_count' in text
+    assert 'latest_bpm' not in text
+    assert 'average_bpm' not in text
+    assert 'min_bpm' not in text
+    assert 'max_bpm' not in text
+    assert '"steps"' not in text
+    assert 'KEY_HEART_SOURCE_PRESENT' in text
+
+
 def test_biomedical_policy_fails_closed_for_direct_intervention():
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
     assert policy["principles"]["root_never_overrides_medical_policy"] is True
@@ -64,6 +93,6 @@ def test_biomedical_policy_fails_closed_for_direct_intervention():
 
 
 def test_capability_probe_never_claims_field_verification():
-    probe = (ROOT / "android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimCapabilityProbe.kt").read_text(encoding="utf-8")
+    probe = (KOTLIN / "HakimCapabilityProbe.kt").read_text(encoding="utf-8")
     assert '.put("field_verified", false)' in probe
     assert '.put("root_required_for_probe", false)' in probe
