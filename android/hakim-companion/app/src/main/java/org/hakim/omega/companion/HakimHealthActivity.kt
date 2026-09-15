@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 class HakimHealthActivity : ComponentActivity() {
     private lateinit var status: TextView
+    private lateinit var environmentStatus: TextView
     private lateinit var revokeButton: Button
     private var firstResume = true
 
@@ -37,14 +38,17 @@ class HakimHealthActivity : ComponentActivity() {
             setPadding(28, 36, 28, 28)
         }
         root.addView(TextView(this).apply {
-            text = "حكيم — تأهيل القلب والصحة"
+            text = "حكيم — تأهيل القلب والحساسات"
             textSize = 24f
         })
         root.addView(TextView(this).apply {
-            text = "مسار محلي مقفول: قراءة النبض والخطوات فقط. لا كتابة، لا تشخيص، لا تحكم بجهاز طبي، ولا حفظ لقيم النبض داخل سجل التأهيل."
+            text = "مسار محلي مقفول: النبض والخطوات + تحقق بث الحساسات الآمنة. لا كتابة صحية، لا تشخيص، لا تحكم بجهاز طبي، ولا حفظ للقيم الخام في سجل التأهيل."
             textSize = 15f
             setPadding(0, 16, 0, 16)
         })
+
+        environmentStatus = TextView(this).apply { textSize = 14f; setPadding(0, 8, 0, 8) }
+        root.addView(environmentStatus, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         status = TextView(this).apply {
             textSize = 15f
@@ -53,7 +57,7 @@ class HakimHealthActivity : ComponentActivity() {
         root.addView(status, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         root.addView(Button(this).apply {
-            text = "تأهيل القلب والصحة تلقائيًا"
+            text = "تأهيل القلب والحساسات تلقائيًا"
             setOnClickListener { startQualification() }
         })
 
@@ -100,6 +104,9 @@ class HakimHealthActivity : ComponentActivity() {
     }
 
     private fun startQualification() {
+        HakimCapabilityProbe.probeAndPersist(this)
+        environmentStatus.text = "جارٍ اختبار بث الحساسات الآمنة فعليًا..."
+        HakimSensorFieldQualification.run(this) { environmentStatus.text = it }
         lifecycleScope.launch {
             when {
                 HakimHealthConnectBridge.availability(this@HakimHealthActivity) != HealthConnectClient.SDK_AVAILABLE ->
@@ -141,6 +148,7 @@ class HakimHealthActivity : ComponentActivity() {
 
     private fun refreshQualificationState() {
         lifecycleScope.launch {
+            environmentStatus.text = HakimSensorFieldQualification.summary(this@HakimHealthActivity)
             val hc = HakimHealthConnectBridge.availabilityText(this@HakimHealthActivity)
             status.text = if (HakimHealthFieldQualification.healthGateReady(this@HakimHealthActivity)) {
                 "بوابة القلب والصحة مؤهلة محليًا: القراءة مثبتة وسحب الإذن يفشل مغلقًا.\n" +
