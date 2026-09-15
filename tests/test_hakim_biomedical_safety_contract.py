@@ -8,6 +8,7 @@ KOTLIN = ANDROID / "java/org/hakim/omega/companion"
 HEALTH_BRIDGE = KOTLIN / "HakimHealthConnectBridge.kt"
 HEALTH_ACTIVITY = KOTLIN / "HakimHealthActivity.kt"
 HEALTH_QUALIFICATION = KOTLIN / "HakimHealthFieldQualification.kt"
+SENSOR_QUALIFICATION = KOTLIN / "HakimSensorFieldQualification.kt"
 POLICY = ROOT / "governance/HAKIM_BIOMEDICAL_SAFETY_POLICY_v1.json"
 
 
@@ -71,6 +72,24 @@ def test_qualification_log_does_not_persist_raw_health_values():
     assert 'max_bpm' not in text
     assert '"steps"' not in text
     assert 'KEY_HEART_SOURCE_PRESENT' in text
+
+
+def test_sensor_field_qualification_uses_safe_types_and_no_raw_values():
+    sensor = SENSOR_QUALIFICATION.read_text(encoding="utf-8")
+    activity = HEALTH_ACTIVITY.read_text(encoding="utf-8")
+    for token in [
+        'Sensor.TYPE_ACCELEROMETER',
+        'Sensor.TYPE_LIGHT',
+        'Sensor.TYPE_PROXIMITY',
+        'Sensor.TYPE_PRESSURE',
+        'Sensor.TYPE_MAGNETIC_FIELD',
+    ]:
+        assert token in sensor
+    assert 'raw_values_persisted", false' in sensor
+    assert 'event.values' not in sensor
+    assert 'manager.unregisterListener(listener)' in sensor
+    assert 'HakimSensorFieldQualification.run(this)' in activity
+    assert 'HakimCapabilityProbe.probeAndPersist(this)' in activity
 
 
 def test_biomedical_policy_fails_closed_for_direct_intervention():
