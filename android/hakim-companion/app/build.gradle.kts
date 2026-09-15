@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.hakim.omega.companion"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "org.hakim.omega.companion"
         minSdk = 26
