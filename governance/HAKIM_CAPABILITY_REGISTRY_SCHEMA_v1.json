@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hakim.local/schema/capability-registry-v1.json",
+  "title": "HAKIM Capability Registry V1",
+  "type": "object",
+  "required": ["schema", "captured_at", "capabilities", "field_verified"],
+  "properties": {
+    "schema": {"const": "HAKIM_CAPABILITY_REGISTRY_V1"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "field_verified": {"type": "boolean"},
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "domain", "source", "available_now", "permission_state",
+          "operations", "risk_class", "privacy_class", "field_verified"
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "domain": {"enum": ["PHONE", "SENSOR", "HEALTH", "NEARBY", "NETWORK", "HOME", "SCHOOL", "CLOUD", "VEHICLE", "MEDICAL", "OTHER"]},
+          "source": {"type": "string", "minLength": 1},
+          "available_now": {"type": "boolean"},
+          "permission_state": {"enum": ["NOT_REQUIRED", "UNKNOWN", "NOT_GRANTED", "GRANTED", "REVOKED", "BLOCKED"]},
+          "operations": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"enum": ["DISCOVER", "READ", "WRITE", "CONTROL"]}
+          },
+          "risk_class": {"enum": ["R0", "R1", "R2", "R3"]},
+          "privacy_class": {"enum": ["PUBLIC", "DEVICE", "PERSONAL", "SENSITIVE", "HEALTH"]},
+          "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "power_cost": {"enum": ["UNKNOWN", "LOW", "MEDIUM", "HIGH"]},
+          "network_cost": {"enum": ["UNKNOWN", "NONE", "LOW", "MEDIUM", "HIGH"]},
+          "primary_route": {"type": ["string", "null"]},
+          "fallback_route": {"type": ["string", "null"]},
+          "last_success": {"type": ["string", "null"], "format": "date-time"},
+          "last_failure": {"type": ["string", "null"], "format": "date-time"},
+          "evidence_time": {"type": ["string", "null"], "format": "date-time"},
+          "field_verified": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "hakim_rules": {
+    "probe_before_material_use": true,
+    "stale_availability_does_not_inherit": true,
+    "observe_does_not_imply_act": true,
+    "root_does_not_raise_authority": true,
+    "medical_r3_general_autonomy": "DENY",
+    "prefer": ["LOWER_RISK", "LOWER_PRIVILEGE", "LOWER_COST", "HIGHER_RELIABILITY", "LOCAL_RECOVERABLE"]
+  }
+}

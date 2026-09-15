@@ -113,6 +113,16 @@ class MainActivity : Activity() {
         })
         root.addView(localAdbControls)
 
+        val capabilityControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        capabilityControls.addView(button("فحص القدرات") {
+            HakimCapabilityProbe.probeAndPersist(this)
+            refreshStatus()
+        })
+        capabilityControls.addView(button("القلب والصحة") {
+            startActivity(Intent(this, HakimHealthActivity::class.java))
+        })
+        root.addView(capabilityControls)
+
         val deviceControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         deviceControls.addView(button("تفعيل التحكم بالجهاز") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -211,6 +221,7 @@ class MainActivity : Activity() {
         val lastError = prefs.getString(HakimDirectRelay.KEY_LAST_ERROR, null)
         val lastResultError = prefs.getString(HakimDirectRelay.KEY_LAST_RESULT_ERROR, null)
         val localAdb = HakimLocalPairing.currentSummary(this)
+        val capabilitySummary = HakimCapabilityProbe.summary(this)
         val accessibilityConnected = HakimAccessibilityService.instance != null
         val notificationConnected = HakimNotificationListener.isConnected()
         val url = HakimBrowserController.currentUrl().orEmpty()
@@ -219,6 +230,7 @@ class MainActivity : Activity() {
             "مصدر الحقيقة: ${CanonicalHakimIdentity.RUNTIME_REPOSITORY} / ${CanonicalHakimIdentity.ACTIVE_POINTER}\n" +
             "النمط: نواة آمنة مستقلة — بلا API مدفوع\n" +
             "${HakimBrowserController.governanceStatus()}\n" +
+            "$capabilitySummary\n" +
             "$localAdb\n" +
             "التحكم على مستوى الجهاز: ${if (accessibilityConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +
             "وصول إشعارات التطبيقات: ${if (notificationConnected) "مفعّل ومتصّل" else "غير مفعّل بعد"}\n" +

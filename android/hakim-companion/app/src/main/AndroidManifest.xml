@@ -9,6 +9,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Health Connect: read-only by design. No write/background/history permissions. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+
+    <queries>
+        <!-- Health Connect provider on Android 13 and lower. -->
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application android:allowBackup="false" android:label="حكيم" android:supportsRtl="true" android:theme="@style/AppTheme">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -22,6 +31,25 @@
                 <data android:scheme="hakim" android:host="pair" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".HakimHealthActivity" android:exported="false" />
+
+        <!-- Health Connect permission rationale / privacy surface. -->
+        <activity android:name=".PermissionsRationaleActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <service android:name=".HakimForegroundService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local user-authorized encrypted relay and owned-browser/device control" />
