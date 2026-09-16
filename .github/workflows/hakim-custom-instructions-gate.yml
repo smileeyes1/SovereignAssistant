@@ -7,6 +7,7 @@ on:
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v2_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v3_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
       - 'scripts/validate_hakim_custom_instructions.py'
       - '.github/workflows/hakim-custom-instructions-gate.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v2_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v3_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
       - 'scripts/validate_hakim_custom_instructions.py'
       - '.github/workflows/hakim-custom-instructions-gate.yml'
 
