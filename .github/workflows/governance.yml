@@ -23,6 +23,8 @@ jobs:
         run: python -m pip install .
       - name: Run governance regression tests
         run: python -m pytest -q
+      - name: Verify resilient browser fabric invariants
+        run: python scripts/verify_resilient_browser_fabric.py
       - name: Run Ω autonomy arena certification
         run: python -m app.hakim.run_l7_certification_gate
       - name: Build production autonomy container
