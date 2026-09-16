@@ -42,17 +42,24 @@ export class HakimBrowserRelayClient {
 
   async waitForResult(requestId, startedAtMs) {
     const deadline = startedAtMs + this.timeoutMs;
-    const resultUrl = `${this.config.relayBase}/${this.config.resultTopic}/json?since=2m&poll=1`;
+    let cursor = '2m';
     while (Date.now() < deadline) {
       const remaining = deadline - Date.now();
+      const resultUrl = `${this.config.relayBase}/${this.config.resultTopic}/json?since=${encodeURIComponent(cursor)}&poll=1`;
       const response = await this.fetch(resultUrl, {
         method: 'GET',
         headers: { accept: 'application/x-ndjson, application/json' },
         signal: AbortSignal.timeout(Math.min(Math.max(remaining, 1000), 10000)),
       });
       if (!response.ok) throw new Error(`result_poll_http_${response.status}`);
+      if (response.headers?.get?.('x-messages-truncated') === '1') {
+        throw new Error('result_poll_truncated');
+      }
       const events = parseEvents(await response.text());
+      let newestId = null;
       for (const event of events) {
+        const eventId = String(event.id || '').trim();
+        if (eventId) newestId = eventId;
         if (event.event && event.event !== 'message') continue;
         const carrier = String(event.message || '').trim();
         if (!carrier.startsWith('HR1.')) continue;
@@ -69,6 +76,7 @@ export class HakimBrowserRelayClient {
           };
         }
       }
+      if (newestId) cursor = newestId;
       await sleep(Math.min(650, Math.max(deadline - Date.now(), 0)));
     }
     throw new Error('phone_round_trip_timeout');
