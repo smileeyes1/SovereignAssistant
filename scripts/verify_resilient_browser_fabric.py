@@ -21,14 +21,18 @@ checks = {
     'loop_backoff': 'coerceAtMost(60_000L)' in text,
     'loopback_control_only': '127.0.0.1' in text,
     'mutations_require_approval': 'READ_ONLY_OPS' in text and 'savePending' in text and 'showApproval' in text,
+    'pending_not_removed_before_execution': 'readPending(context,requestId)' in text and 'clearPending(context,requestId)' in text and 'takePending' not in text,
+    'durable_result_outbox': 'OUTBOX_PREFS' in text and 'queueResult' in text and '.commit()' in text,
+    'result_retry_state': 'attempts' in text and 'next_attempt_ms' in text and 'flushOutbox(context)' in text,
+    'bounded_result_retry_backoff': 'coerceAtMost(60000L)' in text,
+    'outbox_restored_on_loop': re.search(r'flushOutbox\(context\).*KEY_LAST_MESSAGE_ID', text, re.S) is not None,
     'no_shell_operation': not re.search(r'"(?:shell|exec|terminal|adb)"', text),
     'no_new_manifest_permission_from_contract': 'HAKIM_BROWSER_RESILIENT_FABRIC' not in manifest_text,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
-for name, ok in checks.items():
-    print(('PASS' if ok else 'FAIL') + ' ' + name)
+for name, ok in checks.items(): print(('PASS' if ok else 'FAIL') + ' ' + name)
 if failed:
     print('FAILED: ' + ', '.join(failed), file=sys.stderr)
     raise SystemExit(1)
-print('SOURCE_CONTRACT_PASS: resilient browser fabric invariants present; FIELD not asserted.')
+print('SOURCE_CONTRACT_PASS: durable result outbox/retry and pending recovery invariants present; FIELD not asserted.')
