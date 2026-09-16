@@ -1,0 +1,43 @@
+name: HAKIM Custom Instructions Gate
+
+on:
+  push:
+    paths:
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v1.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v2_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v3_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_TEST_MATRIX.md'
+      - 'governance/HAKIM_CUSTOMIZATION_FIELD_BEHAVIOR_2026-09-16.md'
+      - 'scripts/validate_hakim_custom_instructions.py'
+      - 'scripts/test_hakim_custom_instructions_mutations.py'
+      - '.github/workflows/hakim-custom-instructions-gate.yml'
+  pull_request:
+    paths:
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v1.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v2_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v3_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_TEST_MATRIX.md'
+      - 'governance/HAKIM_CUSTOMIZATION_FIELD_BEHAVIOR_2026-09-16.md'
+      - 'scripts/validate_hakim_custom_instructions.py'
+      - 'scripts/test_hakim_custom_instructions_mutations.py'
+      - '.github/workflows/hakim-custom-instructions-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Quranic custom instructions candidate
+        run: python scripts/validate_hakim_custom_instructions.py
+      - name: Verify known failures are caught
+        run: python scripts/test_hakim_custom_instructions_mutations.py
