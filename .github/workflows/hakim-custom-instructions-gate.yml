@@ -1,0 +1,27 @@
+name: HAKIM Custom Instructions Gate
+
+on:
+  push:
+    paths:
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v1.txt'
+      - 'scripts/validate_hakim_custom_instructions.py'
+      - '.github/workflows/hakim-custom-instructions-gate.yml'
+  pull_request:
+    paths:
+      - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v1.txt'
+      - 'scripts/validate_hakim_custom_instructions.py'
+      - '.github/workflows/hakim-custom-instructions-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate canonical custom instructions
+        run: python scripts/validate_hakim_custom_instructions.py
