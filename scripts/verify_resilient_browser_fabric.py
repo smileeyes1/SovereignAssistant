@@ -22,6 +22,7 @@ checks = {
     'encrypted_carrier': 'AES/GCM/NoPadding' in text and 'HC1.' in text and 'HR1.' in text,
     'duplicate_guard': 'claimRemoteRequest' in text and 'duplicate_request' in text,
     'bounded_payload': 'MAX_PAYLOAD_B64' in text,
+    'malformed_payload_fails_closed': 'decodePayload(envelope) == null' in text and 'invalid_payload' in text and 'getOrNull()' in text,
     'loop_backoff': 'coerceAtMost(60_000L)' in text,
     'loopback_control_only': '127.0.0.1' in text,
     'mutations_require_approval': 'READ_ONLY_OPS' in text and 'savePending' in text and 'showApproval' in text,
@@ -45,4 +46,4 @@ for name, ok in checks.items(): print(('PASS' if ok else 'FAIL') + ' ' + name)
 if failed:
     print('FAILED: ' + ', '.join(failed), file=sys.stderr)
     raise SystemExit(1)
-print('SOURCE_CONTRACT_PASS: relay recovery + boot continuity invariants present; FIELD not asserted.')
+print('SOURCE_CONTRACT_PASS: relay recovery + boot continuity + fail-closed payload invariants present; FIELD not asserted.')
