@@ -78,12 +78,25 @@ test('relay client proves a matching encrypted round trip', async () => {
   assert.equal(response.field_verified, false);
 });
 
-test('OpenAPI surface contains no shell, launch, notification or device-wide operation', async () => {
+test('OpenAPI publishes only the owned-browser connector surface', async () => {
   const api = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
-  const body = JSON.stringify(api);
-  for (const forbidden of ['shell', 'launch', 'notifications', 'device/action', 'device/screenshot']) {
-    assert.equal(body.includes(forbidden), false, `forbidden surface leaked: ${forbidden}`);
-  }
-  const op = api.paths['/api/connector'].post.requestBody.content['application/json'].schema.properties.op;
+  const pathNames = Object.keys(api.paths || {});
+  assert.deepEqual(pathNames, ['/api/connector']);
+
+  const connectorPath = api.paths['/api/connector'];
+  assert.deepEqual(Object.keys(connectorPath).sort(), ['get', 'post']);
+  assert.equal(connectorPath.get.operationId, 'hakimConnectorHealth');
+  assert.equal(connectorPath.post.operationId, 'hakimBrowserCommand');
+
+  const op = connectorPath.post.requestBody.content['application/json'].schema.properties.op;
   assert.deepEqual(op.enum, ['status', 'ui', 'screenshot', 'action']);
+  for (const forbidden of ['shell', 'launch', 'notifications', 'device/action', 'device/screenshot']) {
+    assert.equal(pathNames.some((path) => path.toLowerCase().includes(forbidden)), false, `forbidden path exposed: ${forbidden}`);
+    assert.equal(op.enum.some((value) => value.toLowerCase().includes(forbidden)), false, `forbidden operation exposed: ${forbidden}`);
+  }
+
+  const operationIds = [connectorPath.get.operationId, connectorPath.post.operationId].map((value) => String(value).toLowerCase());
+  assert.equal(operationIds.some((value) => value.includes('shell') || value.includes('device')), false);
+  assert.equal(api.components.securitySchemes.bearerAuth.type, 'http');
+  assert.equal(api.components.securitySchemes.bearerAuth.scheme, 'bearer');
 });
