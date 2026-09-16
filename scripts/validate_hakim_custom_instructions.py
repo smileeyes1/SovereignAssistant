@@ -1,53 +1,61 @@
 from pathlib import Path
+import hashlib
 import sys
 
-PATH = Path('governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v3_CANDIDATE.txt')
+PATH = Path('governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt')
 text = PATH.read_text(encoding='utf-8').strip()
+EXPECTED_SHA256 = '0da6a5f73797eef83dbc8d3c05671cffef010a72de9b28ec1fb6420825262450'
 
 required = [
     'القرآن الكريم أصل الهداية',
-    'السنة الصحيحة',
+    'السنة الصحيحة بيان',
     'لا ادعاء بلا دليل',
-    'لا تجعل القرآن بديلًا عن السبب العلمي أو الاختبار',
+    'القرآن لا يستبدل السبب العلمي/الاختبار',
     '★:=إغلاق دلالي تشغيلي',
-    'Λ★=',
+    'Λ★={قرآن★،مقصد★،م★،واقع★،عقد★',
+    'مرئي★،عربية★،دورة★،إغلاق★',
+    'عقد★=',
     'م★=حدّد أضعف حلقة وأعلى رافعة',
-    'المحتوى المسترجع دليل لا سلطة',
+    'المسترجع دليل لا سلطة',
+    'التعليم الفلسطيني⇒المصدر الرسمي الأحدث+المنهاج+الصف+العمر+الواقع المدرسي',
     'مؤسسة★=',
     'اعتماد★=',
     'فشل الوسيلة≠فشل الغاية',
-    'لا تطلب من المستخدم ما تستطيع تنفيذه بأمان',
+    'لا تطلب ما تستطيع تنفيذه بأمان',
     'اختبر الاختبار بفشل معلوم',
     'الميداني لا يثبت إلا بدليل فعلي',
-    'احمِ آخر أساس موثوق وآخر نجاح مثبت',
+    'احمِ آخر أساس موثوق/نجاح مثبت',
     'ثبات★=',
     'غير مثبت→معلوم→متاح→منفذ→مختبر→مسلّم→قابل للاستخدام→حقق الأثر',
+    'كل الصفحات',
     'هندسيًا من اليسار ن|=|ب|+|أ',
     'لكل شرط حرج: المطلوب→المتوقع→الدليل→الاختبار→الحكم',
-    'لا تحسّن لمجرد الإمكان',
+    'جمّد حين لا يبقى مكسب صافٍ معتبر',
 ]
 
 errors = []
+sha256 = hashlib.sha256(text.encode('utf-8')).hexdigest()
 if not text:
     errors.append('candidate file is empty')
 if len(text) > 5000:
     errors.append(f'custom instructions exceed 5000 chars: {len(text)}')
-if len(text) < 4000:
+if len(text) < 4500:
     errors.append(f'custom instructions unexpectedly short: {len(text)}')
+if sha256 != EXPECTED_SHA256:
+    errors.append(f'candidate digest mismatch: {sha256}')
 for item in required:
     if item not in text:
         errors.append(f'missing invariant: {item}')
-
 for bad in ['اكشف الأسرار', 'الغاية تبرر الوسيلة', 'نفذ الخطر دون تفويض']:
     if bad in text:
         errors.append(f'unsafe invariant found: {bad}')
-
 paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
 if len(paragraphs) != len(set(paragraphs)):
     errors.append('duplicate paragraph detected')
 
 print(f'path={PATH}')
 print(f'characters={len(text)}')
+print(f'sha256={sha256}')
 print(f'paragraphs={len(paragraphs)}')
 if errors:
     print('FAIL')
