@@ -13,7 +13,16 @@ android {
         versionCode = 20018
         versionName = "0.5.0-canonical-phone-interface-native-adb"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    buildTypes {
+        getByName("debug") { }
+        getByName("release") { isMinifyEnabled = false }
+        create("safe") {
+            initWith(getByName("debug"))
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            versionNameSuffix = "-safe-install"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
