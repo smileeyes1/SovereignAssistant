@@ -1,0 +1,31 @@
+name: HAKIM Browser Connector Gate
+
+on:
+  pull_request:
+    paths:
+      - 'connectors/hakim-browser-gateway/**'
+      - 'android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimDirectRelay.kt'
+      - 'docs/HAKIM_BROWSER_CONNECTOR_FABRIC.md'
+      - '.github/workflows/hakim-browser-connector.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  connector-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run connector protocol and scope tests
+        working-directory: connectors/hakim-browser-gateway
+        run: npm test
+      - name: Verify no repository secrets are required by source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -nE '(HAKIM_RELAY_KEY|HAKIM_CONNECTOR_TOKEN)=[A-Za-z0-9_-]{20,}' connectors/hakim-browser-gateway docs/HAKIM_BROWSER_CONNECTOR_FABRIC.md
+          grep -q 'field_verified.*false' connectors/hakim-browser-gateway/api/connector.mjs
