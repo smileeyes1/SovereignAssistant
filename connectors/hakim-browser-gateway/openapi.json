@@ -1,0 +1,61 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HAKIM Browser Connector",
+    "version": "1.0.0",
+    "description": "بوابة محدودة لمتصفح حكيم المملوك. لا تمنح shell ولا تحكمًا عامًا بالجهاز، ولا تعتبر نجاح الخدمة إثباتًا ميدانيًا للهاتف."
+  },
+  "servers": [{ "url": "." }],
+  "paths": {
+    "/api/connector": {
+      "get": {
+        "operationId": "hakimConnectorHealth",
+        "summary": "فحص جاهزية خدمة الموصل دون ادعاء اتصال الهاتف",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "الخدمة مهيأة؛ الجولة الهاتفية غير مثبتة بهذا الفحص" },
+          "401": { "description": "غير مصرح" },
+          "503": { "description": "الخدمة غير مهيأة" }
+        }
+      },
+      "post": {
+        "operationId": "hakimBrowserCommand",
+        "summary": "تنفيذ عملية محدودة عبر متصفح حكيم",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["op"],
+                "properties": {
+                  "op": { "type": "string", "enum": ["status", "ui", "screenshot", "action"] },
+                  "request_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{8,128}$" },
+                  "payload": {
+                    "type": "object",
+                    "description": "يستخدم فقط مع action. تغييرات المتصفح تبقى خاضعة لموافقة الهاتف المحلية.",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "وصل رد HR1 مطابق للطلب" },
+          "400": { "description": "طلب غير مسموح أو غير صالح" },
+          "401": { "description": "غير مصرح" },
+          "502": { "description": "فشل ناقل relay" },
+          "504": { "description": "انتهت مهلة الجولة الهاتفية" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    }
+  }
+}
