@@ -67,7 +67,7 @@ test('relay client proves a matching encrypted round trip', async () => {
       received_at_ms: Date.now(),
       result: { ok: true, safe_core: true, browser: { attached: true } },
     };
-    const line = JSON.stringify({ event: 'message', message: encryptResultForTest(result, relayKey) });
+    const line = JSON.stringify({ id: 'ntfy-result-0001', event: 'message', message: encryptResultForTest(result, relayKey) });
     return new Response(line + '\n', { status: 200 });
   };
   const client = new HakimBrowserRelayClient(config, fakeFetch);
@@ -76,6 +76,63 @@ test('relay client proves a matching encrypted round trip', async () => {
   assert.equal(response.request_id, outbound.request_id);
   assert.equal(response.result.safe_core, true);
   assert.equal(response.field_verified, false);
+});
+
+test('relay polling advances from bounded replay window to newest ntfy message-id cursor', async () => {
+  let outbound;
+  let pollCount = 0;
+  const pollUrls = [];
+  const fakeFetch = async (url, options = {}) => {
+    if (options.method === 'POST') {
+      outbound = decryptCommandForTest(String(options.body), relayKey);
+      return new Response('ok', { status: 200 });
+    }
+    pollUrls.push(String(url));
+    pollCount += 1;
+    if (pollCount === 1) {
+      const irrelevant = {
+        request_id: 'other-test-0001',
+        status: 'ok',
+        received_at_ms: Date.now(),
+        result: { ok: true },
+      };
+      return new Response(JSON.stringify({
+        id: 'cursor-message-0001',
+        event: 'message',
+        message: encryptResultForTest(irrelevant, relayKey),
+      }) + '\n', { status: 200 });
+    }
+    const matching = {
+      request_id: outbound.request_id,
+      status: 'ok',
+      received_at_ms: Date.now(),
+      result: { ok: true },
+    };
+    return new Response(JSON.stringify({
+      id: 'cursor-message-0002',
+      event: 'message',
+      message: encryptResultForTest(matching, relayKey),
+    }) + '\n', { status: 200 });
+  };
+  const client = new HakimBrowserRelayClient(config, fakeFetch);
+  const response = await client.command('status', {});
+  assert.equal(response.connector_round_trip, 'PROVEN');
+  assert.match(pollUrls[0], /since=2m&poll=1$/);
+  assert.match(pollUrls[1], /since=cursor-message-0001&poll=1$/);
+});
+
+test('relay polling fails closed when replay is truncated', async () => {
+  let posted = false;
+  const fakeFetch = async (url, options = {}) => {
+    if (options.method === 'POST') {
+      posted = true;
+      return new Response('ok', { status: 200 });
+    }
+    return new Response('', { status: 200, headers: { 'X-Messages-Truncated': '1' } });
+  };
+  const client = new HakimBrowserRelayClient(config, fakeFetch);
+  await assert.rejects(() => client.command('status', {}), /result_poll_truncated/);
+  assert.equal(posted, true);
 });
 
 test('OpenAPI publishes only the owned-browser connector surface', async () => {
