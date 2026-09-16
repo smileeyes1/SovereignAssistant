@@ -5,8 +5,12 @@ import re, sys
 root = Path(__file__).resolve().parents[1]
 relay = root / 'android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimDirectRelay.kt'
 manifest = root / 'android/hakim-companion/app/src/main/AndroidManifest.xml'
+boot = root / 'android/hakim-companion/app/src/main/java/org/hakim/omega/companion/BootReceiver.kt'
+service = root / 'android/hakim-companion/app/src/main/java/org/hakim/omega/companion/HakimForegroundService.kt'
 text = relay.read_text(encoding='utf-8')
 manifest_text = manifest.read_text(encoding='utf-8')
+boot_text = boot.read_text(encoding='utf-8')
+service_text = service.read_text(encoding='utf-8')
 
 checks = {
     'result_topic_contract': 'KEY_RESULT_TOPIC' in text and 'relay_result_topic' in text,
@@ -26,6 +30,12 @@ checks = {
     'result_retry_state': 'attempts' in text and 'next_attempt_ms' in text and 'flushOutbox(context)' in text,
     'bounded_result_retry_backoff': 'coerceAtMost(60000L)' in text,
     'outbox_restored_on_loop': re.search(r'flushOutbox\(context\).*KEY_LAST_MESSAGE_ID', text, re.S) is not None,
+    'boot_permission_present': 'android.permission.RECEIVE_BOOT_COMPLETED' in manifest_text,
+    'boot_receiver_registered': '.BootReceiver' in manifest_text and 'android.intent.action.BOOT_COMPLETED' in manifest_text and 'android.intent.action.MY_PACKAGE_REPLACED' in manifest_text,
+    'boot_requires_existing_pairing': 'pair_token' in boot_text and 'HakimForegroundService.start(context)' in boot_text,
+    'foreground_service_sticky': 'START_STICKY' in service_text and 'startForeground' in service_text,
+    'local_supervisor_present': 'SUPERVISOR_INTERVAL_MS' in service_text and 'companion_heartbeat_ms' in service_text and 'RECOVERING' in service_text,
+    'direct_relay_started_by_service': 'HakimDirectRelay(this)' in service_text and '.also { it.start() }' in service_text,
     'no_shell_operation': not re.search(r'"(?:shell|exec|terminal|adb)"', text),
     'no_new_manifest_permission_from_contract': 'HAKIM_BROWSER_RESILIENT_FABRIC' not in manifest_text,
 }
@@ -35,4 +45,4 @@ for name, ok in checks.items(): print(('PASS' if ok else 'FAIL') + ' ' + name)
 if failed:
     print('FAILED: ' + ', '.join(failed), file=sys.stderr)
     raise SystemExit(1)
-print('SOURCE_CONTRACT_PASS: durable result outbox/retry and pending recovery invariants present; FIELD not asserted.')
+print('SOURCE_CONTRACT_PASS: relay recovery + boot continuity invariants present; FIELD not asserted.')
