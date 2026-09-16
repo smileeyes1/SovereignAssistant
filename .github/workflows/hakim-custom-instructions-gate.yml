@@ -9,6 +9,7 @@ on:
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
       - 'scripts/validate_hakim_custom_instructions.py'
+      - 'scripts/test_hakim_custom_instructions_mutations.py'
       - '.github/workflows/hakim-custom-instructions-gate.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v4_CANDIDATE.txt'
       - 'governance/HAKIM_QURANIC_CUSTOM_INSTRUCTIONS_v5_CANDIDATE.txt'
       - 'scripts/validate_hakim_custom_instructions.py'
+      - 'scripts/test_hakim_custom_instructions_mutations.py'
       - '.github/workflows/hakim-custom-instructions-gate.yml'
 
 permissions:
@@ -33,3 +35,5 @@ jobs:
           python-version: '3.12'
       - name: Validate Quranic custom instructions candidate
         run: python scripts/validate_hakim_custom_instructions.py
+      - name: Verify known failures are caught
+        run: python scripts/test_hakim_custom_instructions_mutations.py
