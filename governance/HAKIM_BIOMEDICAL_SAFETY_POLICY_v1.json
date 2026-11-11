@@ -1,0 +1,63 @@
+{
+  "name": "HAKIM_BIOMEDICAL_SAFETY_POLICY",
+  "version": "1.0",
+  "status": "PROPOSED_PRE_FIELD",
+  "principles": {
+    "observe_before_act": true,
+    "least_privilege": true,
+    "local_first": true,
+    "explicit_health_permission": true,
+    "root_never_overrides_medical_policy": true,
+    "absence_of_evidence_is_not_safety": true
+  },
+  "allowed": {
+    "capability_discovery": "AUTO",
+    "android_sensor_metadata": "AUTO",
+    "health_connect_availability_check": "AUTO",
+    "health_connect_read_user_granted_types": "ALLOWED_WITH_EXPLICIT_PERMISSION",
+    "wearable_read_only_pairing": "ALLOWED_WITH_USER_CONFIRMED_ASSOCIATION",
+    "health_summary_for_user": "ALLOWED_NON_DIAGNOSTIC",
+    "emergency_escalation_prompt": "ALLOWED"
+  },
+  "forbidden_autonomous_actions": [
+    "DIAGNOSE_DISEASE_FROM_SINGLE_SENSOR_OR_WEARABLE",
+    "CHANGE_MEDICATION_OR_DOSAGE",
+    "DELIVER_ELECTRICAL_STIMULATION_TO_HUMAN",
+    "DELIVER_EM_OR_IONIZING_RADIATION_TO_HUMAN_FOR_BIOLOGICAL_EFFECT",
+    "CONTROL_PACEMAKER",
+    "CONTROL_ICD",
+    "CONTROL_IMPLANTED_PUMP",
+    "CONTROL_ANY_IMPLANTED_MEDICAL_DEVICE",
+    "BYPASS_DEVICE_SAFETY_INTERLOCK",
+    "USE_ROOT_TO_BYPASS_MEDICAL_OR_PRIVACY_GUARDS",
+    "UPLOAD_HEALTH_DATA_PUBLICLY",
+    "STORE_HEALTH_SECRETS_IN_PUBLIC_REPOSITORY"
+  ],
+  "risk_classes": {
+    "R0": "metadata/capability discovery",
+    "R1": "read-only personal sensing after permission",
+    "R2": "reversible control of user-owned non-medical devices under allowlist/local gate",
+    "R3": "physical safety, medical device control, treatment, irreversible or high-impact action"
+  },
+  "r3_policy": {
+    "general_hakim_autonomy": "DENY",
+    "requires_specialized_certified_path": true,
+    "requires_human_or_clinical_authority_as_applicable": true
+  },
+  "health_connect": {
+    "initial_scope": ["READ_HEART_RATE", "READ_STEPS"],
+    "write_permissions": false,
+    "background_read": false,
+    "history_over_30_days": false,
+    "check_permission_before_every_use": true,
+    "permission_revocation_must_fail_closed": true
+  },
+  "release_gate": {
+    "field_verified_requires_real_phone": true,
+    "field_verified_requires_permission_grant_and_revoke_tests": true,
+    "reject_if_health_write_permission_present_without_explicit_new_governance": true,
+    "reject_if_implanted_device_control_present": true,
+    "reject_if_biological_stimulation_present": true,
+    "reject_if_health_data_leaks_to_logs_or_public_transport": true
+  }
+}
